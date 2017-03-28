@@ -44,6 +44,7 @@ export default class SchemaToGraphQL {
   // TODO: Сделать вывод списка в формате connection
   // TODO: + Скопировать description для graphQL
   // TODO: В конце проверить, что код работает для генерации схемы для клиента
+  // TODO: Добавить поддержку для non-null и required параметров
 
   /**
    * Метод для конкретного метода коннектора из схемы, выполняет следующие операции:
@@ -111,7 +112,7 @@ export default class SchemaToGraphQL {
     switch (this._type) {
       case 'query': {
 
-        let rowType = `${methodName}_row`;
+        let rowType = `${methodName}Row`;
 
         let resultType = new GraphQLObjectType({
           name: rowType,
@@ -132,7 +133,7 @@ export default class SchemaToGraphQL {
             name: `${this._serviceName}`,
             description: `Запросы (queries) сервиса '${this._serviceName}'`,
             type: new GraphQLObjectType({
-              name: `${this._serviceName}_queries`,
+              name: `${this._serviceName}Queries`,
               fields: serviceQueries = rootQueries[this._serviceName] = {},
             }),
           }
@@ -143,9 +144,8 @@ export default class SchemaToGraphQL {
           description: method.description,
           args: gqlParams,
           type: new GraphQLObjectType({
-            name: `${methodName}_result`,
+            name: `${methodName}Result`,
             fields: {
-              status: {type: new GraphQLNonNull(GraphQLString)},
               rows: {args: connectionArgs, type: connectionType},
             }
           }),
@@ -163,7 +163,7 @@ export default class SchemaToGraphQL {
         name: `${this._serviceName}`,
         description: `Запросы сервиса '${this._serviceName}'`,
         type: new GraphQLObjectType({
-          name: `${this._serviceName}_queries`,
+          name: `${this._serviceName}Queries`,
           fields: serviceQueries,
         }),
       }
@@ -183,11 +183,7 @@ export default class SchemaToGraphQL {
 
       let fixedArgs = {...args};
 
-      let status = 'ok';
-      if (checkRights) {
-        status = checkRights.call(context, methodName, fixedArgs, request);
-        if (status != 'ok') return {status};
-      }
+      if (checkRights) checkRights.call(context, methodName, fixedArgs, request);
 
       for (let pp of paramProcessors) {
         let promise = pp.call(context, methodParams, fixedArgs, request);
@@ -197,7 +193,6 @@ export default class SchemaToGraphQL {
       if (paramsPromises.length > 0) await Promise.all(paramsPromises);
 
       return {
-        status,
         rows: wrapResolver(async function ({before, after, first, last}) {
 
           let startOffset = getOffsetWithDefault(after, -1) + 1;
