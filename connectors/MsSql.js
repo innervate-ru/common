@@ -68,7 +68,6 @@ export default class MsSql extends Service {
                 debug('cancel request');
                 hasNext = true;
                 checkColumns({model, res});
-                // connection.cancel();
               }
             rowIndex++;
           });
@@ -85,10 +84,12 @@ export default class MsSql extends Service {
 
   async _init({
     url = throwIfMissing('url'),
-    port = throwIfMissing('port'),
     user = throwIfMissing('user'),
     password = throwIfMissing('password'),
-    database = throwIfMissing('database'),
+    options: {
+      port = throwIfMissing('port'),
+      database = throwIfMissing('database'),
+    },
     poolConfig = throwIfMissing('poolConfig'),
     schema = throwIfMissing('schema'),
   }) {
@@ -96,8 +97,10 @@ export default class MsSql extends Service {
       server: url,
       userName: user,
       password,
-      database,
-      port
+      options: {
+        port,
+        database,
+      },
     };
     this._poolConfig = poolConfig;
     this._schema = schema;
@@ -122,26 +125,34 @@ function checkMethodArgs({model, args}) {
   let requiredParams = []
   let msg = '';
   // проверка аргументов
-  for (let a in args) {
+  for (let argName in args) {
     let isFound = false;
     for (let m of model.params) {
-      if (m.name == a) {
+      if (m.name == argName) {
         // проверка наличия переданного параметра в метамодели
         isFound = true;
         // проверка типа параметра
         switch (m.type) {
           case 'string':
-            if (!(typeof args[a] === 'string' || args[a] === null))
-              wrongTypes.push(`Param '${a}' has wrong type: ${typeof args[a]}'. Must be 'string'`);
+            if (!(args[argName] === null || typeof args[argName] === 'string'))
+              wrongTypes.push(`Param '${argName}': Wrong type: Expected 'string' but it's '${typeof args[argName]}'`);
+            break;
+          case 'int':
+            if (!(args[argName] === null || typeof args[argName] === 'number'))
+              wrongTypes.push(`Param '${argName}': Wrong type: Expected 'int' but it's '${typeof args[argName]}'`);
+            break;
+          case 'date':
+            if (!(args[argName] === null || args[argName] instanceof Date))
+              wrongTypes.push(`Param '${argName}': Wrong type: Expected 'date as ISO8601 string' but it's '${typeof args[argName]}'`);
             break;
           default:
-            wrongTypes.push(`Param '${a} unknown type: ${m.type}'`);
+            wrongTypes.push(`Param '${argName} unknown type: ${m.type}'`);
             break
         }
         break
       }
     }
-    if (!isFound) wrongParams.push(a);
+    if (!isFound) wrongParams.push(argName);
   }
 
   // проверка наличия обязательных параметров
@@ -185,13 +196,16 @@ function getMsSqlTypeFromModel(name, model) {
       if (m.mssqlType) return TYPES[m.mssqlType];
       switch (m.type) {
         case 'string':
-          return TYPES.VarChar;
+          return TYPES.NVarChar;
           break;
         case 'int':
           return TYPES.Int;
           break;
         case 'float':
           return TYPES.Float;
+          break;
+        case 'date':
+          return TYPES.DateTime;
           break;
         default:
           throwIfMissing(`uknown tedious type for type '${m.type}'`)
@@ -212,7 +226,7 @@ function checkColumns({model, res}) {
   if (res[0]) {
     for (let c in res[0]) {
       let notFound = true;
-      for (let m of model.fldsOut) {
+      for (let m of model.result) {
         if (m.name === c.toLowerCase()) {
           notFound = false;
           break

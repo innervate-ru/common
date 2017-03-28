@@ -1,6 +1,6 @@
-import ThrowIfMissing from 'throw-if-missing'
+import ThrowIfMissing from 'throw-if-missing';
 
-import pg from 'pg'
+import pg from 'pg';
 
 export default class PGWrapper {
 

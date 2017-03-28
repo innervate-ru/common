@@ -2,7 +2,7 @@ import throwIfMissing from 'throw-if-missing'
 
 import InvalidSchemaException from './InvalidSchemaException'
 
-import wrapResolver from '../../graphql/wrapResolver'
+import wrapResolver from '../graphql/wrapResolver'
 
 import cloneDeep from 'lodash/cloneDeep'
 
