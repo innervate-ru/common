@@ -6,7 +6,7 @@ import wrapResolver from '../../graphql/wrapResolver'
 
 import cloneDeep from 'lodash/cloneDeep'
 
-import {connectionArgs, connectionDefinitions, toGlobalId, offsetToCursor, getOffsetWithDefault} from 'graphql-relay';
+import {connectionArgs, connectionDefinitions, toGlobalId, offsetToCursor, getOffsetWithDefault} from 'graphql-relay'
 
 import {
   GraphQLObjectType,

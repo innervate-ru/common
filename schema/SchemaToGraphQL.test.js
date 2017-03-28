@@ -8,9 +8,9 @@ test.todo(`${base}: Load schema component`);
 
 // import path from 'path'
 //
-// import unionWithError from '../src/graphql/unionWithError';
+// import unionWithError from '../src/graphql/unionWithError'
 //
-// import {connectionArgs, connectionDefinitions, globalIdField} from 'graphql-relay';
+// import {connectionArgs, connectionDefinitions, globalIdField} from 'graphql-relay'
 //
 // import {
 //   GraphQLObjectType,

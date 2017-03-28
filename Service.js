@@ -1,6 +1,6 @@
-import throwIfMissing from 'throw-if-missing';
+import throwIfMissing from 'throw-if-missing'
 
-import InvalidServiceStateException from '../errors/InvalidServiceStateException';
+import InvalidServiceStateException from './errors/InvalidServiceStateException'
 
 export const NOT_INITIALIZED = Symbol('not init');
 export const READY = Symbol('ready');
