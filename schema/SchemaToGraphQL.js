@@ -171,7 +171,7 @@ export default class SchemaToGraphQL {
 
     if (anyError) throw new InvalidSchemaException();
 
-    let checkRights = (typeof this._checkRights == 'function') ? this._checkRights : null;
+    let checkRights = (typeof this._checkRights == 'function') ? this._checkRights({methodName, method, serviceName: this._serviceName}) : null;
 
     return {serviceName: this._serviceName, methodName, resolver: wrapResolver(async function (args = throwIfMissing('args'), request = throwIfMissing('request')) {
 
@@ -411,4 +411,3 @@ function convertTypeToGqlType({
       throw new InvalidSchemaException();
   }
 }
-
