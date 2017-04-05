@@ -5,7 +5,7 @@ import MsSqlErrorException from '../errors/MsSqlErrorException'
 import InvalidParameterException from '../errors/InvalidParameterException'
 import Service from '../Service'
 
-const TYPES = tedious.TYPES;
+const TYPES = tedious.TYPES; // http://tediousjs.github.io/tedious/api-datatypes.html
 
 const debug = require('debug')('mssql');
 
@@ -19,20 +19,23 @@ export default class MsSql extends Service {
     let pool = this._pool;
     let methodName = model.name;
     this[methodName] = (args) => {
-      // args._maxRows - параметр для ограничения количества забираемых строк
-
       super._checkState();
 
       debug('method: %s; args: %j', methodName, args);
       return new Promise(function (resolve, reject) {
 
-        let maxRows = null;
-        // перекладываем maxRows в переменную и удаляем из args (иначе не проходит проверку на соответствие аргументов модели)
-        let fromRow = args._fromRow || 0;
-        let toRow = args._toRow || Number.MAX_SAFE_INTEGER;
-
-        delete args._fromRow;
-        delete args._toRow;
+        let fromRow = 0;
+        let toRow = Number.MAX_SAFE_INTEGER;
+        if (args) {
+          if (args._fromRow) {
+            fromRow = args._fromRow;
+            delete args._fromRow;
+          }
+          if (args._toRow) {
+            toRow = args._toRow;
+            delete args._toRow;
+          }
+        }
 
         // проверка аргументов
         let errMsg = checkMethodArgs({model, args});

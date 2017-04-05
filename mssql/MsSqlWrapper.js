@@ -2,6 +2,7 @@ import throwIfMissing from 'throw-if-missing'
 
 import ConnectionPool from 'tedious-connection-pool'
 import MsSqlErrorException from '../errors/MsSqlErrorException'
+import {Request} from 'tedious'
 
 const debug = require('debug')('mssql');
 
@@ -69,20 +70,28 @@ class Connection {
     this._connection = connection;
   }
 
-  async query(statement = new ThrowIfMissing('statement'), args) {
+  /**
+   * Выполняет запрос к БД.
+   *
+   * Опции:
+   *    - params - Функция, которой передается как аргумен tedious.Request, чтобы она через requies.addParameter могла заполнить параметры
+   *    - fromRow - строка, начиная с которой загружаются строки
+   *    - toRow - строка, до которой включительно загружаются строки
+   *
+   * @param statement SQL запрос в строчном виде
+   * @param options Опции: params, fromRow, toRow
+   * @returns {Promise} {rows - полученные данные; hasNext - есть ли дальше строки, при указании toRow}
+   */
+  async query(statement = new ThrowIfMissing('statement'), options) {
 
-    let fromRow = args._fromRow || 0;
-    let toRow = args._toRow || Number.MAX_SAFE_INTEGER;
-
-    delete args._fromRow;
-    delete args._toRow;
+    let {params = null, fromRow = 0, toRow = Number.MAX_SAFE_INTEGER} = options || {}
 
     return new Promise((resolve, reject) => {
 
       let res = [];
       let hasNext = false;
 
-      this._connection.query(statement, args, function (err, results) {
+      let request = new Request(statement, function (err, rowCount) {
         if (err && err.code != 'ECANCEL')
           reject(new MsSqlErrorException({err}));
         else {
@@ -90,11 +99,13 @@ class Connection {
         }
       });
 
+      if (params) params(request);
+
       let rowIndex = 0;
       request.on('row', function (columns) {
         debug('row %d', rowIndex);
         if (fromRow <= rowIndex && rowIndex <= toRow)
-          res.push(modifyColumns({model, columns}));
+          res.push(copyRowData(columns));
         if (rowIndex > toRow)
           if (!hasNext) { // это первая строка, после строки toRow - завершаем процесс, и ставим hasNext = true
             debug('cancel request');
@@ -104,11 +115,11 @@ class Connection {
         rowIndex++;
       });
 
-      request.on('doneProc', function () {
-        debug(`doneProc`);
-      });
+      // request.on('doneProc', function () {
+      //   debug(`doneProc`);
+      // });
 
-      this._connection.callProcedure(request);
+      this._connection.execSql(request);
     });
   }
 
@@ -116,4 +127,12 @@ class Connection {
     this._connection.release();
     this._connection = null;
   }
+}
+
+function copyRowData(columns) {
+  let res = {};
+  for (let c of columns) {
+    res[c.metadata.colName.toLowerCase()] = c.value
+  }
+  return res
 }
