@@ -47,13 +47,13 @@ export default class PGWrapper {
 class Connection {
 
   constructor(client, done) {
-    this._client = client;
+    this._connection = client;
     this._done = done;
   }
 
   async query(statement = new ThrowIfMissing('statement'), args) {
     return new Promise((resolve, reject) => {
-      this._client.query(statement, args, function (err, results) {
+      this._connection.query(statement, args, function (err, results) {
         if (err) reject(err);
         else resolve(results);
       });

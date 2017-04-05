@@ -26,7 +26,7 @@ export default class Soap {
 
   _addMethods() {
 
-    let client = this._client;
+    let client = this._connection;
 
     let desc = client.describe();
     let methods = null;
@@ -71,7 +71,7 @@ export default class Soap {
         } else {
           debug(`client creation succeeded`);
           if (this._user) client.setSecurity(new soap.BasicAuthSecurity(this._user, this._password));
-          this._client = client;
+          this._connection = client;
           this._addMethods();
           resolve();
         }
@@ -83,6 +83,6 @@ export default class Soap {
     if (!this.hasOwnProperty('_client')) throw Error('Not initialized');
     let filenameNormolized = path.resolve(process.cwd(), filename);
     ensureDir(path.dirname(filenameNormolized));
-    await Promise.promisify(fs.writeFile)(filenameNormolized, JSON.stringify(this._client.describe(), null, 2));
+    await Promise.promisify(fs.writeFile)(filenameNormolized, JSON.stringify(this._connection.describe(), null, 2));
   }
 }
