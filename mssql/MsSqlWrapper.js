@@ -51,7 +51,7 @@ export default class MsSqlWrapper {
       return await connection.query(statement, args);
     }
     finally {
-      connection.done();
+      connection.end();
     }
   }
 
