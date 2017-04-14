@@ -27,11 +27,11 @@ export default class MsSql extends Service {
         let fromRow = 0;
         let toRow = Number.MAX_SAFE_INTEGER;
         if (args) {
-          if (args._fromRow) {
+          if (Object.prototype.hasOwnProperty.call(args, '_fromRow')) {
             fromRow = args._fromRow;
             delete args._fromRow;
           }
-          if (args._toRow) {
+          if (Object.prototype.hasOwnProperty.call(args, '_toRow')) {
             toRow = args._toRow;
             delete args._toRow;
           }
@@ -203,6 +203,9 @@ function getMsSqlTypeFromModel(name, model) {
           break;
         case 'int':
           return TYPES.Int;
+          break;
+        case 'bit':
+          return TYPES.Bit;
           break;
         case 'float':
           return TYPES.Float;

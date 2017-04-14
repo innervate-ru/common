@@ -217,6 +217,8 @@ export default class SchemaToGraphQL {
 
           if (endOffset >= startOffset) {
 
+            debug(`call service method %s(%O)`, methodName, methodParams);
+
             let {rows, hasNext} = await service[methodName]({...methodParams, _fromRow: startOffset,_toRow: endOffset});
 
             debug(`rows.length: %d, hasNext: %s`, rows.length, hasNext);
@@ -377,6 +379,13 @@ export default class SchemaToGraphQL {
           row[fieldName] = row[fieldName].toISOString();
       }
     }
+    if (field.type == 'bit') {
+      let fieldName = field.name;
+      return function(rows) {
+        for (let row of rows)
+          row[fieldName] = !!row[fieldName];
+      }
+    }
     return null; // по умолчанию обработки нет
   }
 }
@@ -400,6 +409,8 @@ function convertTypeToGqlType({
       return GraphQLString;
     case 'int':
       return GraphQLInt;
+    case 'bit':
+      return GraphQLBoolean;
     case 'float':
       return GraphQLFloat;
     case 'bool':
