@@ -26,9 +26,7 @@ export default class CachedResponsesService extends Service {
 
   _now = function() { new Date().getTime(); };
 
-  constructor(options) {
-
-    super();
+  async _init(options) {
 
     if (arguments.length > 0) {
       if (!(typeof options === 'object' && options != null && !Array.isArray(options)))
@@ -52,6 +50,8 @@ export default class CachedResponsesService extends Service {
         }
       }
     }
+
+    super._init();
   }
 
   /**
