@@ -84,8 +84,8 @@ export default class SchemaToGraphQL {
 
     const methodName = method.name;
 
-    let gqlParams = {}, gqlFields = {}; // элементы graphQL схемы
-    let {paramProcessors, resultProcessors} = this._processMethod({methodName, method, methodOriginal, serviceName: this._serviceName, types, gqlParams, gqlFields});
+    const gqlParams = {}, gqlFields = {}; // элементы graphQL схемы
+    const {paramProcessors, resultProcessors, filterRows} = this._processMethod({methodName, method, methodOriginal, serviceName: this._serviceName, types, gqlParams, gqlFields});
 
     for (let param of method.params) {
       try {
@@ -223,6 +223,8 @@ export default class SchemaToGraphQL {
 
             debug(`rows.length: %d, hasNext: %s`, rows.length, hasNext);
 
+            if (filterRows) rows = filterRows.call(context, rows);
+
             for (let rp of resultProcessors) {
               let promise = rp.call(context, rows, request);
               if (typeof promise != 'undefined') resultPromises.push(promise);
@@ -337,9 +339,10 @@ export default class SchemaToGraphQL {
 
     if (param.type == 'date') {
       return function(methodArgs, gqlArgs, request) {
-        if (gqlArgs.hasOwnProperty(paramName))
-          methodArgs[paramName] = new Date(gqlArgs[paramName]);
-        else if (paramRequred)
+        if (gqlArgs.hasOwnProperty(paramName)) {
+          const v = gqlArgs[paramName];
+          methodArgs[paramName] = v == null ? null : new Date(v);
+        } else if (paramRequred)
           throw new Error(`Missing required parameter: '${paramName}'`);
       };
     }
