@@ -110,10 +110,7 @@ export default class MsSql extends Service {
 
     await new Promise((resolve, reject) => {
       this._pool = new ConnectionPool(this._poolConfig, this._msSqlConfig);
-      for (let s of this._schema) {
-        // пропускаем методы, помеченные как методы, которых не т
-        if (!s.sqlIgnore) this._addMethod(s)
-      }
+      for (let s of this._schema) this._addMethod(s)
       resolve();
     });
 
