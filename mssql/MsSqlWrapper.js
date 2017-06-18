@@ -8,7 +8,7 @@ const debug = require('debug')('mssql');
 
 export default class MsSqlWrapper {
 
-  constructor(config = new ThrowIfMissing('config')) {
+  constructor(config = new throwIfMissing('config')) {
 
     let {
       url = throwIfMissing('url'),
@@ -45,7 +45,7 @@ export default class MsSqlWrapper {
     });
   }
 
-  async query(statement = new ThrowIfMissing('statement'), args) {
+  async query(statement = new throwIfMissing('statement'), args) {
     let connection = await this.connection();
     try {
       return await connection.query(statement, args);
@@ -75,19 +75,20 @@ class Connection {
    *
    * Опции:
    *    - params - Функция, которой передается как аргумен tedious.Request, чтобы она через requies.addParameter могла заполнить параметры
-   *    - fromRow - строка, начиная с которой загружаются строки
-   *    - toRow - строка, до которой включительно загружаются строки
+   *    - offset - строка, начиная с которой загружаются строки
+   *    - limit - строка, до которой включительно загружаются строки
    *
    * @param statement SQL запрос в строчном виде
-   * @param options Опции: params, fromRow, toRow
-   * @returns {Promise} {rows - полученные данные; hasNext - есть ли дальше строки, при указании toRow}
+   * @param options Опции: params, offset, limit
+   * @returns {Promise} {rows - полученные данные; hasNext - есть ли дальше строки, при указании limit}
    */
-  async query(statement = new ThrowIfMissing('statement'), options) {
+  async query(statement = new throwIfMissing('statement'), options) {
 
-    let {params = null, fromRow = 0, toRow = Number.MAX_SAFE_INTEGER} = options || {}
+    let {params = null, offset = 0, limit = Number.MAX_SAFE_INTEGER} = options || {}
 
     return new Promise((resolve, reject) => {
 
+      let columns = null;
       let res = [];
       let hasNext = false;
 
@@ -95,22 +96,24 @@ class Connection {
         if (err && err.code != 'ECANCEL')
           reject(new MsSqlErrorException({err}));
         else {
-          resolve({rows: res, hasNext});
+          resolve({rows: res, hasNext, columns});
         }
       });
 
       if (params) params(request);
 
       let rowIndex = 0;
+      request.on('columnMetadata', function (_columns) {
+        columns = _columns;
+      });
       request.on('row', function (columns) {
         debug('row %d', rowIndex);
-        if (fromRow <= rowIndex && rowIndex <= toRow)
+        if (offset <= rowIndex && rowIndex <= limit)
           res.push(copyRowData(columns));
-        if (rowIndex > toRow)
-          if (!hasNext) { // это первая строка, после строки toRow - завершаем процесс, и ставим hasNext = true
+        if (rowIndex > limit)
+          if (!hasNext) { // это первая строка, после строки limit - завершаем процесс, и ставим hasNext = true
             debug('cancel request');
             hasNext = true;
-            checkColumns({model, res});
           }
         rowIndex++;
       });

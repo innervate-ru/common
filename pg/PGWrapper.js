@@ -1,10 +1,10 @@
-import ThrowIfMissing from 'throw-if-missing';
+import throwIfMissing from 'throw-if-missing';
 
 import pg from 'pg';
 
 export default class PGWrapper {
 
-  constructor(config = new ThrowIfMissing('config')) {
+  constructor(config = new throwIfMissing('config')) {
     this._pool = new pg.Pool(config);
     this._pool.on('error', function (err, client) {
       // TODO: Consider only catching a lost of connection to a database
@@ -21,7 +21,7 @@ export default class PGWrapper {
     })
   }
 
-  async query(statement = new ThrowIfMissing('statement'), args) {
+  async query(statement = new throwIfMissing('statement'), args) {
     return new Promise((resolve, reject) => {
       this._pool.connect(function (err, client, done) {
         if (err) {
@@ -51,7 +51,7 @@ class Connection {
     this._done = done;
   }
 
-  async query(statement = new ThrowIfMissing('statement'), args) {
+  async query(statement = new throwIfMissing('statement'), args) {
     return new Promise((resolve, reject) => {
       this._connection.query(statement, args, function (err, results) {
         if (err) reject(err);

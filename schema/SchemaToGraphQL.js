@@ -1,5 +1,7 @@
 import throwIfMissing from 'throw-if-missing'
 
+import parseXml from '../utils/parseXml'
+
 import InvalidSchemaException from './InvalidSchemaException'
 
 import wrapResolver from '../graphql/wrapResolver'
@@ -85,11 +87,26 @@ export default class SchemaToGraphQL {
     const methodName = method.name;
 
     const gqlParams = {}, gqlFields = {}; // элементы graphQL схемы
-    const {paramProcessors, resultProcessors, filterRows} = this._processMethod({methodName, method, methodOriginal, serviceName: this._serviceName, types, gqlParams, gqlFields});
+    const {paramProcessors, resultProcessors, filterRows} = this._processMethod({
+      methodName,
+      method,
+      methodOriginal,
+      serviceName: this._serviceName,
+      types,
+      gqlParams,
+      gqlFields
+    });
 
     for (let param of method.params) {
       try {
-        let paramProcessor = this._processParam({methodName, method, serviceName: this._serviceName, types, param, gqlParams});
+        let paramProcessor = this._processParam({
+          methodName,
+          method,
+          serviceName: this._serviceName,
+          types,
+          param,
+          gqlParams
+        });
         if (typeof paramProcessor == 'function') paramProcessors.push(paramProcessor);
       } catch (err) {
         if (!(err instanceof InvalidSchemaException)) throw err;
@@ -99,7 +116,14 @@ export default class SchemaToGraphQL {
 
     for (let field of method.result) {
       try {
-        let resultProcessor = this._processResult({methodName, method, serviceName: this._serviceName, types, field, gqlFields});
+        let resultProcessor = this._processResult({
+          methodName,
+          method,
+          serviceName: this._serviceName,
+          types,
+          field,
+          gqlFields
+        });
         if (typeof resultProcessor == 'function') resultProcessors.push(resultProcessor);
       } catch (err) {
         if (!(err instanceof InvalidSchemaException)) throw err;
@@ -171,87 +195,100 @@ export default class SchemaToGraphQL {
 
     if (anyError) throw new InvalidSchemaException();
 
-    let checkRights = (typeof this._checkRights == 'function') ? this._checkRights({methodName, method, serviceName: this._serviceName}) : null;
+    let checkRights = (typeof this._checkRights == 'function') ? this._checkRights({
+      methodName,
+      method,
+      serviceName: this._serviceName
+    }) : null;
 
-    return {serviceName: this._serviceName, methodName, resolver: wrapResolver(async function (args = throwIfMissing('args'), request = throwIfMissing('request')) {
+    return {
+      serviceName: this._serviceName,
+      methodName,
+      resolver: wrapResolver(async function (args = throwIfMissing('args'), request = throwIfMissing('request')) {
 
-      debug('method %s(%o)', methodName, args);
+        debug('method %s(%o)', methodName, args);
 
-      let context = {}, paramsPromises = [], resultPromises = [];
+        let context = {}, paramsPromises = [], resultPromises = [];
 
-      let methodParams = {};
+        let methodParams = {};
 
-      let fixedArgs = {...args};
+        let fixedArgs = {...args};
 
-      if (checkRights) checkRights.call(context, methodName, fixedArgs, request);
+        if (checkRights) checkRights.call(context, methodName, fixedArgs, request);
 
-      for (let pp of paramProcessors) {
-        let promise = pp.call(context, methodParams, fixedArgs, request);
-        if (typeof promise != 'undefined') paramsPromises.push(promise);
-      }
+        for (let pp of paramProcessors) {
+          let promise = pp.call(context, methodParams, fixedArgs, request);
+          if (typeof promise != 'undefined') paramsPromises.push(promise);
+        }
 
-      if (paramsPromises.length > 0) await Promise.all(paramsPromises);
+        if (paramsPromises.length > 0) await Promise.all(paramsPromises);
 
-      return {
-        rows: wrapResolver(async function ({before, after, first, last}) {
+        return {
+          rows: wrapResolver(async function ({before, after, first, last}) {
 
-          let startOffset = getOffsetWithDefault(after, -1) + 1;
-          let endOffset = getOffsetWithDefault(before, Number.MAX_SAFE_INTEGER) - 1;
+            let startOffset = getOffsetWithDefault(after, -1) + 1;
+            let endOffset = getOffsetWithDefault(before, Number.MAX_SAFE_INTEGER) - 1;
 
-          debug(`w/o first and last: startOffset: %d, endOffset: %d`, startOffset, endOffset);
+            debug(`w/o first and last: startOffset: %d, endOffset: %d`, startOffset, endOffset);
 
-          if (typeof first === 'number') {
-            if (first < 0) {
-              throw new Error('Argument "first" must be a non-negative integer');
+            if (typeof first === 'number') {
+              if (first < 0) {
+                throw new Error('Argument "first" must be a non-negative integer');
+              }
+              endOffset = Math.min(endOffset, startOffset + first - 1);
             }
-            endOffset = Math.min(endOffset, startOffset + first - 1);
-          }
-          if (typeof last === 'number') {
-            if (last < 0) {
-              throw new Error('Argument "last" must be a non-negative integer');
-            }
-            startOffset = Math.max(startOffset, endOffset - last + 1);
-          }
-
-          debug(`with first and last: startOffset: %d, endOffset: %d`, startOffset, endOffset);
-
-          if (endOffset >= startOffset) {
-
-            debug(`call service method %s(%O)`, methodName, methodParams);
-
-            let {rows, hasNext} = await service[methodName]({...methodParams, _fromRow: startOffset,_toRow: endOffset});
-
-            debug(`rows.length: %d, hasNext: %s`, rows.length, hasNext);
-
-            if (filterRows) rows = filterRows.call(context, rows);
-
-            for (let rp of resultProcessors) {
-              let promise = rp.call(context, rows, request);
-              if (typeof promise != 'undefined') resultPromises.push(promise);
+            if (typeof last === 'number') {
+              if (last < 0) {
+                throw new Error('Argument "last" must be a non-negative integer');
+              }
+              startOffset = Math.max(startOffset, endOffset - last + 1);
             }
 
-            if (resultPromises.length > 0) await Promise.all(resultPromises);
+            debug(`with first and last: startOffset: %d, endOffset: %d`, startOffset, endOffset);
 
-            let index = startOffset;
-            let edges = [];
-            for (let row of rows)
-              edges.push({
-                cursor: offsetToCursor(startOffset + index++),
-                node: row,
-              })
+            if (endOffset >= startOffset) {
 
-            return {
-              pageInfo: {
-                hasNextPage: hasNext,
-                hasPreviousPage: startOffset > 0,
-                startCursor: offsetToCursor(startOffset),
-                endCursor: offsetToCursor(endOffset),
-              },
-              edges};
-          }
-        }),
-      };
-    })};
+              debug(`call service method %s(%O)`, methodName, methodParams);
+
+              let {rows, hasNext} = await service[methodName]({
+                ...methodParams,
+                _fromRow: startOffset,
+                _toRow: endOffset
+              });
+
+              debug(`rows.length: %d, hasNext: %s`, rows.length, hasNext);
+
+              if (filterRows) rows = filterRows.call(context, rows);
+
+              for (let rp of resultProcessors) {
+                let promise = rp.call(context, rows, request);
+                if (typeof promise != 'undefined') resultPromises.push(promise);
+              }
+
+              if (resultPromises.length > 0) await Promise.all(resultPromises);
+
+              let index = startOffset;
+              let edges = [];
+              for (let row of rows)
+                edges.push({
+                  cursor: offsetToCursor(startOffset + index++),
+                  node: row,
+                })
+
+              return {
+                pageInfo: {
+                  hasNextPage: hasNext,
+                  hasPreviousPage: startOffset > 0,
+                  startCursor: offsetToCursor(startOffset),
+                  endCursor: offsetToCursor(endOffset),
+                },
+                edges
+              };
+            }
+          }),
+        };
+      })
+    };
   }
 
   /**
@@ -303,12 +340,20 @@ export default class SchemaToGraphQL {
         type: new GraphQLNonNull(GraphQLID),
       };
 
-      resultProcessors.push(function(result, request) {
-         for (let row of result) {
-           row['id'] = toGlobalId(globalIdType, `${row[globalIdField]}`);
-         }
+      resultProcessors.push(function (result, request) {
+        for (let row of result) {
+          row['id'] = toGlobalId(globalIdType, `${row[globalIdField]}`);
+        }
       });
     }
+
+    methodOriginal.result.filter(v => v.type == 'xml').forEach(field => {
+      gqlFields[`${field.name}__json`] = {
+        type: GraphQLString,
+      }
+    });
+
+    for (const field of methodOriginal.result)
 
     return {paramProcessors, resultProcessors};
   }
@@ -338,7 +383,7 @@ export default class SchemaToGraphQL {
     const paramRequred = param.required;
 
     if (param.type == 'date') {
-      return function(methodArgs, gqlArgs, request) {
+      return function (methodArgs, gqlArgs, request) {
         if (gqlArgs.hasOwnProperty(paramName)) {
           const v = gqlArgs[paramName];
           methodArgs[paramName] = v == null ? null : new Date(v);
@@ -347,7 +392,7 @@ export default class SchemaToGraphQL {
       };
     }
 
-    return function(methodArgs, gqlArgs, request) {
+    return function (methodArgs, gqlArgs, request) {
       if (gqlArgs.hasOwnProperty(paramName))
         methodArgs[paramName] = gqlArgs[paramName];
       else if (paramRequred)
@@ -377,16 +422,29 @@ export default class SchemaToGraphQL {
     };
     if (field.type == 'date') {
       let fieldName = field.name;
-      return function(rows) {
+      return function (rows) {
         for (let row of rows)
           row[fieldName] = row[fieldName].toISOString();
       }
     }
     if (field.type == 'bit') {
       let fieldName = field.name;
-      return function(rows) {
+      return function (rows) {
         for (let row of rows)
           row[fieldName] = !!row[fieldName];
+      }
+    }
+    if (field.type == 'xml') {
+      const xmlFieldName = field.name;
+      const jsonFieldName = `${field.name}__json`
+      return function (rows) {
+        for (const row of rows) {
+          const xml = row[xmlFieldName];
+          if (xml) row[jsonFieldName] = wrapResolver(
+            async function () {
+              return JSON.stringify(await parseXml(`<data>${xml}</data>`));
+            });
+        }
       }
     }
     return null; // по умолчанию обработки нет
@@ -409,6 +467,8 @@ function convertTypeToGqlType({
   const type = (param || field).type;
   switch (type) {
     case 'string':
+      return GraphQLString;
+    case 'xml':
       return GraphQLString;
     case 'int':
       return GraphQLInt;

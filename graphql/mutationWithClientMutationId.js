@@ -1,5 +1,7 @@
 import * as _graphql from 'graphql';
 
+// TODO: Удалить эту утилиту после перехода с Relay на apollo, так как для apollo не работает с clientMutationId и не групирует аргументы mations в один параметр input
+
 /**
  * Функция взята из graphql-relay, и убран параметр mutateAndGetPayload.  Так как в проекты мы резолверы
  * делаем в коде отдельном от кода схемы.
