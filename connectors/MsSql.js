@@ -49,12 +49,17 @@ export default class MsSql extends Service {
 
         pool.acquire(function (err, connection) {
 
+          if (err) {
+            reject(new MsSqlErrorException({err}));
+            return;
+          }
+
           let request = new tedious.Request(model.name, function (err, rowCount) {
+            connection.release();
             if (err && err.code != 'ECANCEL')
               reject(new MsSqlErrorException({err}));
             else {
               checkColumns({model, res});
-              connection.release();
               resolve({rows: res, hasNext});
             }
           });
