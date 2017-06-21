@@ -236,13 +236,15 @@ function checkColumns({model, res}) {
   if (res[0]) {
     for (let c in res[0]) {
       let notFound = true;
-      for (let m of model.result) {
-        if (m.name === c.toLowerCase()) {
-          notFound = false;
-          break
+      if (model.result) {
+        for (let m of model.result) {
+          if (m.name === c.toLowerCase()) {
+            notFound = false;
+            break
+          }
         }
+        if (notFound) console.log(`WARNING: New field in method '${model.name}': '${c}'. You must make a change to the model`);
       }
-      if (notFound) console.log(`WARNING: New field in method '${model.name}': '${c}'. You must make a change to the model`)
     }
   }
 }
