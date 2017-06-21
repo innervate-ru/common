@@ -114,24 +114,26 @@ export default class SchemaToGraphQL {
       }
     }
 
-    for (let field of method.result) {
-      try {
-        let resultProcessor = this._processResult({
-          methodName,
-          method,
-          serviceName: this._serviceName,
-          types,
-          field,
-          gqlFields
-        });
-        if (typeof resultProcessor == 'function') resultProcessors.push(resultProcessor);
-      } catch (err) {
-        if (!(err instanceof InvalidSchemaException)) throw err;
-        anyError = true;
+    if (method.result)
+      for (let field of method.result) {
+        try {
+          let resultProcessor = this._processResult({
+            methodName,
+            method,
+            serviceName: this._serviceName,
+            types,
+            field,
+            gqlFields
+          });
+          if (typeof resultProcessor == 'function') resultProcessors.push(resultProcessor);
+        } catch (err) {
+          if (!(err instanceof InvalidSchemaException)) throw err;
+          anyError = true;
+        }
       }
-    }
 
     let serviceQueries, serviceMutations;
+    let hasRows = true;
 
     switch (this._type) {
       case 'query': {
@@ -176,8 +178,70 @@ export default class SchemaToGraphQL {
         };
         break;
       }
-      case 'mutation':
-        throw new Error('Not implemented');
+      case 'mutation': {
+
+        let _connectionType;
+
+        if (Object.keys(gqlFields).length > 0) { // mutation может ничего не возвращать
+
+          // Totally copied from 'query' // TODO: Remove duplication
+          let rowType = `${methodName}Row`;
+
+          let resultType = new GraphQLObjectType({
+            name: rowType,
+            fields: gqlFields,
+          });
+
+          const {connectionType} = connectionDefinitions({
+            name: rowType,
+            nodeType: resultType,
+          });
+
+          _connectionType = connectionType;
+        } else hasRows = false;
+
+        if (rootMutations.hasOwnProperty(this._serviceName))
+          serviceMutations = rootMutations[this._serviceName];
+        else {
+          // Такая вложенность потребовалась, так как Relay не поддерживает больше одного аргумента для query
+          // Proof: https://github.com/facebook/relay/issues/112
+          mutations[this._serviceName] = {
+            name: `${this._serviceName}`,
+            description: `Запросы (queries) сервиса '${this._serviceName}'`,
+            type: new GraphQLObjectType({
+              name: `${this._serviceName}Mutations`,
+              fields: serviceMutations = rootMutations[this._serviceName] = {},
+            }),
+          }
+        }
+
+        if (_connectionType) {
+          serviceMutations[methodName] = {
+            name: methodName,
+            description: method.description,
+            args: gqlParams,
+            type: new GraphQLObjectType({
+              name: `${methodName}Result`,
+              fields: {
+                rows: {args: connectionArgs, type: _connectionType},
+              }
+            }),
+          };
+        } else {
+          serviceMutations[methodName] = {
+            name: methodName,
+            description: method.description,
+            args: gqlParams,
+            type: new GraphQLObjectType({
+              name: `${methodName}Result`,
+              fields: {
+                result: {type: GraphQLString}, // Пока всегда null // TODO: Вернуть значение из метода
+              }
+            }),
+          };
+        }
+        break;
+      }
       default:
         throw new Error('Unexpected');
     }
@@ -189,6 +253,17 @@ export default class SchemaToGraphQL {
         type: new GraphQLObjectType({
           name: `${this._serviceName}Queries`,
           fields: serviceQueries,
+        }),
+      }
+    }
+
+    if (serviceMutations) {
+      mutations[this._serviceName] = {
+        name: `${this._serviceName}`,
+        description: `Запросы сервиса '${this._serviceName}'`,
+        type: new GraphQLObjectType({
+          name: `${this._serviceName}Mutations`,
+          fields: serviceMutations,
         }),
       }
     }
@@ -223,6 +298,16 @@ export default class SchemaToGraphQL {
 
         if (paramsPromises.length > 0) await Promise.all(paramsPromises);
 
+        // TODO: Сделать вариант когда строк в результате нет - просто результат
+
+        if (!hasRows) {
+          // TODO: Куе
+          await service[methodName](methodParams);
+
+
+
+
+        } else
         return {
           rows: wrapResolver(async function ({before, after, first, last}) {
 
@@ -316,16 +401,17 @@ export default class SchemaToGraphQL {
     }
 
     // удаляем колонки результата помеченные как gqlHide = true
-    for (let i = method.result.length - 1; i >= 0; i--) {
-      var field = method.result[i];
-      if (field.gqlHide)
-        method.result.splice(i, 1);
-      // из параметра gqlID берем имя типа объекта для globalID
-      if (field.gqlID) {
-        globalIdType = field.gqlID;
-        globalIdField = field.name;
+    if (method.result)
+      for (let i = method.result.length - 1; i >= 0; i--) {
+        var field = method.result[i];
+        if (field.gqlHide)
+          method.result.splice(i, 1);
+        // из параметра gqlID берем имя типа объекта для globalID
+        if (field.gqlID) {
+          globalIdType = field.gqlID;
+          globalIdField = field.name;
+        }
       }
-    }
 
     // если было поле, помеченное gqlID, то добавляем поле id
     if (globalIdField) {
@@ -347,13 +433,12 @@ export default class SchemaToGraphQL {
       });
     }
 
-    methodOriginal.result.filter(v => v.type == 'xml').forEach(field => {
-      gqlFields[`${field.name}__json`] = {
-        type: GraphQLString,
-      }
-    });
-
-    for (const field of methodOriginal.result)
+    if (methodOriginal.result)
+      methodOriginal.result.filter(v => v.type == 'xml').forEach(field => {
+        gqlFields[`${field.name}__json`] = {
+          type: GraphQLString,
+        }
+      });
 
     return {paramProcessors, resultProcessors};
   }
