@@ -84,7 +84,6 @@ export default class MsSql extends Service {
             debug(`doneProc`);
           });
 
-          console.info('request', request);
           connection.callProcedure(request);
         });
       })
