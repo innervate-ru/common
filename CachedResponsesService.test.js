@@ -16,13 +16,13 @@ class TestSvc extends CachedResponsesService {
   __loadCount = 0;
   __time = 1000;
 
-  constructor(opts) {
-
-    super({
+  _init(opts) {
+    super._init({
       reuseResultTime: REUSE_RESULT_TIME,
       reuseResultOnErrorTime: REUSE_RESULT_ON_ERROR_TIME,
       maxParallelRequests: (opts && opts.hasOwnProperty('maxParallelRequests')) ? opts.maxParallelRequests : MAX_PARALLEL_REQUESTS,
       now: () => this.__time,
+      ...opts,
     });
   }
 
@@ -42,16 +42,20 @@ class TestSvc extends CachedResponsesService {
 }
 
 async function getSVC(opts) {
-  let svc = new TestSvc(opts);
-  svc._init(); // без await так как _init для сервиса не переопределн в наследнике
+  const svc = new TestSvc();
+  await svc._init(opts);
   return svc;
 }
 
-test(`${_testFilename}: неправильный параметр в конструктор`, async t => {
+test(`${_testFilename}: неправильный параметр в конструкторе или _init`, async t => {
   t.throws(() => new CachedResponsesService(false));
   t.throws(() => new CachedResponsesService(1));
   t.throws(() => new CachedResponsesService(null));
   t.throws(() => new CachedResponsesService([]));
+  await t.throws((new CachedResponsesService())._init(false));
+  await t.throws((new CachedResponsesService())._init(1));
+  await t.throws((new CachedResponsesService())._init(null));
+  await t.throws((new CachedResponsesService())._init([]));
 });
 
 test(`${_testFilename}: неизвестная опция в конструктор`, async t => {

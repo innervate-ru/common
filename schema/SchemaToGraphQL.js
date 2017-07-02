@@ -298,16 +298,6 @@ export default class SchemaToGraphQL {
 
         if (paramsPromises.length > 0) await Promise.all(paramsPromises);
 
-        // TODO: Сделать вариант когда строк в результате нет - просто результат
-
-        if (!hasRows) {
-          // TODO: Куе
-          await service[methodName](methodParams);
-
-
-
-
-        } else
         return {
           rows: wrapResolver(async function ({before, after, first, last}) {
 
@@ -509,7 +499,7 @@ export default class SchemaToGraphQL {
       let fieldName = field.name;
       return function (rows) {
         for (let row of rows)
-          row[fieldName] = row[fieldName].toISOString();
+          row[fieldName] = row[fieldName] && row[fieldName].toISOString();
       }
     }
     if (field.type == 'bit') {

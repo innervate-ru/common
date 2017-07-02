@@ -24,15 +24,21 @@ export default class CachedResponsesService extends Service {
   _reuseResultOnErrorTime = REUSE_RESULT_ON_ERROR_TIME;
   _maxParallelRequests = MAX_PARALLEL_REQUESTS;
 
-  _now = function() { new Date().getTime(); };
+  _now = function () {
+    (new Date()).getTime();
+  };
+
+  constructor() {
+    if (arguments.length > 0) throw new Error('Arguments are not expected')
+    super();
+  }
 
   async _init(options) {
-
     if (arguments.length > 0) {
       if (!(typeof options === 'object' && options != null && !Array.isArray(options)))
         throw new Error(`Invalid argument 'options'`);
       for (let optName in options) {
-        switch(optName) {
+        switch (optName) {
           case 'reuseResultTime':
             this._reuseResultTime = options[optName];
             break;
@@ -63,7 +69,7 @@ export default class CachedResponsesService extends Service {
    * @returns {Promise}
    * @private
    */
-  _find(args = throwIfMissing('args')) {
+  _find /* async */(args = throwIfMissing('args')) {
     debug(`_find(%s)`, args);
     const key = this._argsToKey(args);
     let cachedValue = this._cache[key];
