@@ -1,7 +1,6 @@
 import tedious from 'tedious'
 import throwIfMissing from 'throw-if-missing'
 import ConnectionPool from 'tedious-connection-pool'
-import MsSqlErrorException from '../errors/MsSqlErrorException'
 import InvalidParameterException from '../errors/InvalidParameterException'
 import Service from '../Service'
 
@@ -50,14 +49,14 @@ export default class MsSql extends Service {
         pool.acquire(function (err, connection) {
 
           if (err) {
-            reject(new MsSqlErrorException({err}));
+            reject(err);
             return;
           }
 
           let request = new tedious.Request(model.name, function (err, rowCount) {
             connection.release();
             if (err && err.code != 'ECANCEL')
-              reject(new MsSqlErrorException({err}));
+              reject(err);
             else {
               checkColumns({model, res});
               resolve({rows: res, hasNext});

@@ -60,7 +60,7 @@ class Connection {
     });
   }
 
-  end() {
+  async end() {
     this._done();
     this._done = null;
   }

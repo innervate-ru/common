@@ -1,7 +1,6 @@
 import throwIfMissing from 'throw-if-missing'
 
 import ConnectionPool from 'tedious-connection-pool'
-import MsSqlErrorException from '../errors/MsSqlErrorException'
 import {Request} from 'tedious'
 
 const debug = require('debug')('mssql');
@@ -10,13 +9,14 @@ export default class MsSqlWrapper {
 
   constructor(config = new throwIfMissing('config')) {
 
-    let {
+    const {
       url = throwIfMissing('url'),
       user = throwIfMissing('user'),
       password = throwIfMissing('password'),
       options: {
         port = throwIfMissing('port'),
         database = throwIfMissing('database'),
+        ...otherOptions,
       },
       poolConfig = throwIfMissing('poolConfig'),
     } = config;
@@ -28,6 +28,7 @@ export default class MsSqlWrapper {
       options: {
         port,
         database,
+        ...otherOptions,
       },
     };
 
@@ -94,7 +95,7 @@ class Connection {
 
       let request = new Request(statement, function (err, rowCount) {
         if (err && err.code != 'ECANCEL')
-          reject(new MsSqlErrorException({err}));
+          reject(err);
         else {
           resolve({rows: res, hasNext, columns});
         }

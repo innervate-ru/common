@@ -6,6 +6,7 @@ export const NOT_INITIALIZED = Symbol('not init');
 export const READY = Symbol('ready');
 export const STOPPED = Symbol('stopped');
 export const FAILURE = Symbol('failure');
+export const DISPOSED = Symbol('disposed');
 
 /**
  * Базовый класс для всех классов сервисах. Предоставляет стандартное решение для управления состоянием сервиса.
@@ -64,6 +65,13 @@ export default class Service {
    */
   _init() {
     this.__stateSet(READY);
+  }
+
+  /**
+   * Освобождает ресурсы используемые сервисы.  Например, соединение в БД.
+   */
+  _dispose() {
+    this.__stateSet(DISPOSED);
   }
 
   /**
