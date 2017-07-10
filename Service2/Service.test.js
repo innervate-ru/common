@@ -6,7 +6,6 @@ import Service, {
   WAITING_OTHER_SERVICES_TO_START,
   INITIALIZING,
   INITIALIZE_FAILED,
-  INITIALIZED,
   STARTING,
   READY,
   STOPPING,
@@ -24,13 +23,15 @@ test.afterEach(t => {
   clock.restore();
 });
 
-test.only(`На каждый шаг есть _service... метод, и всё идет без ошибок`, async t => {
+test(`На каждый шаг есть _service... метод, и всё идет без ошибок`, async t => {
   const svc = Service('testService', {
     _serviceInit: () => Promise.delay(100), // не получилось сделать через sinon.stub() - не нашёл как возвращать Promise.delay именно в момент использования метода
     _serviceStart: () => Promise.delay(100),
     _serviceStop: () => Promise.delay(100),
     _serviceDispose: () => Promise.delay(100),
   });
+  const events = [];
+  svc._serviceSubscribe((state, prevState, reason) => {events.push({state, prevState, ...(reason ? {reason} : null)});});
   t.is(svc._state, INITIALIZING);
   clock.tick(100);
   t.is(svc._state, STARTING);
@@ -57,15 +58,30 @@ test.only(`На каждый шаг есть _service... метод, и всё �
   svc._start(); //
   clock.tick(100);
   t.is(svc._state, DISPOSED);
+
+  t.deepEqual(events, [
+    {prevState: INITIALIZING, state: STOPPED},
+    {prevState: STOPPED, state: STARTING},
+    {prevState: STARTING, state: READY},
+    {prevState: READY, state: STOPPING},
+    {prevState: STOPPING, state: STOPPED},
+    {prevState: STOPPED, state: STARTING},
+    {prevState: STARTING, state: READY},
+    {prevState: READY, state: STOPPING},
+    {prevState: STOPPING, state: STOPPED},
+    {prevState: STOPPED, state: DISPOSING},
+    {prevState: DISPOSING, state: DISPOSED},
+  ]);
+
 });
 
 
-test.only(`Цикл без методов _serviceInit, ...Start, ...Stop, ...Dispose`, async t => {
+test(`Цикл без методов _serviceInit, ...Start, ...Stop, ...Dispose`, async t => {
   const svc = Service('testService', {});
   const events = [];
-  svc._serviceSubscribe((state, prevState, reason) => { events.push({state, prevState, reason});})
+  svc._serviceSubscribe((state, prevState, reason) => {events.push({state, prevState, ...(reason ? {reason} : null)});});
 
-  t.is(svc._state, READY);
+  t.is(svc._state, READY); // временные задержки тут не нужны, так как нет методов которые бы выполнялись некотороое время
   svc._stop();
   t.is(svc._state, STOPPED);
   svc._start();
@@ -74,11 +90,10 @@ test.only(`Цикл без методов _serviceInit, ...Start, ...Stop, ...Di
   t.is(svc._state, DISPOSED);
 
   t.deepEqual(events, [
-    {state: STOPPED, prevEvent: READY},
-    {state: READY, prevEvent: STOPPED},
-    {state: STOPPED, prevEvent: READY},
-    {state: READY, prevEvent: STOPPED},
-    {state: STOPPED, prevEvent: DISPOSED},
+    {prevState: READY, state: STOPPED},
+    {prevState: STOPPED, state: READY},
+    {prevState: READY, state: STOPPED},
+    {prevState: STOPPED, state: DISPOSED},
   ]);
 
 });

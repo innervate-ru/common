@@ -5,7 +5,6 @@ export const DEFAULT_RESTART_INTERVAL = 60000;
 export const NOT_INITIALIZED = Symbol('not initialied');
 export const WAITING_OTHER_SERVICES_TO_START = Symbol('waiting other services to start');
 export const INITIALIZING = Symbol('initializing');
-export const INITIALIZED = Symbol('initialized');
 export const INITIALIZE_FAILED = Symbol('initialize failed');
 export const STARTING = Symbol('starting');
 export const READY = Symbol('ready');
@@ -62,6 +61,7 @@ export default function Service(name, service, options = {}) {
   Object.defineProperty(service, '_seriveName', {value: name});
   Object.defineProperty(service, '_state', {get: () => state});
   service._serviceSubscribe = (listener = throwIfMissing('listener')) => {
+    if (!(typeof listener == 'function')) throw new Error(`Invalid argument 'listener: ${listener}`);
     if (!listeners) listeners = [];
     listeners.push(listener);
     return () => {
@@ -88,7 +88,16 @@ export default function Service(name, service, options = {}) {
     nextStateStep();
   };
 
-  function setState(newState, {reason, method} = {}) {
+  /**
+   * Переход в новое состояние, с уведомление об этом всех кто подписан через _serviceSubscribe.
+   *
+   * @param newState Состояние в которое надо перейти
+   * @param [reason] Причина ошибки.  Только для перехода в состояние FAILED
+   * @param [method] Метод класса реализации сервиса, который надо вызвать в этом состоянии
+   * @param [nextState] Сосоояние в которое нужно перейти, если method не определен в реализации сериса
+   */
+  function setState(newState, {reason, method, nextState} = {}) {
+
     if (restartTimer) {
       clearTimeout(restartTimer);
       restartTimer = null;
@@ -96,7 +105,7 @@ export default function Service(name, service, options = {}) {
 
     if (reason) {
       failureReason = reason;
-      restartTimer = setTimeout(() => {
+      restartTimer = setTimeout(() => { // переход из состояния FAILED в состояние STOPPED по истечению restartInterval
         failureReason = null;
         state = STOPPED;
         nextStateStep();
@@ -115,43 +124,50 @@ export default function Service(name, service, options = {}) {
     if (method)
       (currentOperationPromise = method.call(service))
         .then(nextStateStep, nextStateStep);
-    else
+    else {
       currentOperationPromise = null;
+      newState = nextState || newState;
+    }
 
-    if (listeners )
-      for (let i = listeners .length; i >= 0; i--)
-        listeners [i](newState, state, reason);
+    const prevState = state;
     state = newState;
+
+    // TODO: Think of making this a debug output
+    // console.info(`${prevState.toString()} -> ${state.toString()}${nextState ? `(${nextState.toString()})` : ''}; method: ${!!method}`);
+
+    if (listeners)
+      for (let i = listeners.length - 1; i >= 0; i--)
+        listeners[i](state, prevState, reason);
     nextStateStep();
   }
 
   function nextStateStep() {
     switch (state) {
       case NOT_INITIALIZED:
-        if (isAllDependsOnReady) setState(INITIALIZING, {method: serviceInit});
+        if (isAllDependsOnReady) setState(INITIALIZING, {method: serviceInit, nextState: STOPPED});
         else setState(WAITING_OTHER_SERVICES_TO_START);
         break;
       case WAITING_OTHER_SERVICES_TO_START:
-        if (dispose) setState(DISPOSING, {method: serviceDispose});
-        else if (isAllDependsOnReady) setState(INITIALIZING, {method: serviceInit});
+        if (dispose) setState(DISPOSING, {method: serviceDispose, nextState: DISPOSED});
+        else if (isAllDependsOnReady) setState(INITIALIZING, {method: serviceInit, nextState: STOPPED});
         return;
       case INITIALIZING:
         if (!currentOperationPromise || currentOperationPromise.isFulfilled()) setState(STOPPED);
         else if (currentOperationPromise.isRejected()) setState(INITIALIZE_FAILED);
         break;
       case STOPPED:
-        if (dispose) setState(DISPOSING, {method: serviceDispose});
-        else if (!failureReason && isAllDependsOnReady && !stopped) setState(STARTING, {method: serviceStart});
+        if (dispose) setState(DISPOSING, {method: serviceDispose, nextState: DISPOSED});
+        else if (!failureReason && isAllDependsOnReady && !stopped) setState(STARTING, {method: serviceStart, nextState: READY});
         break;
       case STARTING:
         if (!currentOperationPromise || currentOperationPromise.isFulfilled()) {
           if (!stopped) setState(READY);
-          else setState(STOPPING, {method: serviceStop});
+          else setState(STOPPING, {method: serviceStop, nextState: STOPPED});
         }
         else if (currentOperationPromise.isRejected()) failedState(currentOperationPromise.reason);
         break;
       case READY:
-        if (!isAllDependsOnReady || stopped || failureReason || dispose) setState(STOPPING, {method: serviceStop});
+        if (!isAllDependsOnReady || stopped || failureReason || dispose) setState(STOPPING, {method: serviceStop, nextState: STOPPED});
         break;
       case STOPPING:
         if (!currentOperationPromise || currentOperationPromise.isFulfilled()) {
@@ -165,11 +181,11 @@ export default function Service(name, service, options = {}) {
         }
         break;
       case FAILED: // будет переведен в состояние STOPPED после restartInterval (см. setTimeout в setFailed() выше)
-        if (dispose) setState(DISPOSING, {method: serviceDispose});
+        if (dispose) setState(DISPOSING, {method: serviceDispose, nextState: DISPOSED});
         else if (stopped) setState(STOPPED);
         break;
       case INITIALIZE_FAILED:
-        if (dispose) setState(DISPOSING, {method: serviceDispose});
+        if (dispose) setState(DISPOSING, {method: serviceDispose, nextState: DISPOSED});
         break;
       case DISPOSING:
         if (!currentOperationPromise || currentOperationPromise.isFulfilled() || currentOperationPromise.isRejected()) setState(DISPOSED);
