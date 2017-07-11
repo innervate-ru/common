@@ -17,7 +17,12 @@ export const DISPOSED = Symbol('disposed');
 // кдасс serviceStateManager
 // враппер, который добавляет - serviceState; оборачивает методы без _ в проверку что состояние READY
 
+const RESOLVED_PROMISE = Promise.resolve();
+
 export default function Service(name, service, options = {}) {
+
+  const wrappedService = Object.create(null);
+  wrappedService.__proto__ = service;
 
   const serviceInit = service._serviceInit;
   const serviceStart = service._serviceStart;
@@ -25,8 +30,8 @@ export default function Service(name, service, options = {}) {
   const serviceDispose = service._serviceDispose;
 
   let state = NOT_INITIALIZED;
-  let isAllDependsOnReady = true;
-  let listeners, failureReason, restartTimer, stopped, dispose, currentOperationPromise;
+  let isAllDependsOnReady = true, listeners = null, failureReason = null, restartTimer = null;
+  let stopped = false, dispose = null, currentOperationPromise = null, testWaitPromise = null;
 
   if (!(typeof('name') == 'string' && name.length > 0)) new Error(`Invalid argument 'name': ${name}`);
 
@@ -58,9 +63,10 @@ export default function Service(name, service, options = {}) {
 
   if (!(typeof restartInterval == 'number' && restartInterval >= 0)) new Error(`Invalid option 'restartInterval': ${restartInterval}`);
 
-  Object.defineProperty(service, '_seriveName', {value: name});
-  Object.defineProperty(service, '_state', {get: () => state});
-  service._serviceSubscribe = (listener = throwIfMissing('listener')) => {
+  Object.defineProperty(wrappedService, '_seriveName', {value: name});
+  Object.defineProperty(wrappedService, '_state', {get: () => state});
+  Object.defineProperty(wrappedService, '_serviceError', {get: () => failureReason});
+  wrappedService._serviceSubscribe = (listener = throwIfMissing('listener')) => {
     if (!(typeof listener == 'function')) throw new Error(`Invalid argument 'listener: ${listener}`);
     if (!listeners) listeners = [];
     listeners.push(listener);
@@ -75,17 +81,28 @@ export default function Service(name, service, options = {}) {
       }
     }
   };
-  service._stop = () => {
+
+  /**
+   * Возвращает promise, который будет resolved, когда закончится асинхронная операция.
+   */
+  wrappedService.__testWait = () => {
+    console.info('testWaitPromise', !!testWaitPromise);
+    return testWaitPromise || RESOLVED_PROMISE;
+  };
+  wrappedService._stop = () => {
     stopped = true;
     nextStateStep();
   };
-  service._start = () => {
+  wrappedService._start = () => {
     stopped = false;
     nextStateStep();
   };
-  service._dispose = () => {
-    dispose = true;
+  wrappedService._dispose = () => {
+    const res = new Promise(function (resolve, reject) {
+      dispose = resolve;
+    });
     nextStateStep();
+    return res;
   };
 
   /**
@@ -103,29 +120,19 @@ export default function Service(name, service, options = {}) {
       restartTimer = null;
     }
 
-    if (reason) {
-      failureReason = reason;
-      restartTimer = setTimeout(() => { // переход из состояния FAILED в состояние STOPPED по истечению restartInterval
-        failureReason = null;
-        state = STOPPED;
+    failureReason = reason || null;
+
+    if (method) {
+      currentOperationPromise = method.call(service);
+      // testWaitPromise = currentOperationPromise.then(nextStateStep).catch(nextStateStep);
+      testWaitPromise = currentOperationPromise.then(() => { console.info('?????'); nextStateStep(); return true; }).catch(() => {
+        console.info('!!!!');
         nextStateStep();
-      }, restartInterval);
+        return true;
+      });
     } else {
-      failureReason = null;
-    }
-
-    failureReason = reason ? reason : null;
-
-    if (restartTimer) {
-      clearTimeout(restartTimer);
-      restartTimer = null;
-    }
-
-    if (method)
-      (currentOperationPromise = method.call(service))
-        .then(nextStateStep, nextStateStep);
-    else {
       currentOperationPromise = null;
+      testWaitPromise = null;
       newState = nextState || newState;
     }
 
@@ -153,48 +160,64 @@ export default function Service(name, service, options = {}) {
         return;
       case INITIALIZING:
         if (!currentOperationPromise || currentOperationPromise.isFulfilled()) setState(STOPPED);
-        else if (currentOperationPromise.isRejected()) setState(INITIALIZE_FAILED);
+        else if (currentOperationPromise.isRejected()) setState(INITIALIZE_FAILED, {reason: currentOperationPromise.reason()});
         break;
       case STOPPED:
         if (dispose) setState(DISPOSING, {method: serviceDispose, nextState: DISPOSED});
-        else if (!failureReason && isAllDependsOnReady && !stopped) setState(STARTING, {method: serviceStart, nextState: READY});
+        else if (!failureReason && isAllDependsOnReady && !stopped) setState(STARTING, {
+          method: serviceStart,
+          nextState: READY
+        });
         break;
       case STARTING:
         if (!currentOperationPromise || currentOperationPromise.isFulfilled()) {
           if (!stopped) setState(READY);
           else setState(STOPPING, {method: serviceStop, nextState: STOPPED});
         }
-        else if (currentOperationPromise.isRejected()) failedState(currentOperationPromise.reason);
+        else if (currentOperationPromise.isRejected()) setState(FAILED, {reason: currentOperationPromise.reason()});
         break;
       case READY:
-        if (!isAllDependsOnReady || stopped || failureReason || dispose) setState(STOPPING, {method: serviceStop, nextState: STOPPED});
+        if (!isAllDependsOnReady || stopped || failureReason || dispose) setState(STOPPING, {
+          method: serviceStop,
+          nextState: STOPPED
+        });
         break;
       case STOPPING:
         if (!currentOperationPromise || currentOperationPromise.isFulfilled()) {
-          if (failureReason) setFailed(failureReason);
+          if (failureReason) setState(FAILED, {reason: failureReason}); // это после ошибки, так что ошибка остается та которая привела к переходу в FAILED
           else setState(STOPPED);
         } else {
           if (currentOperationPromise.isRejected()) {
-            if (failureReason) setFailed(failureReason);
-            else setFailed(currentOperationPromise.reason);
+            if (failureReason) setState(FAILED, {reason: failureReason}); // это после ошибки, так что ошибка остается та которая привела к переходу в FAILED
+            else setState(STOPPED, {reason: currentOperationPromise.reason()});
           }
         }
         break;
       case FAILED: // будет переведен в состояние STOPPED после restartInterval (см. setTimeout в setFailed() выше)
         if (dispose) setState(DISPOSING, {method: serviceDispose, nextState: DISPOSED});
         else if (stopped) setState(STOPPED);
+
+        restartTimer = setTimeout(() => {
+          setState(STOPPED);
+        }, restartInterval);
+
         break;
       case INITIALIZE_FAILED:
         if (dispose) setState(DISPOSING, {method: serviceDispose, nextState: DISPOSED});
         break;
       case DISPOSING:
-        if (!currentOperationPromise || currentOperationPromise.isFulfilled() || currentOperationPromise.isRejected()) setState(DISPOSED);
-        return DISPOSING; // если целевое состояние DISPOSED
+        if (!currentOperationPromise || currentOperationPromise.isFulfilled()) setState(DISPOSED);
+        else if (currentOperationPromise.isRejected()) setState(DISPOSED, {reason: currentOperationPromise.reason()});
+        break;
+      case DISPOSED:
+        dispose(); // это resolve для Pormise который верул метод _dispose()
         break;
     }
+    return true; // необходимо вернуть что нить не undefined, для использования этого метода в Promise.finally
   }
-  nextStateStep();
-  return service;
+
+  nextStateStep(); // запускаем первый переход
+  return wrappedService;
 }
 
 
