@@ -5,6 +5,7 @@ import sinon from 'sinon'
 import Service, {
   DEFAULT_RESTART_INTERVAL,
 
+  NOT_INITIALIZED,
   WAITING_OTHER_SERVICES_TO_START,
   INITIALIZING,
   INITIALIZE_FAILED,
@@ -32,66 +33,98 @@ test(`На каждый шаг есть _service... метод, и всё иде
     _serviceStart: () => Promise.delay(100),
     _serviceStop: () => Promise.delay(100),
     _serviceDispose: () => Promise.delay(100),
-  });
+  }, {testMode: true});
+
   t.not(svc, s); // Service создает новый объект, который использует внутри объект s
+
   const events = [];
   svc._serviceSubscribe((state, prevState, reason) => {events.push({state, prevState, ...(reason ? {reason} : null)});});
+
+  t.is(svc._state, NOT_INITIALIZED);
+
+  svc.__nextStateStep();
+
   t.is(svc._state, INITIALIZING);
 
-  const w1 = svc.__testWait(); // в этом случае надо брать promise до обновления часов, так как сервис сразу минуя STOPPED переходит к serivceStart
-  clock.tick(100); await w1;
+  clock.tick(100);
+  await svc.__testWait(); // ждем завершение метода _serviceInit
+  svc.__nextStateStep();
+
+  t.is(svc._state, STOPPED);
+
+  svc.__nextStateStep();
 
   t.is(svc._state, STARTING);
 
-  // console.info('a');
-  //
-  // const w2 = svc.__testWait();
-  // clock.tick(100);
-  // await w2;
-  //
-  // console.info('a`');
+  clock.tick(100);
+  await svc.__testWait(); // ждем завершение метода _serviceStart
+  svc.__nextStateStep();
 
   t.is(svc._state, READY);
   t.is(svc._serviceError, null);
-  clock.tick(100); // так как ситуация не меняется, то состояние остается ready
+
+  clock.tick(100);
+  svc.__nextStateStep();
+
   t.is(svc._state, READY);
+  t.is(svc._serviceError, null);
+
   svc._stop();
   t.is(svc._state, STOPPING);
 
-  console.info('b');
-
-  const w3 = svc.__testWait(); clock.tick(100); await w3;
+  clock.tick(100);
+  await svc.__testWait(); // ждем завершение метода _serviceStop
+  svc.__nextStateStep();
 
   t.is(svc._state, STOPPED);
   t.is(svc._serviceError, null);
+
   svc._start();
+
   t.is(svc._state, STARTING);
+
   clock.tick(100);
+  await svc.__testWait(); // ждем завершение метода _serviceStart
+  svc.__nextStateStep();
+
   t.is(svc._state, READY);
   t.is(svc._serviceError, null);
+
   const disposedPromise = svc._dispose();
   t.is(svc._state, STOPPING);
 
-  console.info('c');
-
-  const w4 = svc.__testWait(); clock.tick(100); await w4;
-
-  t.false(disposedPromise.isFulfilled());
-  t.is(svc._state, DISPOSING);
   clock.tick(100);
+  await svc.__testWait(); // ждем завершение метода _serviceStop
+  svc.__nextStateStep();
 
-  const w5 = svc.__testWait(); clock.tick(100); await w5;
+  t.is(svc._state, STOPPED);
+  t.is(svc._serviceError, null);
+  svc.__nextStateStep();
 
-  t.true(disposedPromise.isFulfilled());
+  t.is(svc._state, DISPOSING);
+
+  clock.tick(100);
+  await svc.__testWait(); // ждем завершение метода _serviceDispose
+  svc.__nextStateStep();
+
   t.is(svc._state, DISPOSED);
   t.is(svc._serviceError, null);
+  t.true(disposedPromise.isFulfilled());
+
   svc._stop(); // если сервис уже disposed, то операции _start и _stop на состояние не влияют
-  t.is(svc._state, DISPOSED);
-  svc._start(); //
   clock.tick(100);
+  svc.__nextStateStep();
+
+  t.is(svc._state, DISPOSED);
+
+  svc._start(); // если сервис уже disposed, то операции _start и _stop на состояние не влияют
+  clock.tick(100);
+  svc.__nextStateStep();
+
   t.is(svc._state, DISPOSED);
 
   t.deepEqual(events, [
+    {prevState: NOT_INITIALIZED, state: INITIALIZING},
     {prevState: INITIALIZING, state: STOPPED},
     {prevState: STOPPED, state: STARTING},
     {prevState: STARTING, state: READY},
@@ -213,8 +246,44 @@ test(`Ошибка при dispose`, async t => {
   t.true(disposePromise.isFulfilled()); // не смотря на ошибку, Promise полученный из _dispose разрешается успешно, чтоб не портить картину, когда останавливается список сервисов
 });
 
-test.skip(`Сервис переходит из состояния READY в FAILED, если вызвать _fireFailure`, async t => {
-  // TODO:
+test.only(`Сервис переходит из состояния READY в FAILED, если вызвать _fireFailure`, async t => {
+  const err1 = new Error();
+  const err2 = new Error();
+  const svc = Service('testService', {
+    _serviceStop: () => Promise.delay(100).then(() => Promise.reject(err2)),
+    _serviceDispose: () => Promise.delay(100),
+  }, {testMode: true});
+
+  const events = [];
+  svc._serviceSubscribe((state, prevState, reason) => {events.push({state, prevState, ...(reason ? {reason} : null)});});
+
+  t.is(svc._state, NOT_INITIALIZED);
+  svc.__nextStateStep();
+
+  t.is(svc._state, STOPPED);
+  svc.__nextStateStep();
+
+  t.is(svc._state, READY);
+  svc._fireFailure(err1);
+
+  t.is(svc._state, STOPPING);
+
+  clock.tick(100);
+  await svc.__testWait(); // ждем завершение метода _serviceStop
+  svc.__nextStateStep();
+
+  t.is(svc._state, FAILED);
+  t.is(svc._serviceError, err1);
+
+  // svc.__nextStateStep();
+  //
+  // t.is(svc._state, DISPOSING);
+  //
+  // clock.tick(100);
+  // await svc.__testWait(); // ждем завершение метода _serviceDispose
+  // svc.__nextStateStep();
+  //
+  // t.is(svc._state, DISPOSED);
 });
 
 test.skip(`Из состояния FAILED можно досрочно выйти переведя сервис вызвав _stop, а потом сразу _start`, async t => {

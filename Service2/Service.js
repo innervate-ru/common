@@ -35,7 +35,7 @@ export default function Service(name, service, options = {}) {
 
   if (!(typeof('name') == 'string' && name.length > 0)) new Error(`Invalid argument 'name': ${name}`);
 
-  const {dependsOn, restartInterval = DEFAULT_RESTART_INTERVAL, ...restOptions} = options;
+  const {dependsOn, restartInterval = DEFAULT_RESTART_INTERVAL, testMode, ...restOptions} = options;
 
   if (Object.keys(restOptions).length > 0) throw new Error(`Unexpected options: ${Object.keys(restOptions).join()}`)
 
@@ -62,6 +62,7 @@ export default function Service(name, service, options = {}) {
   }
 
   if (!(typeof restartInterval == 'number' && restartInterval >= 0)) new Error(`Invalid option 'restartInterval': ${restartInterval}`);
+  if (!(testMode == undefined || typeof testMode == 'boolean')) new Error(`Invalid option 'testMode': ${testMode}`);
 
   Object.defineProperty(wrappedService, '_seriveName', {value: name});
   Object.defineProperty(wrappedService, '_state', {get: () => state});
@@ -85,10 +86,10 @@ export default function Service(name, service, options = {}) {
   /**
    * Возвращает promise, который будет resolved, когда закончится асинхронная операция.
    */
-  wrappedService.__testWait = () => {
-    console.info('testWaitPromise', !!testWaitPromise);
-    return testWaitPromise || RESOLVED_PROMISE;
-  };
+  if (testMode) {
+    wrappedService.__testWait = () => testWaitPromise ? testWaitPromise.catch(err => true) : RESOLVED_PROMISE; // catch, чтобы reject превратить в resolve
+    wrappedService.__nextStateStep = nextStateStep;
+  }
   wrappedService._stop = () => {
     stopped = true;
     nextStateStep();
@@ -104,6 +105,11 @@ export default function Service(name, service, options = {}) {
     nextStateStep();
     return res;
   };
+  wrappedService._fireFailure = (reason = new throwIfMissing('reason')) => {
+    // TODO: If error - serialize to json
+    failureReason = reason;
+    nextStateStep();
+  };
 
   /**
    * Переход в новое состояние, с уведомление об этом всех кто подписан через _serviceSubscribe.
@@ -115,21 +121,18 @@ export default function Service(name, service, options = {}) {
    */
   function setState(newState, {reason, method, nextState} = {}) {
 
+    if (nextState == DISPOSED) dispose(); // это resolve для Pormise который верул метод _dispose()
+
     if (restartTimer) {
       clearTimeout(restartTimer);
       restartTimer = null;
     }
 
-    failureReason = reason || null;
+    if (nextState != READY || nextState != STOPPING) failureReason = reason || null; // сохраняем причину ошибки, на момент остановки
 
     if (method) {
       currentOperationPromise = method.call(service);
-      // testWaitPromise = currentOperationPromise.then(nextStateStep).catch(nextStateStep);
-      testWaitPromise = currentOperationPromise.then(() => { console.info('?????'); nextStateStep(); return true; }).catch(() => {
-        console.info('!!!!');
-        nextStateStep();
-        return true;
-      });
+      testWaitPromise = testMode ? currentOperationPromise : currentOperationPromise.then(nextStateStep).catch(nextStateStep);
     } else {
       currentOperationPromise = null;
       testWaitPromise = null;
@@ -140,12 +143,13 @@ export default function Service(name, service, options = {}) {
     state = newState;
 
     // TODO: Think of making this a debug output
-    // console.info(`${prevState.toString()} -> ${state.toString()}${nextState ? `(${nextState.toString()})` : ''}; method: ${!!method}`);
+    console.info(`${prevState.toString()} -> ${state.toString()}${nextState ? `(${nextState.toString()})` : ''}; method: ${!!method}; reason: ${!!reason}`);
 
     if (listeners)
       for (let i = listeners.length - 1; i >= 0; i--)
         listeners[i](state, prevState, reason);
-    nextStateStep();
+
+    if (!testMode) nextStateStep();
   }
 
   function nextStateStep() {
@@ -163,8 +167,9 @@ export default function Service(name, service, options = {}) {
         else if (currentOperationPromise.isRejected()) setState(INITIALIZE_FAILED, {reason: currentOperationPromise.reason()});
         break;
       case STOPPED:
+        console.info('dispose:', !!dispose);
         if (dispose) setState(DISPOSING, {method: serviceDispose, nextState: DISPOSED});
-        else if (!failureReason && isAllDependsOnReady && !stopped) setState(STARTING, {
+        else if (isAllDependsOnReady && !stopped) setState(STARTING, {
           method: serviceStart,
           nextState: READY
         });
@@ -177,12 +182,14 @@ export default function Service(name, service, options = {}) {
         else if (currentOperationPromise.isRejected()) setState(FAILED, {reason: currentOperationPromise.reason()});
         break;
       case READY:
+        console.info('1. failureReason', !!failureReason);
         if (!isAllDependsOnReady || stopped || failureReason || dispose) setState(STOPPING, {
           method: serviceStop,
           nextState: STOPPED
         });
         break;
       case STOPPING:
+        console.info('2. failureReason', !!failureReason);
         if (!currentOperationPromise || currentOperationPromise.isFulfilled()) {
           if (failureReason) setState(FAILED, {reason: failureReason}); // это после ошибки, так что ошибка остается та которая привела к переходу в FAILED
           else setState(STOPPED);
@@ -209,14 +216,14 @@ export default function Service(name, service, options = {}) {
         if (!currentOperationPromise || currentOperationPromise.isFulfilled()) setState(DISPOSED);
         else if (currentOperationPromise.isRejected()) setState(DISPOSED, {reason: currentOperationPromise.reason()});
         break;
-      case DISPOSED:
-        dispose(); // это resolve для Pormise который верул метод _dispose()
-        break;
+      // case DISPOSED:
+      //   // nothing
+      //   break;
     }
     return true; // необходимо вернуть что нить не undefined, для использования этого метода в Promise.finally
   }
 
-  nextStateStep(); // запускаем первый переход
+  if (!testMode) nextStateStep(); // запускаем первый переход
   return wrappedService;
 }
 
