@@ -21,8 +21,12 @@ const RESOLVED_PROMISE = Promise.resolve();
 
 export default function Service(name, service, options = {}) {
 
-  const wrappedService = Object.create(null);
-  wrappedService.__proto__ = service;
+  class wrappedService extends service {};
+
+  const wrappedServiceProto = wrappedService.prototype;
+
+  // const wrappedService = Object.create(null);
+  // wrappedService.__proto__ = service;
 
   const serviceInit = service._serviceInit;
   const serviceStart = service._serviceStart;
@@ -64,10 +68,10 @@ export default function Service(name, service, options = {}) {
   if (!(typeof restartInterval == 'number' && restartInterval >= 0)) new Error(`Invalid option 'restartInterval': ${restartInterval}`);
   if (!(testMode == undefined || typeof testMode == 'boolean')) new Error(`Invalid option 'testMode': ${testMode}`);
 
-  Object.defineProperty(wrappedService, '_seriveName', {value: name});
-  Object.defineProperty(wrappedService, '_state', {get: () => state});
-  Object.defineProperty(wrappedService, '_serviceError', {get: () => failureReason});
-  wrappedService._serviceSubscribe = (listener = throwIfMissing('listener')) => {
+  Object.defineProperty(wrappedServiceProto, '_seriveName', {value: name});
+  Object.defineProperty(wrappedServiceProto, '_state', {get: () => state});
+  Object.defineProperty(wrappedServiceProto, '_serviceError', {get: () => failureReason});
+  wrappedServiceProto._serviceSubscribe = (listener = throwIfMissing('listener')) => {
     if (!(typeof listener == 'function')) throw new Error(`Invalid argument 'listener: ${listener}`);
     if (!listeners) listeners = [];
     listeners.push(listener);
@@ -87,10 +91,10 @@ export default function Service(name, service, options = {}) {
    * Возвращает promise, который будет resolved, когда закончится асинхронная операция.
    */
   if (testMode) {
-    wrappedService.__testWait = () => testWaitPromise ? testWaitPromise.catch(err => true) : RESOLVED_PROMISE; // catch, чтобы reject превратить в resolve
-    wrappedService.__nextStateStep = nextStateStep;
+    wrappedServiceProto.__testWait = () => testWaitPromise ? testWaitPromise.catch(err => true) : RESOLVED_PROMISE; // catch, чтобы reject превратить в resolve
+    wrappedServiceProto.__nextStateStep = nextStateStep;
   }
-  wrappedService._stop = () => {
+  wrappedServiceProto._stop = () => {
     stopped = true;
     nextStateStep();
   };
@@ -145,9 +149,16 @@ export default function Service(name, service, options = {}) {
     // TODO: Think of making this a debug output
     console.info(`${prevState.toString()} -> ${state.toString()}${nextState ? `(${nextState.toString()})` : ''}; method: ${!!method}; reason: ${!!reason}`);
 
-    if (listeners)
+    if (listeners) {
+      const ev = {
+        time: new Date(),
+        state,
+        prevState,
+      };
+      if (reason) ev.reason = reason;
       for (let i = listeners.length - 1; i >= 0; i--)
-        listeners[i](state, prevState, reason);
+        listeners[i](ev);
+    }
 
     if (!testMode) nextStateStep();
   }

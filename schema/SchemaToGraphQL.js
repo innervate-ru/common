@@ -140,7 +140,7 @@ export default class SchemaToGraphQL {
 
         let rowType = `${methodName}Row`;
 
-        let resultType = new GraphQLObjectType({
+        let resultType = types[rowType] = new GraphQLObjectType({
           name: rowType,
           fields: gqlFields,
         });

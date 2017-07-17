@@ -26,19 +26,21 @@ test.afterEach(t => {
   clock.restore();
 });
 
-test(`На каждый шаг есть _service... метод, и всё идет без ошибок`, async t => {
+const removeTimeFromEvents = events => events.map(v => { const {time: void1, ...ev} = v; return ev; })
+
+test.only(`На каждый шаг есть _service... метод, и всё идет без ошибок`, async t => {
   let s;
-  const svc = Service('testService', s = {
-    _serviceInit: () => Promise.delay(100), // не получилось сделать через sinon.stub() - не нашёл как возвращать Promise.delay именно в момент использования метода
-    _serviceStart: () => Promise.delay(100),
-    _serviceStop: () => Promise.delay(100),
-    _serviceDispose: () => Promise.delay(100),
+  const svc = new Service('testService', s = class {
+    static _serviceInit = () => Promise.delay(100); // не получилось сделать через sinon.stub() - не нашёл как возвращать Promise.delay именно в момент использования метода
+    static _serviceStart = () => Promise.delay(100);
+    static _serviceStop = () => Promise.delay(100);
+    static _serviceDispose = () => Promise.delay(100);
   }, {testMode: true});
 
   t.not(svc, s); // Service создает новый объект, который использует внутри объект s
 
   const events = [];
-  svc._serviceSubscribe((state, prevState, reason) => {events.push({state, prevState, ...(reason ? {reason} : null)});});
+  svc._serviceSubscribe(ev => { events.push(ev); });
 
   t.is(svc._state, NOT_INITIALIZED);
 
@@ -123,7 +125,7 @@ test(`На каждый шаг есть _service... метод, и всё иде
 
   t.is(svc._state, DISPOSED);
 
-  t.deepEqual(events, [
+  t.deepEqual(removeTimeFromEvents(events), [
     {prevState: NOT_INITIALIZED, state: INITIALIZING},
     {prevState: INITIALIZING, state: STOPPED},
     {prevState: STOPPED, state: STARTING},
@@ -246,7 +248,7 @@ test(`Ошибка при dispose`, async t => {
   t.true(disposePromise.isFulfilled()); // не смотря на ошибку, Promise полученный из _dispose разрешается успешно, чтоб не портить картину, когда останавливается список сервисов
 });
 
-test.only(`Сервис переходит из состояния READY в FAILED, если вызвать _fireFailure`, async t => {
+test(`Сервис переходит из состояния READY в FAILED, если вызвать _fireFailure`, async t => {
   const err1 = new Error();
   const err2 = new Error();
   const svc = Service('testService', {
