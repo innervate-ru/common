@@ -211,10 +211,9 @@ export function validateObjectFactory({
 
     return function (value, message, validateOptions) {
       const subfieldValue = value[thisFieldName];
-      if (subfieldValue === undefined || subfieldValue === null) return; // проверяем что значение не null или undefined, что означает, что значения нет
-      if (typeof subfieldValue === 'object' && !Array.isArray(subfieldValue))
+      if (typeof subfieldValue === 'object' && subfieldValue != null && !Array.isArray(subfieldValue))
         return validateSubfields(subfieldValue, message, validateOptions);
-      (message || (message = [])).push(invalidFieldValue(thisValue, thisFieldNamePrefix, thisFieldName));
+      (message || (message = [])).push(invalidFieldValue(value, thisFieldNamePrefix, thisFieldName));
       return message;
     }
   }
@@ -238,7 +237,8 @@ export function validateObjectFactory({
     if (fieldDef.required) {
 
       const validateRequired = function (value, message, validateOptions) {
-        if (!hasOwnProperties.call(value, fieldName)) {
+        // для удобства сбора структур c использованием {...(v ? {a: v} : undefined)}, считаем что если поле имеет значение undefined, то его нет
+        if (!hasOwnProperties.call(value, fieldName) || value[fieldName] === undefined) {
           (message || (message = [])).push(missingField(value, fieldNamePrefix, fieldName));
           return message;
         }

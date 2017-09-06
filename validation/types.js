@@ -10,6 +10,7 @@
  * VType.Int.zero.positive
  */
 
+import util from 'util'
 import {missingArgument, invalidArgument} from '../utils/arguments'
 import prettyPrint from '../utils/prettyPrint'
 import {messageInvalidFieldValue} from './validateObject'
@@ -45,7 +46,7 @@ function _module() {
   /**
    * Кешированные для повторного использование значения тип+доп.проверки:
    * ключ - <тип>_<доп.проверка1>_<доп.проверка2>..., где имена доп. проверок отсоритрованны по альфавиту
-   * значение - общий метод проверки, с параметрами (fieldName, fieldDef)
+   * значение - общий метод проверки, с параметрами (fieldNamePrefix, fieldName, fieldDef)
    */
   const cachedValidators = Object.create(null);
 
@@ -82,16 +83,36 @@ function _module() {
       if (pureValidators[typeName] === typePureValidator) return;
       else throw new Error(`Type already defined: '${typeName}'`);
     }
-
     pureValidators[typeName] = typePureValidator;
 
-    const validate = function (fieldName, fieldDef) {
+    _addType(typeName, function (fieldNamePrefix, fieldName, fieldDef) {
       return function (value, message, validateOptions) {
         if (typePureValidator(value[fieldName])) return;
-        (message || (message = [])).push(messageInvalidFieldValue(value, fieldName));
+        (message || (message = [])).push(messageInvalidFieldValue(value, fieldNamePrefix, fieldName));
         return message;
       }
-    };
+    });
+  }
+
+  /**
+   * Добавляет тип в VTypes. В отличии от addType(), принимает полный валидатор для validateObject.  Это метод нужен,
+   * чтоб добавлять сложные типы, как VType.Fields.
+   */
+  function addTypeAdvanced(typeName = missingArgument('typeName'), typeValidator = missingArgument('typeValidator')) {
+
+    if (!(typeof typeName === 'string' && /^[A-Z]\w*$/.test(typeName))) invalidArgument('typeName', typeName);
+    if (!(typeof typeValidator === 'function')) invalidArgument('typeValidator', typeValidator);
+
+    if (hasOwnProperty.call(types, typeName)) {
+      if (pureValidators[typeName] === typeValidator) return;
+      else throw new Error(`Type already defined: '${typeName}'`);
+    }
+    pureValidators[typeName] = typeValidator;
+
+    _addType(typeName, typeValidator);
+  }
+
+  function _addType(typeName, validate) {
     validate.toString = function () {
       return typeName;
     };
@@ -101,18 +122,21 @@ function _module() {
         return name in types;
       },
       get(target, name) {
+        if (name === util.inspect.custom || name === 'inspect' || name === 'name') return;
+        if (name === 'call') return Function.prototype.call;
         if (name === Symbol.toPrimitive || name === 'valueOf' || name === 'toString') return target.toString;
         const typeSubvalidators = subvalidators[typeName];
-        if (!typeSubvalidators || !hasOwnProperty.call(typeSubvalidators, name)) throw new Error(`Validator is not defined: '${typeName}.${name}'`);
+        if (!typeSubvalidators || !hasOwnProperty.call(typeSubvalidators, name)) throw new Error(`Validator is not defined: '${typeName}.${name.toString()}'`);
         const context = {t: typeName, v: [name]};
         return new Proxy(buildValidator(context), subvalidatorProxyInterceptors(context));
       },
     });
-    types[typeName]._type = true;
   }
 
   const subvalidatorProxyInterceptors = (context) => ({
     get(target, name) {
+      if (name === util.inspect.custom || name === 'inspect') return;
+      if (name === util.inspect.custom) return;
       if (name === Symbol.toPrimitive || name === 'valueOf' || name === 'toString') return target.toString;
       const {t: typeName, v: subvalidatorsNames} = context;
       const typeSubvalidators = subvalidators[typeName];
@@ -155,24 +179,24 @@ function _module() {
 
     let res;
     if (normolizedSubvalidators.length > 1) {
-      res = function (fieldName, fieldDef) {
+      res = function (fieldNamePrefix, fieldName, fieldDef) {
         return function (value, message, validationOptions) {
           const v = value[fieldName];
           if (typePureValidator(v, message, validationOptions)) // тип правильный
             for (const sv of normolizedSubvalidators)
               if (sv(v, message, validationOptions)) return; // одна из or-проверок прошла успешно
-          (message || (message = [])).push(messageInvalidFieldValue(value, fieldName));
+          (message || (message = [])).push(messageInvalidFieldValue(value, fieldNamePrefix, fieldName));
           return message;
         }
       };
     } else { // вариант результата оптимизированный под одну or-проверку
       const singleSubvalidator = normolizedSubvalidators[0];
-      res = function (fieldName, fieldDef) {
+      res = function (fieldNamePrefix, fieldName, fieldDef) {
         return function (value, message, validationOptions) {
           const v = value[fieldName];
           if (typePureValidator(v, message, validationOptions)) // тип правильный
             if (singleSubvalidator(v, message, validationOptions)) return; // одна из or-проверок прошла успешно
-          (message || (message = [])).push(messageInvalidFieldValue(value, fieldName));
+          (message || (message = [])).push(messageInvalidFieldValue(value, fieldNamePrefix, fieldName));
           return message;
         }
       };
@@ -201,6 +225,7 @@ function _module() {
   return {
     VType,
     addType,
+    addTypeAdvanced,
     subvalidatorProxyInterceptors,
     addSubvalidator,
     buildValidator,

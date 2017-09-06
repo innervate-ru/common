@@ -17,7 +17,7 @@ test(`добавление и получение типа простого ти�
   t.is(typeof VType.String, 'function');
   t.throws(() => VType.Wrong, `Type is not defined: 'Wrong'`);
 
-  const validator = VType.String('aField', {});
+  const validator = VType.String(undefined, 'aField', {});
   t.is(validator({aField: 'string'}, undefined, undefined), undefined);
   t.deepEqual(validator({aField: 12}, undefined, undefined), [`Invalid field 'aField' value: 12`]);
 });
@@ -30,7 +30,7 @@ test(`тип, на основе уже существующего типа`, t =
   const stringValidator = getPureValidator(VType.String);
   addType('String4', v => stringValidator(v) && v.length === 4);
 
-  const validator = VType.String4('aField', {});
+  const validator = VType.String4(undefined, 'aField', {});
   t.is(validator({aField: '1234'}, undefined, undefined), undefined);
   t.deepEqual(validator({aField: '123'}, undefined, undefined), [`Invalid field 'aField' value: '123'`]);
 });
@@ -44,18 +44,18 @@ test(`добавление и использование subvalidator'а одн�
 
   t.throws(() => VType.String.wrong, `Validator is not defined: 'String.wrong'`);
 
-  const validator1 = VType.String.ItsABC('aField', {});
+  const validator1 = VType.String.ItsABC(undefined, 'aField', {});
   t.is(validator1({aField: 'abc'}, undefined, undefined), undefined);
   t.deepEqual(validator1({aField: ''}, undefined, undefined), [`Invalid field 'aField' value: ''`]);
   t.deepEqual(validator1({aField: 12}, undefined, undefined), [`Invalid field 'aField' value: 12`]);
 
-  const validator2 = VType.String.ItsABC.ItsDEF('aField', {});
+  const validator2 = VType.String.ItsABC.ItsDEF(undefined, 'aField', {});
   t.is(validator2({aField: 'abc'}, undefined, undefined), undefined);
   t.is(validator2({aField: 'def'}, undefined, undefined), undefined);
   t.deepEqual(validator2({aField: 'xyz'}, undefined, undefined), [`Invalid field 'aField' value: 'xyz'`]);
   t.deepEqual(validator2({aField: 12}, undefined, undefined), [`Invalid field 'aField' value: 12`]);
 
-  const validator3 = VType.String.ItsDEF.ItsABC('aField', {});
+  const validator3 = VType.String.ItsDEF.ItsABC(undefined, 'aField', {});
   t.is(validator3({aField: 'abc'}, undefined, undefined), undefined);
   t.is(validator3({aField: 'def'}, undefined, undefined), undefined);
   t.deepEqual(validator3({aField: 'xyz'}, undefined, undefined), [`Invalid field 'aField' value: 'xyz'`]);
@@ -63,7 +63,7 @@ test(`добавление и использование subvalidator'а одн�
 
 });
 
-test.only(`функции для одинковых наборов сабвалидаторов повторно используются - flyweight patter`, t => {
+test(`функции для одинковых наборов сабвалидаторов повторно используются - flyweight patter`, t => {
   const {VType, addType, addSubvalidator} = require('./types')._module();
 
   addType('String', v => typeof v === 'string');
@@ -76,8 +76,21 @@ test.only(`функции для одинковых наборов сабвал�
 });
 
 test(`поддержка сложных (расширенных) типов - VType.Fields({...})`, t => {
-  const {VType, addType, getPureValidator} = require('./types')._module();
+  const {VType, addType, addTypeAdvanced, addSubvalidator} = require('./types')._module();
 
-  addType('String', v => typeof v === 'string');
+  addTypeAdvanced('Int12', function (fieldNamePrefix, fieldName, fieldDef) {
+    return function (value, message, validateOptions) {
+      if (value[fieldName] !== 12) return;
+      (message || (message = [])).push(`${fieldNamePrefix ? `${fieldNamePrefix}.${fieldName}` : fieldName}: Must not be 12`);
+      return message;
+    }
+  });
 
+  const validator = VType.Int12(undefined, 'a', {});
+  t.is(validator({a: 1}), undefined);
+  t.deepEqual(validator({a: 12}), [`a: Must not be 12`]); // Приходит кастомное сообщение
+
+  addSubvalidator(VType.Int12, 'alwaysInvalid', v => false);
+  const validator2 = VType.Int12.alwaysInvalid(undefined, 'a', {});
+  t.deepEqual(validator2({a: 12}), [`Invalid field 'a' value: 12`]); // Приходит общее сообщение, так как кастмное перекрыто субвалидатором
 });

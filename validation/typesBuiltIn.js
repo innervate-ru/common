@@ -1,12 +1,22 @@
-import {VType, addType, addSubvalidator} from './types'
+export default function (typesExport) {
 
-addType('String', v => typeof v === 'string');
-addType('Int', v => Number.isInteger(v));
-addType('Float', v => typeof v == 'number' && !isNaN(v));
-addType('Bool', v => typeof v == 'boolean');
-addType('Object', v => typeof v === 'object' && !Array.isArray(v));
-addType('Array', v => Array.isArray(v));
-addType('Function', v => typeof v === 'function');
+  const {VType, addType, addSubvalidator, addTypeAdvanced} = typesExport;
+
+  addType('String', v => typeof v === 'string');
+  addType('Int', v => Number.isInteger(v));
+  addType('Float', v => typeof v == 'number' && !isNaN(v));
+  addType('Bool', v => typeof v == 'boolean');
+  addType('Object', v => typeof v === 'object' && !Array.isArray(v));
+  addType('Array', v => Array.isArray(v));
+  addType('Function', v => typeof v === 'function');
+
+  addTypeAdvanced('Fields', function (fields) {
+    console.info('fields', fields);
+    if (arguments.length != 1) throw new Error(`VType.Fields must be initialized with map of fields`);
+    return function (fieldNamePrefix, fieldName, fieldDef) {
+      return this.validateSubfields(fieldNamePrefix, fieldName, fieldDef, fields);
+    }
+  });
 
 // String
 
@@ -28,3 +38,5 @@ addSubvalidator(VType.Float, 'negative', v => v < 0);
 // Array
 
 addSubvalidator(VType.Float, 'onlyStrings', v => v.every(t => typeof t === 'string'));
+
+}

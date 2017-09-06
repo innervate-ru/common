@@ -98,6 +98,7 @@ test(`Атрибут 'required'`, t => {
   });
   t.is(requiredValidate({optionN: 12}), undefined);
   t.deepEqual(requiredValidate({}), [`Missing 'optionN'`]);
+  t.deepEqual(requiredValidate({optionN: undefined}), [`Missing 'optionN'`]); // поле равное undefined, считается отсутствующим
 
   // перечень обязательных полей, возвращается в том числе если вместо объекта было переданно null или undefined
   t.deepEqual(requiredValidate(undefined), [`Missing 'optionN'`]);
@@ -360,7 +361,7 @@ test(`validate для поля, вызывается только если type,
 test(`Атрибут 'fields' вместо 'type'`, t => {
   const validate = validateObject({
     a: {type: 'int'},
-    b: {
+    b: { null: true,
       fields: {
         c: {type: 'int'},
         d: {type: 'int', required: true},
@@ -394,7 +395,7 @@ test(`Атрибут 'fields' вместо 'type'`, t => {
   }), [`Missing 'b.d'`, `Missing 'e.f'`]);
 
   t.is(validate({
-    b: null, // null - считается что значения нет, и поле d не требуется
+    b: null, // если поле может быть null, то тогда обяхательные вложенные поля тоже не требуются
     e: {f: 3},
   }), undefined);
 
@@ -420,7 +421,7 @@ test(`Атрибут 'fields' вместо 'type'`, t => {
 
   const validate2 = validateObject({
     a: {fields: {
-      b: {fields: {
+      b: {null: true, fields: {
         c: {type: 'int'},
         d: {type: 'string', required: true},
       }}
@@ -430,4 +431,28 @@ test(`Атрибут 'fields' вместо 'type'`, t => {
   t.deepEqual(validate2({a: {b: {}}}), [`Missing 'a.b.d'`]);
 });
 
-test.todo(`Можно совмещать fields с другими вариантами типов, используя VType.Fields`);
+test.skip(`Можно совмещать fields с другими вариантами типов, используя VType.Fields`, t => {
+  const typesExport = require('./types')._module();
+  require('./typesBuiltIn').default(typesExport);
+  const {VType} = typesExport;
+
+  try {
+    const f = VType.Fields({b: {type: 'int'}, c: {type: VType.String, required: true},});
+  } catch (error) {
+    console.error(error);
+  }
+
+  const validate = validateObject({
+    a: {type: ['string', VType.Int, VType.Fields({ // ошибка выводится по последнему в списке типу.  Потому простые типы надо писать вперед
+      b: {type: 'int'},
+      c: {type: VType.String, required: true},
+    })]}
+  });
+
+  t.is(validate({a: 'test'}), undefined);
+  t.is(validate({a: 12}), undefined);
+  t.is(validate({a: {b: 12, c: 'test'}}), undefined);
+
+  // Чтобы missing-сообщения были видно важно, чтобы сложный тип был последним в списке
+  t.deepEqual(validate({a: {}}), [`Missing 'a.c'`]); // c or-валидаторами не понятно, как выводить детальные ошибки, если тип подошёл ...может вообще посто сокращать invalid ...а остальные оставлять?
+});
