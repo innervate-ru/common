@@ -3,21 +3,17 @@
 import test from 'ava'
 import prettyPrint from '../utils/prettyPrint'
 
-import {validateObjectFactory, validateAndCopyOptionsFactory, validateOptionsFactory, validateEventFactory} from './validateObject'
-const missingField = (value, optionName) => `Missing '${optionName}'`;
-const unexpectedField = (value, optionName) => `Unexpected '${optionName}': ${prettyPrint(value[optionName])}`;
-const invalidFieldValue = (value, optionName) => `Invalid '${optionName}': ${prettyPrint(value[optionName])}`;
+import {
+  validateObjectFactory,
+  validateAndCopyOptionsFactory,
+  validateOptionsFactory,
+  validateEventFactory
+} from './validateObject'
+const missingField = (value, fieldNamePrefix, fieldName) => `Missing '${fieldNamePrefix ? `${fieldNamePrefix}.${fieldName}` : fieldName}'`;
+const unexpectedField = (value, fieldNamePrefix, fieldName) => `Unexpected '${fieldNamePrefix ? `${fieldNamePrefix}.${fieldName}` : fieldName}': ${prettyPrint(value[fieldName])}`;
+const invalidFieldValue = (value, fieldNamePrefix, fieldName) => `Invalid '${fieldNamePrefix ? `${fieldNamePrefix}.${fieldName}` : fieldName}': ${prettyPrint(value[fieldName])}`;
 
 const validateObject = validateObjectFactory({missingField, unexpectedField, invalidFieldValue});
-const {_validateListOfTypes, _validateValidate, _validateRequired, _copyField, _validateNull, _validateType} = validateObject;
-
-const validateObjectWithCopy = validateObjectFactory({
-  missingField,
-  unexpectedField,
-  invalidFieldValue,
-  copyFields: true
-});
-const {_validateRequired: _validateRequiredWithCopy} = validateObjectWithCopy;
 
 for (const [type, rightValue, wrongValue] of [
   ['str', 'test string', 1],
@@ -29,89 +25,42 @@ for (const [type, rightValue, wrongValue] of [
   ['boolean', false, 'str'],
   ['object', {}, []],
   ['array', [], {}],
-  ['function', function () {}, {}],
+  ['function', function () {
+  }, {}],
 ]) {
-  test(`_validateType[${type}, ${rightValue}, ${wrongValue}]`, t => {
-    const validateType = _validateType('n', type);
-    t.is(validateType({n: rightValue}, null), undefined);
-    t.deepEqual(validateType({n: wrongValue}, null), [`Invalid 'n': ${prettyPrint(wrongValue)}`]);
+  test(`Атрибут 'type' = ${type}`, t => {
+    const validate = validateObject({
+      field: {type},
+    });
+
+    t.is(validate({field: rightValue}), undefined);
+    t.deepEqual(validate({field: wrongValue}), [`Invalid 'field': ${prettyPrint(wrongValue)}`]);
   });
 }
 
-test(`_validateNotNull`, t => {
-  const notNullCheck = _validateNull('optionN', {type: 'int', null: false});
-  t.is(notNullCheck({optionN: 12}, null), undefined);
-  t.deepEqual(notNullCheck({optionN: null}, null), [`Invalid 'optionN': null`]); // первое сообщение в списке
-  t.deepEqual(notNullCheck({optionN: null}, [`err`]), [`err`, `Invalid 'optionN': null`]); // не первое сообщение в списке
+test(`Атрибут 'type' может быть фунцией`, t => {
 
-  const nullableCheck = _validateNull('optionN', {type: 'int', null: true});
-  t.is(nullableCheck({optionN: 12}, null), undefined);
-  t.is(nullableCheck({optionN: null}, null), undefined);
-  t.is(nullableCheck({optionN: null}, [`err`]), undefined);
-
-  const notNullCheck2 = _validateNull('optionN', {type: 'int', null: false}); // null по умолчанию false
-  t.is(notNullCheck2({optionN: 12}, null), undefined);
-  t.deepEqual(notNullCheck2({optionN: null}, null), [`Invalid 'optionN': null`]); // первое сообщение в списке
-  t.deepEqual(notNullCheck2({optionN: null}, [`err`]), [`err`, `Invalid 'optionN': null`]); // не первое сообщение в списке
-});
-
-test(`_validateRequired`, t => {
-  const context = {anyCopyFunc: false};
-  const requiredCheck = _validateRequired.call(context, 'optionN', {type: 'int', required: true});
-  t.is(requiredCheck({optionN: 12}, null), undefined);
-  t.deepEqual(requiredCheck({}, null), [`Missing 'optionN'`]); // первое сообщение в списке
-  t.deepEqual(requiredCheck({}, [`err`]), [`err`, `Missing 'optionN'`]); // не первое сообщение в списке
-
-  const notRequiredCheck = _validateRequired.call(context, 'optionN', {type: 'int', required: false});
-  t.is(notRequiredCheck({optionN: 12}, null), undefined);
-
-  const notRequiredCheck2 = _validateRequired.call(context, 'optionN', {type: 'int'}); // required по умолчанию false
-  t.is(notRequiredCheck2({optionN: 12}, null), undefined);
-});
-
-test(`_copyField`, t => {
-  const context = {anyCopyFunc: false};
-  const requiredWithCopyCheck = _validateRequiredWithCopy.call(context, 'optionN', {type: 'int', copy: true});
-  const dest = {};
-  t.is(requiredWithCopyCheck.call(context, {optionN: 12}, null, {copyTo: dest}), undefined);
-  t.deepEqual(dest, {_optionN: 12});
-
-  const requiredWithoutCopyCheck = _validateRequired.call(context, 'optionN', {type: 'int', copy: true}); // поле не будет копироваться, так как _validateRequired создан с опцией copyFields: false
-  const dest2 = {};
-  t.is(requiredWithoutCopyCheck({optionN: 12}, null, {copyTo: dest2}), undefined);
-  t.deepEqual(dest2, {});
-
-  const copyByFunction = _validateRequiredWithCopy.call(context, 'optionN', {
-    type: 'int',
-    copy: (value, message, validateOptions) => {
-      validateOptions.copyTo.optionN = value.optionN + 1
-    }
-  });
-  const dest3 = {};
-  t.is(copyByFunction.call(context, {optionN: 12}, null, {copyTo: dest3}), undefined);
-  t.deepEqual(dest3, {optionN: 13});
-});
-
-test(`_validateValidate`, t => {
-  const context = {anyCopyFunc: false};
-  const validateValidate = _validateRequired.call(context, 'optionN', {
-    type: 'int', required: true, validate: (fieldName, fieldDef) => (value, message, validateOptions) => {
-      t.true(validateOptions == undefined || validateOptions.v == true); // validateOptions передаются в validate
-      if (value.optionN == 12) {
-        (message || (message = [])).push(`Should not be 12`);
-        return message;
+  const validate = validateObject({
+    fieldA: {
+      type: function (fieldNamePrefix, fieldName, fieldDef) { // есть возможность в типе, взять дополнительные признаки из fieldDef
+        const invalidFieldValue = this.invalidFieldValue; // метод выдачи сообщения доступен через context
+        return (value, message, validateOptions) => {
+          if (value[fieldName] !== 12) return;
+          (message || (message = [])).push(invalidFieldValue(value, fieldNamePrefix, fieldName));
+          return message;
+        };
       }
     }
   });
-  t.is(validateValidate.call(context, {optionN: 1}, null, {v: true}), undefined);
-  t.deepEqual(validateValidate.call(context, {optionN: 12}, null), [`Should not be 12`]);
-  t.deepEqual(validateValidate.call(context, {optionN: 12}, [`err`]), [`err`, `Should not be 12`]);
-  t.deepEqual(validateValidate.call(context, {}, null), [`Missing 'optionN'`]);
-  t.deepEqual(validateValidate.call(context, {}, [`err`]), [`err`, `Missing 'optionN'`]);
+
+  t.is(validate({fieldA: 1}), undefined);
+  t.deepEqual(validate({fieldA: 12}), [`Invalid 'fieldA': 12`]);
 });
 
-test(`_validateListOfTypes`, t => {
+test(`Атрибут 'type' как перечень вариантов типа`, t => {
   const context = {anyCopyFunc: false};
+
+  // внимание: в перечне типов, можно так же использовать функции - как в тесте выше
 
   const validateListOfTypes = validateObject({optionN: {type: ['str', 'int'], null: true}});
   t.is(validateListOfTypes({optionN: 'test'}), undefined);
@@ -128,34 +77,128 @@ test(`_validateListOfTypes`, t => {
   t.deepEqual(validateListOfTypes2({optionN: true}), [`Invalid 'optionN': true`]); // обе вариант ошибок
 });
 
-test(`validate by function`, t => {
-  const context = {anyCopyFunc: false};
-  const validate = _validateRequired.call(context, 'optionN', {
-    type: ((fieldName, fieldDef) => (value, message, validateOptions) => {
-      if (value.optionN != validateOptions.val) {
-        (message || (message = [])).push(`Must be ${validateOptions.val}`);
-        return message;
-      }
-    })
+test(`Атрибут 'null'`, t => {
+  const validate = validateObject({
+    a: {type: 'int', null: true},
+    b: {type: 'int', null: false},
+    c: {type: 'int'}, // по умолчанию - false
   });
-  t.is(validate.call(context, {optionN: 12}, null, {val: 12}), undefined);
-  t.deepEqual(validate.call(context, {optionN: 10}, null, {val: 12}), [`Must be 12`]);
 
-  const validate2 = validateObject({
+  t.is(validate({a: 1, b: 2, c: 3}), undefined);
+  t.is(validate({a: null, b: 2, c: 3}), undefined);
+
+  t.deepEqual(validate({a: 1, b: null, c: 3}), [`Invalid 'b': null`]);
+  t.deepEqual(validate({a: 1, b: 2, c: null}), [`Invalid 'c': null`]);
+  t.deepEqual(validate({a: null, b: null, c: null}), [`Invalid 'b': null`, `Invalid 'c': null`]);
+});
+
+test(`Атрибут 'required'`, t => {
+  const requiredValidate = validateObject({
+    optionN: {type: 'int', required: true},
+  });
+  t.is(requiredValidate({optionN: 12}), undefined);
+  t.deepEqual(requiredValidate({}), [`Missing 'optionN'`]);
+
+  // перечень обязательных полей, возвращается в том числе если вместо объекта было переданно null или undefined
+  t.deepEqual(requiredValidate(undefined), [`Missing 'optionN'`]);
+  t.deepEqual(requiredValidate(null), [`Missing 'optionN'`]);
+
+  const notRequiredValidate = validateObject({
+    optionN: {type: 'int', required: false},
+  });
+  t.is(notRequiredValidate({optionN: 12}), undefined);
+  t.is(notRequiredValidate({}), undefined);
+
+  const notRequiredValidate2 = validateObject({
+    optionN: {type: 'int',}, // по умолчанию required: false
+  });
+  t.is(notRequiredValidate2({optionN: 12}), undefined);
+  t.is(notRequiredValidate2({}), undefined);
+});
+
+test(`Атрибут 'copy'`, t => {
+  // что копирование было доступно, надо создать validatorFactory c опцией copyFields: true
+  const validateObjectWithCopy = validateObjectFactory({
+    missingField,
+    unexpectedField,
+    invalidFieldValue,
+    copyFields: true
+  }); // вариант с копированием нужен только в этом тесте
+  const validateWithCopy = validateObjectWithCopy({
+    // можно указывать как true/false
+    a: {type: 'int', copy: true},
+    // как функцию
+    b: {
+      type: 'int', copy: function (fieldNamePrefix, fieldName, fieldDef) {
+        return function (value, message, validateOptions) { // при копировании так же можно возвращать ошибки
+          const target = validateOptions.copyTo;
+          target.bCopy1 = value.b; // имя поля может быть в коде
+          target.bCopy2 = value[fieldName]; // или можно сделать универсальный метод, который берет имя поля из fieldName
+        };
+      }
+    },
+    // по умолчанию - false
+    c: {type: 'int'},
+  });
+
+  const dest = {};
+  t.is(validateWithCopy({a: 1, b: 2, c: 3}, {copyTo: dest}), undefined);
+  t.is(dest._a, 1); // внимание, копируется в поле, с подчерком в начале имени
+  t.is(dest.bCopy1, 2); // скопированно методом
+  t.is(dest.bCopy2, 2);
+  t.false(hasOwnProperty.call(dest, '_c')); // по умолчанию - не копируется
+
+  // опция copyTo обязательна, если есть поля с признаком copy
+  t.throws(() => validateWithCopy({a: 12}), `Missing option 'copyTo': undefined`);
+  t.throws(() => validateWithCopy({a: 12}, {anotherOption: true}), `Missing option 'copyTo': {anotherOption: true}`);
+
+  // если валидатор создан через фабрику без опции copyFields: true, то признак copy игнорируется, и опция copyTo не трубуется
+  const validateWithoutCopy = validateObject({
+    // можно указывать как true/false
+    a: {type: 'int', copy: true},
+    // как функцию
+    b: {
+      type: 'int', copy: function (fieldNamePrefix, fieldName, fieldDef) {
+        return function (value, message, validateOptions) { // при копировании так же можно возвращать ошибки
+          const target = validateOptions.copyTo;
+          target.bCopy1 = value.b; // имя поля может быть в коде
+          target.bCopy2 = value[fieldName]; // или можно сделать универсальный метод, который берет имя поля из fieldName
+        };
+      }
+    },
+    // по умолчанию - false
+    c: {type: 'int'},
+  });
+
+  const dest2 = {};
+  t.is(validateWithoutCopy({a: 1, b: 2, c: 3}, {copyTo: dest}), undefined);
+  t.deepEqual(dest2, {});
+  t.is(validateWithoutCopy({a: 12}), undefined); // ошибки что нет опции copyTo не возникает
+  t.is(validateWithoutCopy({a: 12}, {anotherOption: true}), undefined); // ошибки что нет опции copyTo не возникает
+
+  // признак copy нельзя использовать во вложенных полях - только на верхнем уровне
+  t.throws(() => validateObject({
+    a: {
+      fields: {
+        b: {copy: true},
+      }
+    }
+  }), `Field 'a.b': For any subfield it is not allowed to have a 'copy' attribute`);
+
+});
+
+test(`Атрибут 'validate'`, t => {
+  const validate = validateObject({
     optionN: {
-      type: [((fieldName, fieldDef) => (value, message, validateOptions) => {
-        if (value.optionN != 21) {
-          (message || (message = [])).push(`Must be 21`);
-          return message;
-        }
-      }), 'bool'], required: true, null: true
+      type: 'int', validate: (v, validateOptions) => {
+        t.true(validateOptions == undefined || validateOptions.v == true); // validateOptions передаются в validate
+        return v !== 12;
+      }
     }
   });
-  t.is(validate2({optionN: 21}), undefined);
-  t.is(validate2({optionN: null}), undefined);
-  t.is(validate2({optionN: false}), undefined);
-  t.deepEqual(validate2({optionN: 15}), [`Invalid 'optionN': 15`]);
-  t.deepEqual(validate2({}), [`Missing 'optionN'`]);
+  t.is(validate({optionN: 1}, {v: true}), undefined);
+  t.deepEqual(validate({optionN: 12}), [`Invalid 'optionN': 12`]);
+  t.deepEqual(validate({}), undefined); // validate не используется если нет значения
 });
 
 test(`_extend`, t => {
@@ -166,21 +209,21 @@ test(`_extend`, t => {
 
 for (const v of [12, true, 'test', {}, [], function () {
 }])
-  test(`не верное значение _extend: ${prettyPrint(v)}`, t => {
+  test(`Не верное значение поля '_extend': ${prettyPrint(v)}`, t => {
     t.throws((() => validateObject({
       _extends: v,
       name: {type: 'int'}
     })), `Invalid value of _extends: ${prettyPrint(v)}`);
   });
 
-test(`wrong named props`, t => {
+test(`Имя поля в схеме не может начинаться с подчерка`, t => {
   t.throws(() => validateObject({name: {type: 'str'}, _wrong: {type: 'int'}})); // ошибка, что поле _wrong не может быть именем поля
 });
 
-test(`_validate для схемы вызывается вне зависимости от успешности остальных проверок.  их результат можно узнать из параметра messages`, t => {
+test(`_validate для всего объекта вызывается вне зависимости от успешности остальных проверок`, t => {
   let lastMessage = 123;
   const validate = validateObject({
-    name: {type: 'str'}, optionN: {type: 'int'}, _validate: (value, message, validateOptions) => {
+    name: {type: 'str'}, optionN: {type: 'int'}, _validate: (value, message, validateOptions) => { // если messages != undefined, значит предыдущие проверки вернули ошибку(и)
       lastMessage = message; // если есть message, то значит найденны ошибки.  И можно проверку всего объекта не проводить
       if (value.optionN != 12) {
         (message || (message = [])).push(`'optionN' must be 12`);
@@ -198,32 +241,15 @@ test(`_validate для схемы вызывается вне зависимос
   t.deepEqual(lastMessage, [`Invalid 'name': 22`, `'optionN' must be 12`]); // так как массив ошибок уже был при выполнении validate, в него добавилось ещё одно сообщение
 });
 
-test(`required fields will be reported event if argument is null or undefined`, t => {
-  const validate = validateObject({optionN: {type: 'str', required: true}}, {type: 'int', required: true});
-  t.deepEqual(validate(undefined, null), [`Missing 'optionN'`]); // ошибка что полей нет, даже когда структура пустая
-  t.deepEqual(validate(null, null), [`Missing 'optionN'`]); // ошибка что полей нет, даже когда структура пустая
-});
-
-test(`invalid argument will cause 'validate' to fail`, t => {
+test(`Если как параметр передать не объект или null/undefined то будет выброшена ошибка`, t => {
   const validate = validateObject({optionN: {type: 'str', required: true}}, {type: 'int', required: true});
   t.throws(() => validate(true), `Invalid argument 'value': true`);
   t.throws(() => validate(false), `Invalid argument 'value': false`);
-  t.throws(() => validate('wrong'),  `Invalid argument 'value': 'wrong'`);
+  t.throws(() => validate('wrong'), `Invalid argument 'value': 'wrong'`);
   t.throws(() => validate(12), `Invalid argument 'value': 12`);
 });
 
-test(`if any field with 'copy' then 'copyTo' option is required`, t => {
-  const validateWithCopy = validateObjectWithCopy({optionN: {type: 'str', copy: true}});
-  t.throws(() => validateWithCopy({optionN: 'test'}), `Missing field 'copyTo': undefined`);
-  t.throws(() => validateWithCopy({optionN: 'test'}, 'wrong'), `Invalid argument 'validateOptions': 'wrong'`);
-  t.throws(() => validateWithCopy({optionN: 'test'}, {}), `Missing field 'copyTo': {}`);
-  t.throws(() => validateWithCopy({optionN: 'test'}, {copyTo: 'wrong'}), `Invalid option 'copyTo': 'wrong'`);
-  const dest = {};
-  t.is(validateWithCopy({optionN: 'test'}, {copyTo: dest}), undefined);
-  t.deepEqual(dest, {_optionN: 'test'});
-});
-
-test(`'validateAndCopyOptionsFactory' работает только для свой части опций`, t => {
+test(`'validateAndCopyOptionsFactory' работает только для свой части опций, но при этом проверяет что у предка нет полей с такими же именами`, t => {
   const parentValidate = validateAndCopyOptionsFactory({
     name: {type: 'string', required: true},
   });
@@ -242,8 +268,8 @@ test(`'validateAndCopyOptionsFactory' работает только для св�
 
   t.throws(() => validateAndCopyOptionsFactory({
     _extends: parentValidate, // _extends дает проверку, что в наследники не указаны те же поля, что и в предке
-    connection: {type: 'name', required: true},
-  }));
+    name: {type: 'int', required: true},
+  }), `Field 'name' is already defined in parent structure`);
 });
 
 test(`'validateEventFactory' работает для всей иерархии проверок`, t => {
@@ -255,12 +281,16 @@ test(`'validateEventFactory' работает для всей иерархии �
     connection: {type: 'string', required: true},
   }, {throwException: true});
 
-  // t.is(parentValidate({name: 'test'}), undefined);
-  // t.throws(() => parentValidate({})); // нет поля name
+  t.is(parentValidate({name: 'test'}), undefined);
+  t.throws(() => parentValidate({})); // нет поля name
 
   t.is(childValidate({name: 'test', connection: '123'}), undefined);
-  // t.throws(() => { childValidate({connection: '123'}); }); // нет поля name
-  // t.throws(() => { childValidate({}); }); // нет полей name и connection
+  t.throws(() => {
+    childValidate({connection: '123'});
+  }); // нет поля name
+  t.throws(() => {
+    childValidate({});
+  }); // нет полей name и connection
 });
 
 test(`выдавать unexpected поля в validateEventFactory`, t => {
@@ -287,12 +317,23 @@ test(`validate для поля, вызывается только если type,
   let cnt = 0, v;
   const requiredValidate = validateObject({
     optionN: {
-      type: 'string', required: true, null: true, validate: v = (fieldName, fieldDef) => (value, message, validateOptions) => {
+      type: 'string',
+      required: true,
+      null: true,
+      validate: v => {
         cnt++;
+        return true;
       }
     }
   });
-  const notRequiredValidate = validateObject({optionN: {type: 'string', validate: v}});
+  const notRequiredValidate = validateObject({
+    optionN: {
+      type: 'string', validate: v => {
+        cnt++;
+        return true;
+      }
+    }
+  });
 
   t.deepEqual(requiredValidate({}), [`Missing 'optionN'`]);
   t.is(cnt, 0);
@@ -316,63 +357,77 @@ test(`validate для поля, вызывается только если type,
   t.is(cnt, 2);
 });
 
-test(`validateAndCopyOptionsFactory / validateOptionsFactory детали поведения`, t => {
+test(`Атрибут 'fields' вместо 'type'`, t => {
+  const validate = validateObject({
+    a: {type: 'int'},
+    b: {
+      fields: {
+        c: {type: 'int'},
+        d: {type: 'int', required: true},
+      }
+    },
+    e: {
+      required: true, fields: {
+        f: {type: 'int', required: true},
+      }
+    }
+  });
 
-  const schemaWithRequired = {
-    num: {type: 'int'},
-    requiredNum: {type: 'int', required: true},
-    copiedNum: {type: 'int', copy: true},
-  };
-  const validateWithCopy = validateAndCopyOptionsFactory(schemaWithRequired);
-  const validate = validateOptionsFactory(schemaWithRequired);
+  t.is(validate({
+    a: 12,
+    b: {c: 1, d: 2},
+    e: {f: 3},
+  }), undefined);
 
-  const schemaWithoutRequiredAndCopy = {
-    num: {type: 'int'},
-  };
-  const validateWithCopyWithoutRequiredAndCopy = validateAndCopyOptionsFactory(schemaWithoutRequiredAndCopy);
-  const validateWithoutRequiredAndCopy = validateOptionsFactory(schemaWithoutRequiredAndCopy);
+  t.is(validate({
+    // если убрать не обязательное поле (b: {c: 1, d: 2},), в котором есть обязательные поля - не проблема
+    e: {f: 3},
+  }), undefined);
 
-  // когда всё в порядке
-  const dest1 = {};
-  validateWithCopy({num: 1, requiredNum: 2, copiedNum: 3}, {copyTo: dest1});
-  t.deepEqual(dest1, {_copiedNum: 3});
+  t.deepEqual(validate({
+    a: 1,
+  }), [`Missing 'e'`]);
 
-  const dest2 = {};
-  validate({num: 1, requiredNum: 2, copiedNum: 3}, {copyTo: dest2});
-  t.deepEqual(dest2, {});
+  t.deepEqual(validate({
+    b: {}, // значение есть, но в нем нет поля d
+    e: {}, // значение есть, но в нем нет поля f
+  }), [`Missing 'b.d'`, `Missing 'e.f'`]);
 
-  // если для validateAndCopyOptionsFactory не указан опция валидации copyTo - ошибка
-  t.throws(() => validateWithCopy({num: 1, requiredNum: 2, copiedNum: 3}), `Missing field 'copyTo': undefined`);
-  // есть validateOptions но нет поля copyTo
-  t.throws(() => validateWithCopy({num: 1, requiredNum: 2, copiedNum: 3}, {}), `Missing field 'copyTo': {}`);
-  // есть validateOptions но нет поля copyTo не объект
-  t.throws(() => validateWithCopy({num: 1, requiredNum: 2, copiedNum: 3}, {copyTo: 12}), `Invalid option 'copyTo': 12`);
+  t.is(validate({
+    b: null, // null - считается что значения нет, и поле d не требуется
+    e: {f: 3},
+  }), undefined);
 
-  // validateOptionsFactory игнорируется признак copy - ошибки нет, даже когда нет опции copyTo
-  validate({num: 1, requiredNum: 2, copiedNum: 3});
+  t.is(validate({
+    b: undefined, // undefined - считается что значения нет, и поле d не требуется
+    e: {f: 3},
+  }), undefined);
 
-  // если нет объект validateOptions, то всё равно возвращается сообщение об отсутствии обязательных полей
-  const dest3 = {};
-  t.throws(() => validateWithCopy(undefined, {copyTo: dest3}), `Invalid argument 'value': Missing required field 'requiredNum'`);
-  t.throws(() => validate(undefined, {copyTo: dest3}), `Invalid argument 'value': Missing required field 'requiredNum'`);
-  t.throws(() => validateWithCopy(null, {copyTo: dest3}), `Invalid argument 'value': Missing required field 'requiredNum'`);
-  t.throws(() => validate(null, {copyTo: dest3}), `Invalid argument 'value': Missing required field 'requiredNum'`);
+  // обязательные вложенные поля, не входя в список полей, если передать вместо объекта null/undefined
+  t.deepEqual(validate(undefined), [`Missing 'e'`]);
+  t.deepEqual(validate(null), [`Missing 'e'`]);
 
-  // если нет поля, которое надо скопировать - ничего не делаем ...а можно предусмотреть default
-  const dest4 = {};
-  validateWithCopy({num: 1, requiredNum: 2}, {copyTo: dest4});
-  t.deepEqual(dest4, {});
-  validate({num: 1, requiredNum: 2}, {copyTo: dest4}); // хотя validate вообще не смотрит на опции copyTo
-  t.deepEqual(dest4, {});
+  // если есть вложенные поля, которых нет в схеме и в factory включена опция unexpected, то не ожиданные поля выдются если найдены
+  t.deepEqual(validate({
+    a: 12,
+    b: {c: 1, d: 2, unexp: 'a'},
+    e: {f: 3, anotherUnexp: false},
+    oneMoreUnexp: {v: 12},
+  }), [
+    `Unexpected 'b.unexp': 'a'`,
+    `Unexpected 'e.anotherUnexp': false`,
+    `Unexpected 'oneMoreUnexp': {v: 12}`]);
 
-  // если нет обязательного поля - ругаемся
-  const dest5 = {};
-  t.throws(() => validateWithCopy({num: 1}, {copyTo: dest5}), `Invalid argument 'value': Missing required field 'requiredNum'`);
-  t.throws(() => validate({num: 1}), `Invalid argument 'value': Missing required field 'requiredNum'`);
-
-  // если схема не содержит required и не содержит полей с пирзнаком copy, то copyTo не требуется, и при остуствующем объекте ошибки не возникает
-  validateWithCopyWithoutRequiredAndCopy(undefined);
-  validateWithoutRequiredAndCopy(undefined);
-  validateWithCopyWithoutRequiredAndCopy(null);
-  validateWithoutRequiredAndCopy(null);
+  const validate2 = validateObject({
+    a: {fields: {
+      b: {fields: {
+        c: {type: 'int'},
+        d: {type: 'string', required: true},
+      }}
+    }}});
+  t.is(validate2({a: {b: {c: 1, d: 'a'}}}), undefined);
+  t.is(validate2({a: {b: null}}), undefined);
+  t.deepEqual(validate2({a: {b: {}}}), [`Missing 'a.b.d'`]);
 });
+
+test.todo(`Можно совмещать fields с другими вариантами типов, используя VType.Fields`);

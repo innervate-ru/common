@@ -110,16 +110,8 @@ export default function (services) {
     _poolError = (error) => {
       // TODO: Проверить что сюда попадают ошибки от неправильных запросов
       console.info('error');
-      switch (this._service.get('state')) {
-        case STARTING:
-          // const error = new Error('call');
-          // console.info('cancel', error.stack);
-          // this._cancelStart();
-          return;
-        case READY:
-          console.info('poolErr', error);
-          break;
-      }
+      if (this._service.state === READY)
+        this._service.criticalFailure(error);
     };
 
     async _serviceStart() {
