@@ -141,12 +141,12 @@ function _module() {
     };
     Object.setPrototypeOf(context, typePrototype);
 
-    _addType(typeName, function() {
+    addTypeAdvanced(typeName, function() {
       return context; // всегда возвращается один и тот же контекст.  если используется сабвалидатор, то создается новый контекст
     });
   }
 
-  function _addType(typeName, typeContextFactory) {
+  function addTypeAdvanced(typeName, typeContextFactory) {
 
     typeContextFactory.toString = function() { return `Instead VType.${typeName} use VType.${typeName}()`; };
 
@@ -198,7 +198,7 @@ function _module() {
   return {
     VType,
     addType,
-    // addTypeAdvanced,
+    addTypeAdvanced,
     addSubvalidator,
     getPureValidator,
   }
