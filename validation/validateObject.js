@@ -3,8 +3,6 @@ import prettyPrint from '../utils/prettyPrint'
 
 const hasOwnProperties = Object.prototype.hasOwnProperty;
 
-const defaultConsole = console;
-
 /**
  * Общий код, который позволяет организовать проверку заполнености объектов, в нескольких сценариях:
  *
@@ -51,13 +49,18 @@ export function validateObjectFactory({
     }
 
     if (!(factoryOptions === undefined || factoryOptions === null || (typeof factoryOptions == 'object' && !Array.isArray(factoryOptions))))
-      throw new Error(`Invalid argument 'factoryOptions'`);
+      throw new Error(`Invalid argument 'factoryOptions': ${prettyPrint(factoryOptions)}`);
 
     const validates = [];
     const requiredFields = (_extends && _extends.requiredFields) ? _extends.requiredFields.slice() : [];
     const fields = Object.create(null);
     if (_extends) Object.assign(fields, _extends.fields);
-    const context = {anyCopyFunc: false};
+
+    const context = {
+      anyCopyFunc: false,
+      validateSubfields: _validateSubfields, // validateSubfields нужен для использование в реализации типа VType.Fields
+      invalidFieldValue, // сообщение, о том что поле имеет неправильно значение - для использование в типах, определнных как функция
+    };
     for (const fieldName of Object.getOwnPropertyNames(schema)) {
       if (fieldName.startsWith('_')) {
         switch (fieldName) {
@@ -71,8 +74,8 @@ export function validateObjectFactory({
       if (hasOwnProperties.call(fields, fieldName)) throw new Error(`Field '${fieldName}' is already defined in parent structure`);
       fields[fieldName] = true;
       const fieldDef = schema[fieldName];
-      const validate = _validateRequired.call(context, fieldName, fieldDef);
-      if (fieldDef.required) requiredFields.push(missingField(undefined, fieldName));
+      const validate = _validateRequired.call(context, undefined, fieldName, fieldDef);
+      if (fieldDef.required) requiredFields.push(missingField(undefined, undefined, fieldName));
       if (validate) validates.push(validate);
     }
 
@@ -109,8 +112,8 @@ export function validateObjectFactory({
       validateFunc = function (value, validateOptions) {
         let message = innerValidateFunc(value, validateOptions);
         for (const fieldName of Object.getOwnPropertyNames(value)) // поиск полей, которые не ожидаются в событии
-          if (!hasOwnProperties.call(fields, fieldName))
-            (message || (message = [])).push(unexpectedField(value, fieldName));
+          if (!(fieldName in fields))
+            (message || (message = [])).push(unexpectedField(value, undefined, fieldName));
         return message;
       }
     }
@@ -118,12 +121,14 @@ export function validateObjectFactory({
     if (requiredFields.length > 0) {
       const innerValidateFunc = validateFunc;
       validateFunc = function (value, validateOptions) {
+        // это специальный случай: выдаем сообщение что нет обязательных полей, когда на входе не объект, а null или undefined
         if (value === undefined || value === null) return requiredFields;
         return innerValidateFunc(value, validateOptions);
       }
     } else {
       const innerValidateFunc = validateFunc;
       validateFunc = function (value, validateOptions) {
+        // тут сообщения нет, но и обрабатывать нечего - так что, считаем, что всё в порядке
         if (value === undefined || value === null) return;
         return innerValidateFunc(value, validateOptions);
       };
@@ -135,7 +140,7 @@ export function validateObjectFactory({
       const innerValidateFunc = validateFunc;
       validateFunc = function (value, validateOptions) {
         if (!validateOptions || !hasOwnProperties.call(validateOptions, 'copyTo'))
-          throw new Error(`Missing field 'copyTo': ${prettyPrint(validateOptions)}`);
+          throw new Error(`Missing option 'copyTo': ${prettyPrint(validateOptions)}`);
         const copyTo = validateOptions.copyTo;
         if (!(typeof copyTo === 'object' && copyTo !== null && !Array.isArray(copyTo)))
           throw new Error(`Invalid option 'copyTo': ${prettyPrint(copyTo)}`);
@@ -167,14 +172,59 @@ export function validateObjectFactory({
     return validateFunc;
   }
 
+  function _validateSubfields(thisFieldNamePrefix, thisFieldName, fields) {
+
+    const validates = [];
+    const fieldsMap = Object.create(null);
+
+    if (!(typeof fields === 'object' && fields != null && !Array.isArray(fields)))
+      throw new Error(`Field '${thisFieldName}': Invalid attribute 'fields' value: ${prettyPrint(fields)}`);
+
+    const fieldNamePrefix = thisFieldNamePrefix ? `${thisFieldNamePrefix}.${thisFieldName}` : thisFieldName;
+
+    for (const subfieldName of Object.getOwnPropertyNames(fields)) {
+      const fieldName = `${thisFieldName}.${subfieldName}`;
+      if (subfieldName.startsWith('_')) throw new Error(`Invalid property name: '${fieldName}'`);
+      fieldsMap[subfieldName] = true;
+      const fieldDef = fields[subfieldName];
+      if (hasOwnProperties.call(fieldDef, 'copy')) throw new Error(`Field '${fieldName}': For any subfield it is not allowed to have a 'copy' attribute`);
+      const validate = _validateRequired.call(this, fieldNamePrefix, subfieldName, fieldDef);
+      if (validate) validates.push(validate);
+    }
+
+    let validateSubfields = function (value, message, validateOptions) { // метод, который выполняет проверку и доп. операции, как копирование
+      for (const validate of validates)
+        message = validate(value, message, validateOptions) || message; // проверяем все проверки
+      return message;
+    };
+
+    if (unexpectedField) {
+      const innerValidateSubfields = validateSubfields;
+      validateSubfields = function (value, message, validateOptions) { // если включена опция unexpectedField, то проверяем что нет полей не объявденных в схеме
+        message = innerValidateSubfields(value, message, validateOptions) || message;
+        for (const subfieldName of Object.getOwnPropertyNames(value))
+          if (!(subfieldName in fieldsMap))
+            (message || (message = [])).push(unexpectedField(value, fieldNamePrefix, subfieldName));
+        return message;
+      }
+    }
+
+    return function (value, message, validateOptions) {
+      const subfieldValue = value[thisFieldName];
+      if (typeof subfieldValue === 'object' && subfieldValue != null && !Array.isArray(subfieldValue))
+        return validateSubfields(subfieldValue, message, validateOptions);
+      (message || (message = [])).push(invalidFieldValue(value, thisFieldNamePrefix, thisFieldName));
+      return message;
+    }
+  }
+
   /**
    * Если свойство поля required равно true, то проверяет что поле присутствует в объекте.  Иначе возвращает ошибку.
    * Если свойство поля required равно false, то вызывает следуюший шаг проверки, если поле присутствует в объекте.
    */
-  function _validateRequired(fieldName, fieldDef) {
-
-    const pureNextCheck = _validateNull.call(this, fieldName, fieldDef);
-    const copyFunc = copyFields ? _copyField.call(this, fieldName, fieldDef) : undefined;
+  function _validateRequired(fieldNamePrefix, fieldName, fieldDef) {
+    const pureNextCheck = _validateNull.call(this, fieldNamePrefix, fieldName, fieldDef);
+    const copyFunc = copyFields ? _copyField.call(this, fieldNamePrefix, fieldName, fieldDef) : undefined;
 
     this.anyCopyFunc = this.anyCopyFunc || !!copyFunc;
 
@@ -187,17 +237,18 @@ export function validateObjectFactory({
     if (fieldDef.required) {
 
       const validateRequired = function (value, message, validateOptions) {
-        if (!hasOwnProperties.call(value, fieldName)) {
-          (message || (message = [])).push(missingField(value, fieldName));
+        // для удобства сбора структур c использованием {...(v ? {a: v} : undefined)}, считаем что если поле имеет значение undefined, то его нет
+        if (!hasOwnProperties.call(value, fieldName) || value[fieldName] === undefined) {
+          (message || (message = [])).push(missingField(value, fieldNamePrefix, fieldName));
           return message;
         }
       };
 
       if (nextCheck)
         return function (value, message, validateOptions) {
-          const res = validateRequired(value, message, validateOptions);
-          if (!res) return nextCheck(value, message, validateOptions);
-          return res;
+          const msg = validateRequired(value, message, validateOptions);
+          if (!msg) return nextCheck(value, message, validateOptions);
+          return msg;
         };
       else return validateRequired;
     }
@@ -214,9 +265,9 @@ export function validateObjectFactory({
   /**
    * Копирует значение поля, если в его описание указан признак copy и при выполнении в опциях есть поле copyTo.
    */
-  function _copyField(fieldName, fieldDef) {
+  function _copyField(fieldNamePrefix, fieldName, fieldDef) {
     const copy = fieldDef.copy;
-    if (typeof copy === 'function') return copy;
+    if (typeof copy === 'function') return copy.call(this, fieldNamePrefix, fieldName, fieldDef);
     else if (typeof copy === 'boolean') {
       if (copy) {
         const destFieldName = `_${fieldName}`;
@@ -231,8 +282,8 @@ export function validateObjectFactory({
   /**
    * Если свойтсво поля null равное true, проверяет если поле null, то дальнейшие проверки не проводятся.
    */
-  function _validateNull(fieldName, fieldDef) {
-    const nextCheck = _validateValidate.call(this, fieldName, fieldDef);
+  function _validateNull(fieldNamePrefix, fieldName, fieldDef) {
+    const nextCheck = _validateValidate.call(this, fieldNamePrefix, fieldName, fieldDef);
     if (fieldDef.null)
       return function (value, message, validateOptions) {
         if (value[fieldName] == null) return;
@@ -246,52 +297,68 @@ export function validateObjectFactory({
    * validate это функция, которая получает два параметра value и message, и возвращает undefined если данные прошли
    * успешно валидацию, или массив message, в который добавлено сообщение об обнаруженной проблеме.
    */
-  function _validateValidate(fieldName, fieldDef) {
-    const nextCheck = _validateListOfTypes.call(this, fieldName, fieldDef);
-    if (typeof fieldDef.validate === 'function') {
-      const validate = fieldDef.validate(fieldName, fieldDef);
-      return function (value, message, validateOptions) {
-        const res = nextCheck(value, message, validateOptions);
-        if (!res) return validate(value, message, validateOptions);
-        return res;
-      }
+  function _validateValidate(fieldNamePrefix, fieldName, fieldDef) {
+    const nextCheck = _validateEitherTypeOrFields.call(this, fieldNamePrefix, fieldName, fieldDef);
+    if (fieldDef.validate) {
+      const validateFunc = fieldDef.validate;
+      if (typeof validateFunc === 'function' && (validateFunc.length === 1 || validateFunc.length == 2)) { // метод должен быть виде v => ... или (v, validateOptions) => ...
+        return function (value, message, validateOptions) {
+          let msg = nextCheck(value, message, validateOptions);
+          if (!msg) {
+            if (validateFunc(value[fieldName], validateOptions)) return;
+            (msg || (msg = [])).push(invalidFieldValue(value, fieldNamePrefix, fieldName));
+          }
+          return msg;
+        }
+      } else throw new Error(`Field ${fieldName}: Invalid value of 'validate' attribute: ${prettyPrint(validateFunc  )}`)
     }
     return nextCheck;
+  }
+
+  /**
+   * Если тип задан, как fields, то обрабытваем вложенные поля, иначе обрабатываем значение атрибута type.
+   */
+  function _validateEitherTypeOrFields(fieldNamePrefix, fieldName, fieldDef) {
+    const type = fieldDef.type;
+    const fields = fieldDef.fields;
+    if (!(type || fields)) throw new Error(`Field '${fieldName}' must have either 'type' and 'fields' attribute`);
+    if (type && fields) throw new Error(`Field '${fieldName}' cannot have both 'type' and 'fields' attributes`);
+
+    if (fields)
+      return _validateSubfields.call(this, fieldNamePrefix, fieldName, fields);
+    else
+      return _validateListOfTypes.call(this, fieldNamePrefix, fieldName, fieldDef);
   }
 
   /**
    * Если тип поля задан как массив, то каждый элемент массива проверяется как возможный допустимый вариант типа.  Если один из
    * типов проходит проверку успешно, то возвращает undefined.  Иначе ошибка что не верный тип данных.
    */
-  function _validateListOfTypes(fieldName, fieldDef) {
-
-    if (!hasOwnProperties.call(fieldDef, 'type')) throw new Error(`Field '${fieldName}' definition: Missing attribute: 'type'`);
-
+  function _validateListOfTypes(fieldNamePrefix, fieldName, fieldDef) {
     const type = fieldDef.type;
-
     if (Array.isArray(type)) { // список
-      const validates = type.map((t) => _validateType.call(this, fieldName, t));
+      const validates = type.map((t) => _validateType.call(this, fieldNamePrefix, fieldName, fieldDef, t));
       if (validates.length == 0 || validates.findIndex((v) => v === undefined) == -1) { // если есть тип без проверок, то тогда подходит любое значение
         if (validates.length === 1) return validates[0]; // только один тип в списке
         else return function (value, message, validateOptions) {
           let msg;
           for (const validate of validates)
             if (validate(value, msg) === undefined) return; // одна из проверок прошла успешно
-          (message || (message = [])).push(invalidFieldValue(value, fieldName));
+          (message || (message = [])).push(invalidFieldValue(value, fieldNamePrefix, fieldName));
           return message;
         }
       }
     }
 
-    return _validateType.call(this, fieldName, type); // простой тип, не список
+    return _validateType.call(this, fieldNamePrefix, fieldName, fieldDef, type); // простой тип, не список
   }
 
   /**
    * Проверяет данные на основании типа поля.
    */
-  function _validateType(fieldName, type) {
+  function _validateType(fieldNamePrefix, fieldName, fieldDef, type) {
 
-    if (typeof type == 'function') return type(fieldName, type); // тип - функция
+    if (typeof type == 'function') return type.call(this, fieldNamePrefix, fieldName, fieldDef); // тип - функция
 
     switch (type) {
       case 'str':
@@ -299,7 +366,7 @@ export function validateObjectFactory({
         return function (value, message, validateOptions) {
           const v = value[fieldName];
           if (!(typeof v === 'string')) {
-            (message || (message = [])).push(invalidFieldValue(value, fieldName));
+            (message || (message = [])).push(invalidFieldValue(value, fieldNamePrefix, fieldName));
             return message;
           }
         };
@@ -309,7 +376,7 @@ export function validateObjectFactory({
         return function (value, message, validateOptions) {
           const v = value[fieldName];
           if (!Number.isInteger(v)) {
-            (message || (message = [])).push(invalidFieldValue(value, fieldName));
+            (message || (message = [])).push(invalidFieldValue(value, fieldNamePrefix, fieldName));
             return message;
           }
         };
@@ -318,7 +385,7 @@ export function validateObjectFactory({
         return function (value, message, validateOptions) {
           const v = value[fieldName];
           if (!(typeof v == 'number')) {
-            (message || (message = [])).push(invalidFieldValue(value, fieldName));
+            (message || (message = [])).push(invalidFieldValue(value, fieldNamePrefix, fieldName));
             return message;
           }
         };
@@ -328,7 +395,7 @@ export function validateObjectFactory({
         return function (value, message, validateOptions) {
           const v = value[fieldName];
           if (!(typeof v === 'boolean')) {
-            (message || (message = [])).push(invalidFieldValue(value, fieldName));
+            (message || (message = [])).push(invalidFieldValue(value, fieldNamePrefix, fieldName));
             return message;
           }
         };
@@ -337,7 +404,7 @@ export function validateObjectFactory({
         return function (value, message, validateOptions) {
           const v = value[fieldName];
           if (!(typeof v === 'object' && !Array.isArray(v))) {
-            (message || (message = [])).push(invalidFieldValue(value, fieldName));
+            (message || (message = [])).push(invalidFieldValue(value, fieldNamePrefix, fieldName));
             return message;
           }
         };
@@ -346,7 +413,7 @@ export function validateObjectFactory({
         return function (value, message, validateOptions) {
           const v = value[fieldName];
           if (!Array.isArray(v)) {
-            (message || (message = [])).push(invalidFieldValue(value, fieldName));
+            (message || (message = [])).push(invalidFieldValue(value, fieldNamePrefix, fieldName));
             return message;
           }
         };
@@ -355,7 +422,7 @@ export function validateObjectFactory({
         return function (value, message, validateOptions) {
           const v = value[fieldName];
           if (!(typeof v === 'function')) {
-            (message || (message = [])).push(invalidFieldValue(value, fieldName));
+            (message || (message = [])).push(invalidFieldValue(value, fieldNamePrefix, fieldName));
             return message;
           }
         };
@@ -365,19 +432,12 @@ export function validateObjectFactory({
     }
   }
 
-  validateObject._validateListOfTypes = _validateListOfTypes;
-  validateObject._validateValidate = _validateValidate;
-  validateObject._validateRequired = _validateRequired;
-  validateObject._copyField = _copyField;
-  validateObject._validateNull = _validateNull;
-  validateObject._validateType = _validateType;
-
   return validateObject;
 }
 
-export const messageMissingField = (value, fieldName) => `Missing required field '${fieldName}'`;
-export const messageUnexpectedField = (value, fieldName) => `Unexpected field '${fieldName}': ${prettyPrint(value[fieldName])}`;
-export const messageInvalidFieldValue = (value, fieldName) => `Invalid field '${fieldName}' value: ${prettyPrint(value[fieldName])}`;
+export const messageMissingField = (value, fieldNamePrefix, fieldName) => `Missing required field '${fieldNamePrefix ? `${fieldNamePrefix}.${fieldName}` : fieldName}'`;
+export const messageUnexpectedField = (value, fieldNamePrefix, fieldName) => `Unexpected field '${fieldNamePrefix ? `${fieldNamePrefix}.${fieldName}` : fieldName}': ${prettyPrint(value[fieldName])}`;
+export const messageInvalidFieldValue = (value, fieldNamePrefix, fieldName) => `Invalid field '${fieldNamePrefix ? `${fieldNamePrefix}.${fieldName}` : fieldName}' value: ${prettyPrint(value[fieldName])}`;
 
 /**
  * Проверка опций, например, конструктора.  Каждый уровень (см. _extends) опций проверяется отдельно.  В случае

@@ -34,6 +34,7 @@ export function config(services) {
           validate: validateEventFactory({
             _extends: validateServiceEvent,
             state: {type: 'string', required: true, validate: validateNonEmptyString},
+            prevState: {type: 'string', required: true, validate: validateNonEmptyString},
             reason: {type: 'string'}, // причина перехода в состояние FAILED - поле message из Error
           }),
           toString: (ev) => (ev.state === STOPPED) ? '' : `${ev.source}: state: '${ev.state}'${ev.reason ? ` (reason: '${ev.reason}')` : ``}`,
@@ -84,6 +85,7 @@ export default function (services) {
   const {bus, testMode} = services; // testMode это hack для тестирования - это не сервис, а просто boolean значение ...но он тут никому не должно мешать
 
   class Service {
+
     constructor(name, serviceImpl, options) {
       /**
        * Имя сервиса, состоящие из имени узла (node) и имени сервиса разделенных двоеточием.
