@@ -3,7 +3,7 @@ import prettyPrint from '../utils/prettyPrint'
 
 //import {VType, addType, addSubvalidator} from './types';
 
-test(`добавление и получение типа простого тип`, t => {
+test.only(`добавление и получение типа простого тип`, t => {
   const {VType, addType} = require('./types')._module();
 
   addType('String', v => typeof v === 'string');
@@ -14,8 +14,8 @@ test(`добавление и получение типа простого ти�
   t.throws(() => addType('String', 12), `Invalid argument 'typePureValidator': 12`); // второй аргумент не метод
   t.throws(() => addType('String', () => {}), `Invalid argument 'typePureValidator': function () {}`); // у метода проверки, должен быть аргумент
 
-  t.is(typeof VType.String, 'function');
-  t.throws(() => VType.Wrong, `Type is not defined: 'Wrong'`);
+  t.is(typeof VType.String(), 'function');
+  t.throws(() => VType.Wrong(), `Type is not defined: 'Wrong'`);
 
   const validator = VType.String(undefined, 'aField', {});
   t.is(validator({aField: 'string'}, undefined, undefined), undefined);
