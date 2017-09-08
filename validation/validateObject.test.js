@@ -38,19 +38,24 @@ for (const [type, rightValue, wrongValue] of [
   });
 }
 
-test(`Атрибут 'type' может быть фунцией`, t => {
+test(`Атрибут 'type' может быть объектом VType`, t => {
 
-  const validate = validateObject({
-    fieldA: {
-      type: function (fieldNamePrefix, fieldName, fieldDef) { // есть возможность в типе, взять дополнительные признаки из fieldDef
+  const AType = {
+    _vtype: 'AType',
+    _build() {
+      return function (fieldNamePrefix, fieldName, fieldDef) {
         const invalidFieldValue = this.invalidFieldValue; // метод выдачи сообщения доступен через context
         return (value, message, validateOptions) => {
           if (value[fieldName] !== 12) return;
           (message || (message = [])).push(invalidFieldValue(value, fieldNamePrefix, fieldName));
           return message;
         };
-      }
-    }
+      };
+    },
+  };
+
+  const validate = validateObject({
+    fieldA: {type: AType,},
   });
 
   t.is(validate({fieldA: 1}), undefined);
@@ -361,7 +366,8 @@ test(`validate для поля, вызывается только если type,
 test(`Атрибут 'fields' вместо 'type'`, t => {
   const validate = validateObject({
     a: {type: 'int'},
-    b: { null: true,
+    b: {
+      null: true,
       fields: {
         c: {type: 'int'},
         d: {type: 'int', required: true},
@@ -420,18 +426,23 @@ test(`Атрибут 'fields' вместо 'type'`, t => {
     `Unexpected 'oneMoreUnexp': {v: 12}`]);
 
   const validate2 = validateObject({
-    a: {fields: {
-      b: {null: true, fields: {
-        c: {type: 'int'},
-        d: {type: 'string', required: true},
-      }}
-    }}});
+    a: {
+      fields: {
+        b: {
+          null: true, fields: {
+            c: {type: 'int'},
+            d: {type: 'string', required: true},
+          }
+        }
+      }
+    }
+  });
   t.is(validate2({a: {b: {c: 1, d: 'a'}}}), undefined);
   t.is(validate2({a: {b: null}}), undefined);
   t.deepEqual(validate2({a: {b: {}}}), [`Missing 'a.b.d'`]);
 });
 
-test.skip(`Можно совмещать fields с другими вариантами типов, используя VType.Fields`, t => {
+test.only(`Можно совмещать fields с другими вариантами типов, используя VType.Fields`, t => {
   const typesExport = require('./types')._module();
   require('./typesBuiltIn').default(typesExport);
   const {VType} = typesExport;
@@ -443,10 +454,12 @@ test.skip(`Можно совмещать fields с другими вариант
   }
 
   const validate = validateObject({
-    a: {type: ['string', VType.Int, VType.Fields({ // ошибка выводится по последнему в списке типу.  Потому простые типы надо писать вперед
-      b: {type: 'int'},
-      c: {type: VType.String, required: true},
-    })]}
+    a: {
+      type: ['string', VType.Int(), VType.Fields({ // ошибка выводится по последнему в списке типу.  Потому простые типы надо писать вперед
+        b: {type: 'int'},
+        c: {type: VType.String, required: true},
+      })]
+    }
   });
 
   t.is(validate({a: 'test'}), undefined);

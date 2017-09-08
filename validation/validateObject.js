@@ -358,7 +358,7 @@ export function validateObjectFactory({
    */
   function _validateType(fieldNamePrefix, fieldName, fieldDef, type) {
 
-    if (typeof type == 'function') return type.call(this, fieldNamePrefix, fieldName, fieldDef); // тип - функция
+    if (typeof type === 'object' && type != null && '_vtype' in type) return type._build().call(this, fieldNamePrefix, fieldName, fieldDef);
 
     switch (type) {
       case 'str':
