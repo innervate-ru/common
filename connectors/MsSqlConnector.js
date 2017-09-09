@@ -42,35 +42,23 @@ const validateOptions = validateAndCopyOptionsFactory({
   user: {type: VType.String().notEmpty(), required: true},
   password: {type: VType.String().notEmpty(), required: true},
   options: {
-    type: VType.Object(), validate: (fieldName, fieldDef) => (value, message, validateOptions) => {
-      const v = value.options;
-      const msg = validateOptionsOptions(v, {argument: `${((validateOptions && validateOptions.argument) || 'value')}.options`});
-      if (msg) {
-        if (message) {
-          Object.array.push(message, msg);
-          return message;
-        }
-        else return msg;
-      }
-    }
+    fields: {
+      appName: {type: VType.String().notEmpty()},
+      debug: {type: VType.Int()},
+      port: {type: VType.Int()},
+      database: {type: VType.String().notEmpty(), required: true},
+    },
   },
   poolConfig: {
-    type: VType.Object(), validate: (fieldName, fieldDef) => (value, message, validateOptions) => {
-      const v = value.options;
-      const msg = validateOptionsOptions(v, {argument: `${((validateOptions && validateOptions.argument) || 'value')}.poolConfig`});
-      if (msg) {
-        if (message) {
-          Object.array.push(message, msg);
-          return message;
-        }
-        else return msg;
-      }
-    }
+    fields: {
+      min: {type: VType.Int().positive()},
+      max: {type: VType.Int().positive()},
+      log: {type: VType.Bool()},
+      idleTimeout: {type: VType.Int().positive()},
+      retryDelay: {type: VType.Int().positive()},
+      acquireTimeout: {type: VType.Int().positive()},
+    },
   },
-  // options: {type: VType.Object(), validate: (fieldName, fieldDef) => (value, message, validateOptions) => validateOptionsOptions(value, message, {
-  //   argument: `${((validateOptions && validateOptions.arugment) || 'value')}.options` })},
-  // poolConfig: {type: VType.Object(), validate: (fieldName, fieldDef) => (value, message, validateOptions) => validatePoolConfig(value, message, {
-  //   argument: `${((validateOptions && validateOptions.arugment) || 'value')}.poolConfig` })},
 });
 
 export function config(services) {
@@ -243,7 +231,7 @@ export default function (services) {
      */
     async query(statement = throwIfMissing('statement'), options) {
 
-      if (!(typeof statement === VType.String() && statement.length > 0))  throw new Error(`Invalid argument 'statement': ${prettyPrint(statement)}`);
+      if (!(typeof statement === 'string' && statement.length > 0))  throw new Error(`Invalid argument 'statement': ${prettyPrint(statement)}`);
       validateQueryOptions(options, validateArgumentNameOptions);
 
       const {params = null, offset = 0, limit = Number.MAX_SAFE_INTEGER, context} = options || {};
