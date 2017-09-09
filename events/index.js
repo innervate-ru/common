@@ -1,7 +1,7 @@
 import {validateEventFactory, messageInvalidFieldValue} from '../validation/validateObject'
 import {validateNonEmptyString} from '../validation'
-
 export {default as Bus} from './bus'
+export {VType} from '../validation'
 
 export const validateEvent = validateEventFactory({
   time: {type: 'int', required: true},

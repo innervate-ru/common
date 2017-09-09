@@ -3,11 +3,8 @@ import prettyPrint from '../utils/prettyPrint'
 import defineProps from '../utils/defineProps'
 import {
   validateAndCopyOptionsFactory,
-  validateNonEmptyString,
-  validateZeroOrPositiveInt,
-  validatePositiveInt,
-  validatePromise,
-  validateArgumentOptions
+  validateArgumentNameOptions,
+  VType,
 } from '../validation'
 
 import ConnectionPool from 'tedious-connection-pool'
@@ -24,28 +21,28 @@ const debug = require('debug')('mssql');
 const isConnectionError = (error) => error.__proto__.name === 'ConnectionError';
 
 const validateOptionsOptions = validateAndCopyOptionsFactory({
-  appName: {type: 'string', validate: validateNonEmptyString},
-  debug: {type: 'int'},
-  port: {type: 'int'},
-  database: {type: 'string', required: true, validate: validateNonEmptyString},
+  appName: {type: VType.String().notEmpty()},
+  debug: {type: VType.Int()},
+  port: {type: VType.Int()},
+  database: {type: VType.String().notEmpty(), required: true},
 });
 
 const validatePoolConfig = validateAndCopyOptionsFactory({
-  min: {type: 'int', validate: validatePositiveInt},
-  max: {type: 'int', validate: validatePositiveInt},
-  log: {type: 'boolean'},
-  idleTimeout: {type: 'int', validatePositiveInt},
-  retryDelay: {type: 'int', validatePositiveInt},
-  acquireTimeout: {type: 'int', validatePositiveInt},
+  min: {type: VType.Int().positive()},
+  max: {type: VType.Int().positive()},
+  log: {type: VType.Bool()},
+  idleTimeout: {type: VType.Int().positive()},
+  retryDelay: {type: VType.Int().positive()},
+  acquireTimeout: {type: VType.Int().positive()},
 });
 
 const validateOptions = validateAndCopyOptionsFactory({
-  description: {type: 'string'},
-  url: {type: 'string', required: true, validate: validateNonEmptyString},
-  user: {type: 'string', required: true, validate: validateNonEmptyString},
-  password: {type: 'string', required: true, validate: validateNonEmptyString},
+  description: {type: VType.String()},
+  url: {type: VType.String().notEmpty(), required: true},
+  user: {type: VType.String().notEmpty(), required: true},
+  password: {type: VType.String().notEmpty(), required: true},
   options: {
-    type: 'object', validate: (fieldName, fieldDef) => (value, message, validateOptions) => {
+    type: VType.Object(), validate: (fieldName, fieldDef) => (value, message, validateOptions) => {
       const v = value.options;
       const msg = validateOptionsOptions(v, {argument: `${((validateOptions && validateOptions.argument) || 'value')}.options`});
       if (msg) {
@@ -58,7 +55,7 @@ const validateOptions = validateAndCopyOptionsFactory({
     }
   },
   poolConfig: {
-    type: 'object', validate: (fieldName, fieldDef) => (value, message, validateOptions) => {
+    type: VType.Object(), validate: (fieldName, fieldDef) => (value, message, validateOptions) => {
       const v = value.options;
       const msg = validateOptionsOptions(v, {argument: `${((validateOptions && validateOptions.argument) || 'value')}.poolConfig`});
       if (msg) {
@@ -70,9 +67,9 @@ const validateOptions = validateAndCopyOptionsFactory({
       }
     }
   },
-  // options: {type: 'object', validate: (fieldName, fieldDef) => (value, message, validateOptions) => validateOptionsOptions(value, message, {
+  // options: {type: VType.Object(), validate: (fieldName, fieldDef) => (value, message, validateOptions) => validateOptionsOptions(value, message, {
   //   argument: `${((validateOptions && validateOptions.arugment) || 'value')}.options` })},
-  // poolConfig: {type: 'object', validate: (fieldName, fieldDef) => (value, message, validateOptions) => validatePoolConfig(value, message, {
+  // poolConfig: {type: VType.Object(), validate: (fieldName, fieldDef) => (value, message, validateOptions) => validatePoolConfig(value, message, {
   //   argument: `${((validateOptions && validateOptions.arugment) || 'value')}.poolConfig` })},
 });
 
@@ -81,7 +78,7 @@ export function config(services) {
 }
 
 const validateConnectionOptions = validateAndCopyOptionsFactory({
-  cancel: {type: 'object', validate: validatePromise}, // promise, который если становится resolved, то прерывает выполнение запроса
+  cancel: {type: VType.Promise()}, // promise, который если становится resolved, то прерывает выполнение запроса
 });
 
 export default function (services) {
@@ -94,7 +91,7 @@ export default function (services) {
 
     constructor(options) {
 
-      validateOptions(options, validateArgumentOptions);
+      validateOptions(options, validateArgumentNameOptions);
 
       const {url, user, password, options: connectionOptions, poolConfig} = options;
       const {port, database} = options;
@@ -140,7 +137,7 @@ export default function (services) {
     }
 
     async connection(options) {
-      validateConnectionOptions(options, validateArgumentOptions);
+      validateConnectionOptions(options, validateArgumentNameOptions);
       let res = new Promise((resolve, reject) => {
         this._pool.acquire((error, connection) => {
           if (error) this._rejectWithError(reject, error);
@@ -217,10 +214,10 @@ export default function (services) {
   });
 
   const validateQueryOptions = validateAndCopyOptionsFactory({
-    params: {type: 'function'}, // функция, которой передается как аргумен tedious.Request, чтобы она через requies.addParameter могла заполнить параметры
-    offset: {type: 'int', validate: validateZeroOrPositiveInt}, // строка, начиная с которой загружаются строки
-    limit: {type: 'int', validate: validatePositiveInt}, // строка, до которой включительно загружаются строки
-    context: {type: 'string', validate: validateNonEmptyString}, // shortid контектса
+    params: {type: VType.Function()}, // функция, которой передается как аргумен tedious.Request, чтобы она через requies.addParameter могла заполнить параметры
+    offset: {type: VType.Int().zero().positive()}, // строка, начиная с которой загружаются строки
+    limit: {type: VType.Int().positive()}, // строка, до которой включительно загружаются строки
+    context: {type: VType.String().notEmpty()}, // shortid контектса
   });
 
   class Connection {
@@ -246,8 +243,8 @@ export default function (services) {
      */
     async query(statement = throwIfMissing('statement'), options) {
 
-      if (!(typeof statement === 'string' && statement.length > 0))  throw new Error(`Invalid argument 'statement': ${prettyPrint(statement)}`);
-      validateQueryOptions(options, validateArgumentOptions);
+      if (!(typeof statement === VType.String() && statement.length > 0))  throw new Error(`Invalid argument 'statement': ${prettyPrint(statement)}`);
+      validateQueryOptions(options, validateArgumentNameOptions);
 
       const {params = null, offset = 0, limit = Number.MAX_SAFE_INTEGER, context} = options || {};
 

@@ -25,7 +25,6 @@ test.afterEach(t => {
   t.context.clock.restore();
 });
 
-// TODO: События должны содержать: время, причину
 // TODO: Информация для монитора: какое время сервис находится в состоянии, причины почему он не может быть запусщен
 // TODO: Методанные - команды которые можно выполнить на сервисе
 
@@ -71,67 +70,71 @@ test.serial(`Запуск без dependsOn`, t => {
 });
 
 test.serial(`Запуск с dependsOn`, t => {
-  const testConsole = new TestConsole();
-  const services = {console: testConsole, testMode: true};
-  services.bus = new (require('../events').Bus(services))();
-  const nodeManager = new (require('./index').NodeManager(services))({
-    name: 'node1',
-    services: [t.context.s1, t.context.s2, t.context.s3],
-  });
-  const s1 = nodeManager.services.s1._service;
-  const s2 = nodeManager.services.s2._service;
-  const s3 = nodeManager.services.s3._service;
+  try {
+    const testConsole = new TestConsole();
+    const services = {console: testConsole, testMode: true};
+    services.bus = new (require('../events').Bus(services))();
+    const nodeManager = new (require('./index').NodeManager(services))({
+      name: 'node1',
+      services: [t.context.s1, t.context.s2, t.context.s3],
+    });
+    const s1 = nodeManager.services.s1._service;
+    const s2 = nodeManager.services.s2._service;
+    const s3 = nodeManager.services.s3._service;
 
-  // нет зависимости от других сервисов
-  t.is(s1._isAllDependsAreReady, true);
+    // нет зависимости от других сервисов
+    t.is(s1._isAllDependsAreReady, true);
 
-  // зависимость от одного сервиса
-  t.is(s1.state, NOT_INITIALIZED);
-  t.is(s2.state, NOT_INITIALIZED);
-  t.is(s3.state, NOT_INITIALIZED);
-  t.is(s2._isAllDependsAreReady, false);
-  s1._nextStateStep();
-  t.is(s1.state, STOPPED);
+    // зависимость от одного сервиса
+    t.is(s1.state, NOT_INITIALIZED);
+    t.is(s2.state, NOT_INITIALIZED);
+    t.is(s3.state, NOT_INITIALIZED);
+    t.is(s2._isAllDependsAreReady, false);
+    s1._nextStateStep();
+    t.is(s1.state, STOPPED);
 
-  s1._nextStateStep();
-  t.is(s1.state, READY);
+    s1._nextStateStep();
+    t.is(s1.state, READY);
 
-  t.true(s2._isAllDependsAreReady);
+    t.true(s2._isAllDependsAreReady);
 
-  s1.stop(); // -> STOPPED
-  t.is(s2._isAllDependsAreReady, false);
-  s2._nextStateStep();
-  t.is(s2.state, STOPPED);
-  s2._nextStateStep();
-  t.is(s2._isAllDependsAreReady, false);
-  t.is(s2.state, STOPPED);
-  s1.start();
-  t.is(s2._isAllDependsAreReady, true);
-  t.is(s2.state, READY);
-  s1.stop();
-  s2.stop();
+    s1.stop(); // -> STOPPED
+    t.is(s2._isAllDependsAreReady, false);
+    s2._nextStateStep();
+    t.is(s2.state, STOPPED);
+    s2._nextStateStep();
+    t.is(s2._isAllDependsAreReady, false);
+    t.is(s2.state, STOPPED);
+    s1.start();
+    t.is(s2._isAllDependsAreReady, true);
+    t.is(s2.state, READY);
+    s1.stop();
+    s2.stop();
 
-  // зависимость от двух сервисов
-  t.is(s1.state, STOPPED);
-  t.is(s2.state, STOPPED);
-  t.is(s3.state, STOPPED); // сервис подписан на события других сервисов, и потом перешёл в STOPPED
-  t.is(s3._isAllDependsAreReady, false);
-  s1.start(); // -> READY
-  t.is(s3._isAllDependsAreReady, false);
-  s2.start(); // -> READY
-  t.is(s3._isAllDependsAreReady, true);
-  s3._nextStateStep(); // -> READY
-  t.is(s3.state, READY);
-  s2.stop();
-  t.is(s3.state, STOPPED);
-  s2.start();
-  t.is(s3.state, READY);
-  s1.stop();
-  t.is(s2.state, STOPPED);
-  t.is(s3.state, STOPPED);
-  s1.start();
-  t.is(s2.state, READY);
-  t.is(s3.state, READY);
+    // зависимость от двух сервисов
+    t.is(s1.state, STOPPED);
+    t.is(s2.state, STOPPED);
+    t.is(s3.state, STOPPED); // сервис подписан на события других сервисов, и потом перешёл в STOPPED
+    t.is(s3._isAllDependsAreReady, false);
+    s1.start(); // -> READY
+    t.is(s3._isAllDependsAreReady, false);
+    s2.start(); // -> READY
+    t.is(s3._isAllDependsAreReady, true);
+    s3._nextStateStep(); // -> READY
+    t.is(s3.state, READY);
+    s2.stop();
+    t.is(s3.state, STOPPED);
+    s2.start();
+    t.is(s3.state, READY);
+    s1.stop();
+    t.is(s2.state, STOPPED);
+    t.is(s3.state, STOPPED);
+    s1.start();
+    t.is(s2.state, READY);
+    t.is(s3.state, READY);
+  } catch (err) {
+    console.error('err', err);
+  }
 });
 
 test.serial(`Фатальная ошибка при работе сервиса, требуещая остановки.  Перезапуск сервиса по времени`, t => {
@@ -155,9 +158,14 @@ test.serial(`Фатальная ошибка при работе сервиса,
 
   t.is(s1.state, FAILED);
   t.is(s1.failureReason.message, 'some error');
-  t.is(testConsole.getLogAndClear(),
-    `error: 'node1:s1: error: '{name: 'Error', message: 'some error'}'' | ` +
-    `info: 'node1:s1: state: 'failed' (reason: 'some error')'`);
+
+  try {
+    t.is(testConsole.getLogAndClear(),
+      `error: node1:s1: error: '{name: 'Error', message: 'some error'}' | ` +
+      `info: node1:s1: state: 'failed' (reason: 'some error')`);
+  } catch (err) {
+    console.error(err);
+  }
 
   t.context.clock.tick(DEFAULT_FAIL_RECOVERY_INTERVAL / 2);
 
@@ -402,8 +410,8 @@ test.serial(`Ошибка в асинхронном методе - при ост
   t.is(s.state, STOPPED);
   t.is(s.failureReason, null); // ошибки при остановке, не считаются критическими проблемами для сервиса
   t.is(testConsole.getLogAndClear(), // но ошибка ушла в bus
-    `error: 'node1:s: error: '{name: 'Error', message: 'some error'}'\' | ` +
-    `info: 'node1:s: state: 'stopped''`
+    `error: node1:s: error: '{name: 'Error', message: 'some error'}' | ` +
+    `info: node1:s: state: 'stopped'`
   );
 
 });
@@ -451,8 +459,8 @@ test.serial(`Ошибка в асинхронном методе - при дес
   t.true(disposePromise.isFulfilled());
   t.is(s.failureReason, null); // ошибки при остановке, не считаются критическими проблемами для сервиса
   t.is(testConsole.getLogAndClear(), // но ошибка ушла в bus
-    `error: 'node1:s: error: '{name: 'Error', message: 'some error'}'\' | ` +
-    `info: 'node1:s: state: 'disposed''`
+    `error: node1:s: error: '{name: 'Error', message: 'some error'}' | ` +
+    `info: node1:s: state: 'disposed'`
   );
 });
 

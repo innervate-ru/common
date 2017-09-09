@@ -20,13 +20,13 @@ test(`регистрация типов сообщений`, t => {
   });
 
   bus.event({time: 10, type: 'source.event', val: 12});
-  t.is(testConsole.getLogAndClear(), `info: 'Message for console: 12'`);
+  t.is(testConsole.getLogAndClear(), `info: Message for console: 12`);
 
   bus.event({time: 10, type: 'source.event', invalid: 321});
-  t.is(testConsole.getLogAndClear(), `warn: 'Event {time: 10, type: 'source.event', invalid: 321}: Unexpected field 'invalid': 321' | info: 'Message for console: undefined'`);
+  t.is(testConsole.getLogAndClear(), `warn: Event {time: 10, type: 'source.event', invalid: 321}: Unexpected field 'invalid': 321 | info: Message for console: undefined`);
 
   bus.event({time: 10, type: 'wrong.type', data: 123});
-  t.is(testConsole.getLogAndClear(), `warn: 'Not registered event type 'wrong.type': {time: 10, type: 'wrong.type', data: 123}' | info: '{time: 10, type: 'wrong.type', data: 123}'`);
+  t.is(testConsole.getLogAndClear(), `warn: Not registered event type 'wrong.type': {time: 10, type: 'wrong.type', data: 123} | info: {time: 10, type: 'wrong.type', data: 123}`);
 });
 
 test(`типы событий можно регистрировать по одному, массивом или списком параметров`, t => {
@@ -71,7 +71,7 @@ test(`сообщение без validate`, t => {
   });
 
   bus.event({time: 10, type: 'source.event', val: 12});
-  t.is(testConsole.getLogAndClear(), `info: 'Message for console: 12'`);
+  t.is(testConsole.getLogAndClear(), `info: Message for console: 12`);
 });
 
 test(`сообщение без toString`, t => {
@@ -89,7 +89,7 @@ test(`сообщение без toString`, t => {
   });
 
   bus.event({time: 10, type: 'source.event', val: 12});
-  t.is(testConsole.getLogAndClear(), `info: '{time: 10, type: 'source.event', val: 12}'`);
+  t.is(testConsole.getLogAndClear(), `info: {time: 10, type: 'source.event', val: 12}`);
 });
 
 const kinds = [
@@ -118,15 +118,15 @@ kinds.forEach(({kind, console: consoleMethod}, i) => {
 
     bus[kind]({time: 10, type: 'source.event', val: 12});
     t.is(testConsole.getLogAndClear(),
-      `warn: 'Event of kind '${nextKind}' reported thru '${kind}': {time: 10, type: 'source.event', val: 12}'` +
-      (!consoleMethod ? '' : ` | ${consoleMethod}: '{time: 10, type: 'source.event', val: 12}'`));
+      `warn: Event of kind '${nextKind}' reported thru '${kind}': {time: 10, type: 'source.event', val: 12}` +
+      (!consoleMethod ? '' : ` | ${consoleMethod}: {time: 10, type: 'source.event', val: 12}`));
 
   });
 });
 
 test(`через on подписываемся на необъявленный тип сообщений`, t => {
   const testConsole = new TestConsole();
-  const Bus = require('./bus').default({console: testConsole});
+  const Bus = require('./bus').default({console: testConsole, testMode: true});
   const bus = new Bus();
 
   bus.registerEvent({
@@ -142,7 +142,7 @@ test(`через on подписываемся на необъявленный �
   t.is(testConsole.getLogAndClear(), '');
 
   bus.on('invalid.event', () => {});
-  t.is(testConsole.getLogAndClear(), `warn: 'Event of type 'invalid.event' is not registered'`);
+  t.is(testConsole.getLogAndClear(), `warn: event of type 'invalid.event' is not registered`);
 });
 
 test(`если одно и то же сообщение ргистрируется несколько раз, ошибки не возникает`, t => {

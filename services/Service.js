@@ -4,10 +4,12 @@ import prettyPrint from '../utils/prettyPrint'
 import allErrorInfoToMessage from '../utils/allErrorInfoToMessage'
 import InvalidStateError from './InvalidStateError'
 import {validateServiceEvent} from '../events'
-import {validateAndCopyOptionsFactory, validateEventFactory, validateNonEmptyString} from '../validation'
+import {validateAndCopyOptionsFactory, validateEventFactory} from '../validation'
 import flattenDeep from 'lodash/flattenDeep'
 import uniq from 'lodash/uniq'
 import cleanStack from 'clean-stack'
+
+import {VType} from '../validation'
 
 export const DEFAULT_FAIL_RECOVERY_INTERVAL = 60000;
 
@@ -33,19 +35,23 @@ export function config(services) {
           type: 'service.state',
           validate: validateEventFactory({
             _extends: validateServiceEvent,
-            state: {type: 'string', required: true, validate: validateNonEmptyString},
-            prevState: {type: 'string', required: true, validate: validateNonEmptyString},
-            reason: {type: 'string'}, // причина перехода в состояние FAILED - поле message из Error
+            state: {type: VType.String().notEmpty(), required: true},
+            prevState: {type: VType.String().notEmpty(), required: true},
+            reason: {type: VType.String()}, // причина перехода в состояние FAILED - поле message из Error
           }),
-          toString: (ev) => (ev.state === STOPPED) ? '' : `${ev.source}: state: '${ev.state}'${ev.reason ? ` (reason: '${ev.reason}')` : ``}`,
+          toString: (ev) =>
+            // Чтобы не сбивать с толку, при начальном запуске не выводим сообщение что сервис перешел в состояние stopped
+            (ev.state === STOPPED && (ev.prevState === NOT_INITIALIZED || ev.prevState === WAITING_OTHER_SERVICES_TO_START || ev.prevState === INITIALIZING)) ?
+              '' :
+              `${ev.source}: state: '${ev.state}'${ev.reason ? ` (reason: '${ev.reason}')` : ``}`,
         },
         {
           kind: 'error',
           type: 'service.error',
           validate: validateEventFactory({ // TODO: Fix
             _extends: validateServiceEvent,
-            message: {type: 'string', required: true, validate: validateNonEmptyString},
-            stack: {type: 'string', validate: validateNonEmptyString},
+            message: {type: VType.String().notEmpty(), required: true},
+            stack: {type: VType.String().notEmpty()},
           }),
           toString: (ev) =>
             testMode ? `${ev.source}: error: '${ev.message}'` : // для testMode специальное сообщение, которое легко проверять и оно не содержит stack
@@ -56,7 +62,7 @@ export function config(services) {
           type: 'service.options',
           validate: validateEventFactory({ // TODO: Fix
             _extends: validateServiceEvent,
-            options: {type: 'object'},
+            options: {type: VType.Object()},
           }),
           toString: (ev) => `${ev.source}: options: '${prettyPrint(ev.options)}'`,
         },
@@ -66,17 +72,18 @@ export function config(services) {
 
 export const validateOptions = validateAndCopyOptionsFactory({
   // TODO: Доработать валидатор.  В массиве как элементы могут быть вложенные массивы с сервисами.
-  dependsOn: {
-    type: 'array', validate: (fieldName, fieldDef) => (value, message, validateOptions) => {
-      const dependsOn = value.dependsOn;
-      for (let i = 0; i < dependsOn.length; i++) { // KB: forEach для проверки использовать нельзя - он пропускает элементы undefined
-        const s = dependsOn[i];
-        if (!(typeof s === 'object' && s !== null && hasOwnProperty.call(s, '_service')))
-          (message || (message = [])).push(`Invalid value in field 'dependsOn[${i}]': ${prettyPrint(s)}`);
+  dependsOn: {type: VType.Array(), validator: (dependsOn) => {
+    // проверяем что все элементы массива - сервисы с состояниеми (объекты имеющие свойство _service)
+    for (let i = 0; i < dependsOn.length; i++) { // KB: forEach для проверки использовать нельзя - он пропускает элементы undefined
+      const s = dependsOn[i];
+      if (!(typeof s === 'object' && s !== null && hasOwnProperty.call(s, '_service'))) {
+        // валидатор возвращает true/false, но чтоб легче найти какой элемент списка сервисов неверный - просто выводим в консоль дополнительную информацию
+        console.error(`Invalid value in field 'dependsOn[${i}]': ${prettyPrint(s)}`); // подсказка
+        return false;
       }
-      return message;
     }
-  },
+    return true;
+  }},
   failRecoveryInterval: {type: 'int', validate: (v) => v.failRecoveryInterval > 0},
 });
 
@@ -301,6 +308,7 @@ export default function (services) {
           this._setState(STOPPED);
         }, this._failRecoveryInterval);
 
+      const prevState = this._state;
       this._state = newState;
 
       // TODO: Think of making this a debug output
@@ -311,7 +319,7 @@ export default function (services) {
         type: 'service.state',
         source: this._name,
         state: newState,
-        // TODO: Reason
+        prevState,
       };
       if (this._failureReason) ev.reason = this._failureReason.message;
       bus.event(ev);

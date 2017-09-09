@@ -45,5 +45,6 @@ export default class TestConsole {
 }
 
 function printArgs(args) {
-  return Array.prototype.map.call(args, arg => prettyPrint(arg)).join(' ');
+  // в prettyPrint для компактности текстов введено ограничение на длину текста и текстовые строки заключены в кавычки, потому строки выводим без prettyPrint
+  return Array.prototype.map.call(args, arg => typeof arg === 'string' ? arg : prettyPrint(arg)).join(' ');
 }

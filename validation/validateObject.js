@@ -503,4 +503,4 @@ export const validateEventFactory = validateObjectFactory({
   },
 });
 
-export const validateArgumentOptions = {argument: 'options'}
+export const validateArgumentNameOptions = {argument: 'options'}

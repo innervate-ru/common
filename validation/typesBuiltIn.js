@@ -9,6 +9,7 @@ export default function (typesExport) {
   addType('Object', v => typeof v === 'object' && !Array.isArray(v));
   addType('Array', v => Array.isArray(v));
   addType('Function', v => typeof v === 'function');
+  addType('Promise', v => v => typeof v === 'object' && v != null && 'then' in v);
 
   addTypeAdvanced('Fields', function (fields) {
     return {
@@ -23,7 +24,7 @@ export default function (typesExport) {
 
 // String
 
-  addSubvalidator(VType.String(), 'notEmpty', v => v.length() > 0);
+  addSubvalidator(VType.String(), 'notEmpty', v => v.length > 0);
   addSubvalidator(VType.String(), 'noSpaces', v => /^\S*$/.test(v));
 
 // Int

@@ -12,6 +12,7 @@ export default function (services = {}) {
   if (!(typeof services === 'object' && services != null && !Array.isArray(services))) throw new Error(`Invalid argument 'services': ${prettyPrint(services)}`);
 
   const {
+    testMode,
     console = defaultConsole,
   } = services;
 
@@ -105,9 +106,12 @@ export default function (services = {}) {
     }
 
     on(evType, cb) {
-      // if (!hasOwnProperty.call(this._config, evType)) console.warn(`event of type '${evType}' is not registered`);
-      if (!hasOwnProperty.call(this._config, evType)) {
-        console.warn((new Error(`event of type '${evType}' is not registered`)).stack);
+      if (testMode) {
+        if (!hasOwnProperty.call(this._config, evType)) console.warn(`event of type '${evType}' is not registered`);
+      } else {
+        if (!hasOwnProperty.call(this._config, evType)) {
+          console.warn((new Error(`event of type '${evType}' is not registered`)).stack);
+        }
       }
       super.on(evType, cb);
     }
