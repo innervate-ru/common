@@ -13,7 +13,6 @@
 import util from 'util'
 import {missingArgument, invalidArgument} from '../utils/arguments'
 import prettyPrint from '../utils/prettyPrint'
-import {messageInvalidFieldValue} from './validateObject'
 import uniq from 'lodash/uniq'
 
 const hasOwnProperty = Object.prototype.hasOwnProperty;
@@ -65,10 +64,11 @@ function _module() {
         if (hasOwnProperty.call(cachedValidators, key)) return cachedValidators[key];
 
         res = function (fieldNamePrefix, fieldName, fieldDef) {
-          const messageInvalidFieldValue = this.messageInvalidFieldValue;
+          const invalidFieldValue = this.invalidFieldValue;
+          if (!(typeof invalidFieldValue === 'function')) throw new Error(`invalidFieldValue not a function`);
           return function (value, message, validationOptions) {
             if (typePureValidator(value[fieldName])) return;
-            (message || (message = [])).push(messageInvalidFieldValue(value, fieldNamePrefix, fieldName));
+            (message || (message = [])).push(invalidFieldValue(value, fieldNamePrefix, fieldName));
             return message;
           }
         }
@@ -85,36 +85,41 @@ function _module() {
 
         if (normolizedSubvalidators.length > 1) {
           res = function (fieldNamePrefix, fieldName, fieldDef) {
-            const messageInvalidFieldValue = this.messageInvalidFieldValue;
+            const invalidFieldValue = this.invalidFieldValue;
             return function (value, message, validationOptions) {
               const v = value[fieldName];
               if (typePureValidator(v, message, validationOptions)) // тип правильный
                 for (const sv of normolizedSubvalidators)
-                  if (sv(v, message, validationOptions)) return; // одна из or-проверок прошла успешно
-              (message || (message = [])).push(messageInvalidFieldValue(value, fieldNamePrefix, fieldName));
+                  if (sv(v, validationOptions)) return; // одна из or-проверок прошла успешно
+              (message || (message = [])).push(invalidFieldValue(value, fieldNamePrefix, fieldName));
               return message;
-            }
+            };
           };
-        } else { // вариант результата оптимизированный под одну or-проверку
+        } else {
+          // вариант результата оптимизированный под одну or-проверку
           const singleSubvalidator = normolizedSubvalidators[0];
           res = function (fieldNamePrefix, fieldName, fieldDef) {
-            const messageInvalidFieldValue = this.messageInvalidFieldValue;
+            const invalidFieldValue = this.invalidFieldValue;
             return function (value, message, validationOptions) {
               const v = value[fieldName];
-              if (typePureValidator(v, message, validationOptions)) // тип правильный
-                if (singleSubvalidator(v, message, validationOptions)) return; // одна из or-проверок прошла успешно
-              (message || (message = [])).push(messageInvalidFieldValue(value, fieldNamePrefix, fieldName));
+              if (typePureValidator(v, validationOptions)) // тип правильный
+                if (singleSubvalidator(v, validationOptions)) return; // одна из or-проверок прошла успешно
+              (message || (message = [])).push(invalidFieldValue(value, fieldNamePrefix, fieldName));
               return message;
             }
           };
         }
       }
 
-      res.toString = function() { return key; };
+      res.toString = function () {
+        return key;
+      };
       cachedValidators[key] = res;
       return res;
     },
-    toString() { return this._vtype; },
+    toString() {
+      return this._vtype;
+    },
   };
 
   function addType(typeName = missingArgument('typeName'), typePureValidator = missingArgument('typePureValidator')) {
@@ -132,13 +137,15 @@ function _module() {
     const context = Object.create(typePrototype);
     context._vtype = typeName;
 
-    addTypeAdvanced(typeName, function() {
+    addTypeAdvanced(typeName, function () {
       return context; // всегда возвращается один и тот же контекст.  если используется сабвалидатор, то создается новый контекст
     });
   }
 
   function addTypeAdvanced(typeName, typeContextFactory) {
-    typeContextFactory.toString = function() { return `Instead VType.${typeName} use VType.${typeName}()`; };
+    typeContextFactory.toString = function () {
+      return `Instead VType.${typeName} use VType.${typeName}()`;
+    };
     VType[typeName] = typeContextFactory;
   }
 

@@ -342,14 +342,19 @@ export function validateObjectFactory({
         if (validates.length === 1) return validates[0]; // только один тип в списке
         else return function (value, message, validateOptions) {
           let msg;
-          for (const validate of validates)
-            if (validate(value, msg) === undefined) return; // одна из проверок прошла успешно
-          (message || (message = [])).push(invalidFieldValue(value, fieldNamePrefix, fieldName));
-          return message;
+          for (const validate of validates) {
+            msg = validate(value);
+            if (msg === undefined) return; // одна из проверок прошла успешно
+          }
+          // как ошибку возвращаем результат посленего валидатора
+          if (message) {
+            Array.prototype.push.apply(message, msg);
+            return message;
+          }
+          return msg;
         }
       }
     }
-
     return _validateType.call(this, fieldNamePrefix, fieldName, fieldDef, type); // простой тип, не список
   }
 

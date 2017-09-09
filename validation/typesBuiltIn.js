@@ -15,7 +15,7 @@ export default function (typesExport) {
       _vtype: 'Fields',
       _build() {
         return function (fieldNamePrefix, fieldName, fieldDef) {
-          return this.validateSubfields(fieldNamePrefix, fieldName, fieldDef, fields);
+          return this.validateSubfields.call(this, fieldNamePrefix, fieldName, fields);
         }
       },
     };

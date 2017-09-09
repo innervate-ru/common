@@ -442,7 +442,7 @@ test(`Атрибут 'fields' вместо 'type'`, t => {
   t.deepEqual(validate2({a: {b: {}}}), [`Missing 'a.b.d'`]);
 });
 
-test.only(`Можно совмещать fields с другими вариантами типов, используя VType.Fields`, t => {
+test(`Можно совмещать fields с другими вариантами типов, используя VType.Fields`, t => {
   const typesExport = require('./types')._module();
   require('./typesBuiltIn').default(typesExport);
   const {VType} = typesExport;
@@ -457,7 +457,7 @@ test.only(`Можно совмещать fields с другими вариант
     a: {
       type: ['string', VType.Int(), VType.Fields({ // ошибка выводится по последнему в списке типу.  Потому простые типы надо писать вперед
         b: {type: 'int'},
-        c: {type: VType.String, required: true},
+        c: {type: VType.String(), required: true},
       })]
     }
   });
