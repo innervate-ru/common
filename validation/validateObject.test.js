@@ -9,9 +9,9 @@ import {
   validateOptionsFactory,
   validateEventFactory
 } from './validateObject'
-const missingField = (value, fieldNamePrefix, fieldName) => `Missing '${fieldNamePrefix ? `${fieldNamePrefix}.${fieldName}` : fieldName}'`;
-const unexpectedField = (value, fieldNamePrefix, fieldName) => `Unexpected '${fieldNamePrefix ? `${fieldNamePrefix}.${fieldName}` : fieldName}': ${prettyPrint(value[fieldName])}`;
-const invalidFieldValue = (value, fieldNamePrefix, fieldName) => `Invalid '${fieldNamePrefix ? `${fieldNamePrefix}.${fieldName}` : fieldName}': ${prettyPrint(value[fieldName])}`;
+const missingField = (context) => `Missing '${context()}'`;
+const unexpectedField = (context, value) => `Unexpected '${context()}': ${prettyPrint(value)}`;
+const invalidFieldValue = (context, value) => `Invalid '${context()}': ${prettyPrint(value)}`;
 
 const validateObject = validateObjectFactory({missingField, unexpectedField, invalidFieldValue});
 
@@ -39,15 +39,14 @@ for (const [type, rightValue, wrongValue] of [
 }
 
 test(`Атрибут 'type' может быть объектом VType`, t => {
-
   const AType = {
     _vtype: 'AType',
     _build() {
-      return function (fieldNamePrefix, fieldName, fieldDef) {
+      return function (context, fieldDef) {
         const invalidFieldValue = this.invalidFieldValue; // метод выдачи сообщения доступен через context
-        return (value, message, validateOptions) => {
-          if (value[fieldName] !== 12) return;
-          (message || (message = [])).push(invalidFieldValue(value, fieldNamePrefix, fieldName));
+        return (context, value, message, validateOptions) => {
+          if (value !== 12) return;
+          (message || (message = [])).push(invalidFieldValue(context, value));
           return message;
         };
       };
@@ -135,8 +134,8 @@ test(`Атрибут 'copy'`, t => {
     a: {type: 'int', copy: true},
     // как функцию
     b: {
-      type: 'int', copy: function (fieldNamePrefix, fieldName, fieldDef) {
-        return function (value, message, validateOptions) { // при копировании так же можно возвращать ошибки
+      type: 'int', copy: function (context, fieldDef, fieldName) {
+        return function (context, value, message, validateOptions) { // при копировании так же можно возвращать ошибки
           const target = validateOptions.copyTo;
           target.bCopy1 = value.b; // имя поля может быть в коде
           target.bCopy2 = value[fieldName]; // или можно сделать универсальный метод, который берет имя поля из fieldName
@@ -164,8 +163,8 @@ test(`Атрибут 'copy'`, t => {
     a: {type: 'int', copy: true},
     // как функцию
     b: {
-      type: 'int', copy: function (fieldNamePrefix, fieldName, fieldDef) {
-        return function (value, message, validateOptions) { // при копировании так же можно возвращать ошибки
+      type: 'int', copy: function (context, fieldDef, fieldName) {
+        return function (context, value, message, validateOptions) { // при копировании так же можно возвращать ошибки
           const target = validateOptions.copyTo;
           target.bCopy1 = value.b; // имя поля может быть в коде
           target.bCopy2 = value[fieldName]; // или можно сделать универсальный метод, который берет имя поля из fieldName
@@ -229,7 +228,7 @@ test(`Имя поля в схеме не может начинаться с по
 test(`_validate для всего объекта вызывается вне зависимости от успешности остальных проверок`, t => {
   let lastMessage = 123;
   const validate = validateObject({
-    name: {type: 'str'}, optionN: {type: 'int'}, _validate: (value, message, validateOptions) => { // если messages != undefined, значит предыдущие проверки вернули ошибку(и)
+    name: {type: 'str'}, optionN: {type: 'int'}, _validate: (context, value, message, validateOptions) => { // если messages != undefined, значит предыдущие проверки вернули ошибку(и)
       lastMessage = message; // если есть message, то значит найденны ошибки.  И можно проверку всего объекта не проводить
       if (value.optionN != 12) {
         (message || (message = [])).push(`'optionN' must be 12`);
@@ -308,15 +307,16 @@ test(`выдавать unexpected поля в validateEventFactory`, t => {
 
   t.is(validate({name: 'test'}), undefined);
   t.is(validate({name: 'test', val: 123}), undefined);
+
   t.throws((t => validate({
     name: 'test',
     val: 123,
     invalid: 'wrong'
-  })), `Event {name: 'test', val: 123, invalid: 'wrong'}: Unexpected field 'invalid': 'wrong'`);
+  })), `Event {name: 'test', val: 123, invalid: 'wrong'}: Unexpected field 'invalid' with value: 'wrong'`);
   t.throws((t => validate({
     name: 'test',
     invalidField: 321
-  })), `Event {name: 'test', invalidField: 321}: Unexpected field 'invalidField': 321`);
+  })), `Event {name: 'test', invalidField: 321}: Unexpected field 'invalidField' with value: 321`);
 });
 
 test(`validate для поля, вызывается только если type, null и required проверки прошли успешно, и поле есть`, t => {
@@ -447,11 +447,7 @@ test(`Можно совмещать fields с другими вариантам�
   require('./typesBuiltIn').default(typesExport);
   const {VType} = typesExport;
 
-  try {
-    const f = VType.Fields({b: {type: 'int'}, c: {type: VType.String, required: true},});
-  } catch (error) {
-    console.error(error);
-  }
+  const f = VType.Fields({b: {type: 'int'}, c: {type: VType.String, required: true},});
 
   const validate = validateObject({
     a: {

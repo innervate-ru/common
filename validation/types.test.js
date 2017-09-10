@@ -1,12 +1,9 @@
 import test from 'ava'
 import prettyPrint from '../utils/prettyPrint'
-const hasOwnProperty = Object.prototype.hasOwnProperty;
-
-import {messageInvalidFieldValue} from './validateObject'
 
 test.beforeEach(t => {
   t.context.ctx = {
-    invalidFieldValue: (value, fieldNamePrefix, fieldName) => `Invalid '${fieldNamePrefix ? `${fieldNamePrefix}.${fieldName}` : fieldName}': ${prettyPrint(value[fieldName])}`,
+    invalidFieldValue: (context, value) => `Invalid '${context()}': ${prettyPrint(value)}`,
   }
 });
 
@@ -34,7 +31,7 @@ test(`добавление и получение типа простого ти�
 
   const validateFactory = VType.String()._build();
   const runtimeValidate = validateFactory.call(t.context.ctx, undefined, 'fieldA', {});
-  t.deepEqual(runtimeValidate({fieldA: 123}), [`Invalid 'fieldA': 123`]);
+  t.deepEqual(runtimeValidate(() => 'fieldA', 123), [`Invalid 'fieldA': 123`]);
 });
 
 test(`тип, на основе уже существующего типа`, t => {
@@ -49,40 +46,44 @@ test(`тип, на основе уже существующего типа`, t =
   const validateFactory = VType.String4()._build();
   const runtimeValidate = validateFactory.call(t.context.ctx, undefined, 'fieldA', {});
 
-  t.is(runtimeValidate({fieldA: '1234'}), undefined);
-  t.deepEqual(runtimeValidate({fieldA: '123'}), [`Invalid 'fieldA': '123'`]);
+  t.is(runtimeValidate(() => 'fieldA', '1234'), undefined);
+  t.deepEqual(runtimeValidate(() => 'fieldA', '123'), [`Invalid 'fieldA': '123'`]);
 });
 
 test(`добавление и использование subvalidator'а одного и нескольких`, t => {
-  const {VType, addType, addSubvalidator, getPureValidator} = require('./types')._module();
+  try {
+    const {VType, addType, addSubvalidator, getPureValidator} = require('./types')._module();
 
-  addType('String', v => typeof v === 'string');
-  addSubvalidator(VType.String(), 'itsABC', v => v === 'abc');
-  addSubvalidator(VType.String(), 'itsDEF', v => v === 'def');
+    addType('String', v => typeof v === 'string');
+    addSubvalidator(VType.String(), 'itsABC', v => v === 'abc');
+    addSubvalidator(VType.String(), 'itsDEF', v => v === 'def');
 
-  t.throws(() => VType.String().wrong(), `VType.String(...).wrong is not a function`);
-  t.throws(() => VType.String.wrong(), `VType.String.wrong is not a function`);
-  // t.throws(() => VType.String.itsABC(), `VType.String.wrong is not a function`); // неприятная ситуация, когда забыли поставить скобки около типа.
+    t.throws(() => VType.String().wrong(), `VType.String(...).wrong is not a function`);
+    t.throws(() => VType.String.wrong(), `VType.String.wrong is not a function`);
+    // t.throws(() => VType.String.itsABC(), `VType.String.wrong is not a function`); // неприятная ситуация, когда забыли поставить скобки около типа.
 
-  const buildTimeValidator1 = VType.String().itsABC()._build();
-  const runtimeValidator1 = buildTimeValidator1.call(t.context.ctx, undefined, 'aField', {});
-  t.is(runtimeValidator1({aField: 'abc'}), undefined);
-  t.deepEqual(runtimeValidator1({aField: ''}), [`Invalid 'aField': ''`]);
-  t.deepEqual(runtimeValidator1({aField: 12}), [`Invalid 'aField': 12`]);
+    const buildTimeValidator1 = VType.String().itsABC()._build();
+    const runtimeValidator1 = buildTimeValidator1.call(t.context.ctx, undefined, 'aField', {});
+    t.is(runtimeValidator1(() => 'aField', 'abc'), undefined);
+    t.deepEqual(runtimeValidator1(() => 'aField', ''), [`Invalid 'aField': ''`]);
+    t.deepEqual(runtimeValidator1(() => 'aField', 12), [`Invalid 'aField': 12`]);
 
-  const buildTimeValidator2 = VType.String().itsABC().itsDEF()._build();
-  const runtimeValidator2 = buildTimeValidator2.call(t.context.ctx, undefined, 'aField', {});
-  t.is(runtimeValidator2({aField: 'abc'}), undefined);
-  t.is(runtimeValidator2({aField: 'def'}), undefined);
-  t.deepEqual(runtimeValidator2({aField: 'xyz'}), [`Invalid 'aField': 'xyz'`]);
-  t.deepEqual(runtimeValidator2({aField: 12}), [`Invalid 'aField': 12`]);
+    const buildTimeValidator2 = VType.String().itsABC().itsDEF()._build();
+    const runtimeValidator2 = buildTimeValidator2.call(t.context.ctx, undefined, 'aField', {});
+    t.is(runtimeValidator2(() => 'aField', 'abc'), undefined);
+    t.is(runtimeValidator2(() => 'aField', 'def'), undefined);
+    t.deepEqual(runtimeValidator2(() => 'aField', 'xyz'), [`Invalid 'aField': 'xyz'`]);
+    t.deepEqual(runtimeValidator2(() => 'aField', 12), [`Invalid 'aField': 12`]);
 
-  const buildTimeValidator3 = VType.String().itsDEF().itsABC()._build();
-  const runtimeValidator3 = buildTimeValidator3.call(t.context.ctx, undefined, 'aField', {});
-  t.is(runtimeValidator3({aField: 'abc'}), undefined);
-  t.is(runtimeValidator3({aField: 'def'}), undefined);
-  t.deepEqual(runtimeValidator3({aField: 'xyz'}), [`Invalid 'aField': 'xyz'`]);
-  t.deepEqual(runtimeValidator3({aField: 12}), [`Invalid 'aField': 12`]);
+    const buildTimeValidator3 = VType.String().itsDEF().itsABC()._build();
+    const runtimeValidator3 = buildTimeValidator3.call(t.context.ctx, undefined, 'aField', {});
+    t.is(runtimeValidator3(() => 'aField', 'abc'), undefined);
+    t.is(runtimeValidator3(() => 'aField', 'def'), undefined);
+    t.deepEqual(runtimeValidator3(() => 'aField', 'xyz'), [`Invalid 'aField': 'xyz'`]);
+    t.deepEqual(runtimeValidator3(() => 'aField', 12), [`Invalid 'aField': 12`]);
+  } catch (err) {
+    console.error(err);
+  }
 });
 
 test(`функции для одинковых наборов сабвалидаторов повторно используются - flyweight patter`, t => {
@@ -108,11 +109,11 @@ test(`Можно добавлять сложные типы, такие как F
       const context = Object.create(typeContextPrototype); // подключение предоставленного протитотипа, позволяет подключать сабвалидаторы
       context._vtype = 'AComplexType';
       context._build = function () {
-        return function (fieldNamePrefix, fieldName, fieldDef) {
+        return function (context, fieldDef) {
           const invalidFieldValue = this.invalidFieldValue;
-          return function (value, message, validationOptions) {
-            if (value[fieldName] === v1) return;
-            (message || (message = [])).push(invalidFieldValue(value, fieldNamePrefix, fieldName));
+          return function (context, value, message, validationOptions) {
+            if (value === v1) return;
+            (message || (message = [])).push(invalidFieldValue(context, value));
             return message;
           }
         };
@@ -123,6 +124,6 @@ test(`Можно добавлять сложные типы, такие как F
 
   const buildTimeValidator = VType.AComplexType(12)._build();
   const runtimeValidator = buildTimeValidator.call(t.context.ctx, undefined, 'aField', {});
-  t.is(runtimeValidator({aField: 12}), undefined);
-  t.deepEqual(runtimeValidator({aField: 'xyz'}), [`Invalid 'aField': 'xyz'`]);
+  t.is(runtimeValidator(() => 'aField', 12), undefined);
+  t.deepEqual(runtimeValidator(() => 'aField', 'xyz'), [`Invalid 'aField': 'xyz'`]);
 });

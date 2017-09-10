@@ -45,7 +45,7 @@ function _module() {
   /**
    * Кешированные для повторного использование значения тип+доп.проверки:
    * ключ - <тип>_<доп.проверка1>_<доп.проверка2>..., где имена доп. проверок отсоритрованны по альфавиту
-   * значение - общий метод проверки, с параметрами (fieldNamePrefix, fieldName, fieldDef)
+   * значение - общий метод проверки, с параметрами (context, fieldDef)
    */
   const cachedValidators = Object.create(null);
 
@@ -63,12 +63,12 @@ function _module() {
         key = typeName;
         if (hasOwnProperty.call(cachedValidators, key)) return cachedValidators[key];
 
-        res = function (fieldNamePrefix, fieldName, fieldDef) {
+        res = function (context, fieldDef) {
           const invalidFieldValue = this.invalidFieldValue;
           if (!(typeof invalidFieldValue === 'function')) throw new Error(`invalidFieldValue not a function`);
-          return function (value, message, validationOptions) {
-            if (typePureValidator(value[fieldName])) return;
-            (message || (message = [])).push(invalidFieldValue(value, fieldNamePrefix, fieldName));
+          return function (context, value, message, validationOptions) {
+            if (typePureValidator(value)) return;
+            (message || (message = [])).push(invalidFieldValue(context, value));
             return message;
           }
         }
@@ -84,27 +84,25 @@ function _module() {
         const normolizedSubvalidators = normolizedSubvalidatorsList.map(v => typeSubvalidators[v]);
 
         if (normolizedSubvalidators.length > 1) {
-          res = function (fieldNamePrefix, fieldName, fieldDef) {
+          res = function (context, fieldDef) {
             const invalidFieldValue = this.invalidFieldValue;
-            return function (value, message, validationOptions) {
-              const v = value[fieldName];
-              if (typePureValidator(v, message, validationOptions)) // тип правильный
+            return function (context, value, message, validationOptions) {
+              if (typePureValidator(value, message, validationOptions)) // тип правильный
                 for (const sv of normolizedSubvalidators)
-                  if (sv(v, validationOptions)) return; // одна из or-проверок прошла успешно
-              (message || (message = [])).push(invalidFieldValue(value, fieldNamePrefix, fieldName));
+                  if (sv(value, validationOptions)) return; // одна из or-проверок прошла успешно
+              (message || (message = [])).push(invalidFieldValue(context, value));
               return message;
             };
           };
         } else {
           // вариант результата оптимизированный под одну or-проверку
           const singleSubvalidator = normolizedSubvalidators[0];
-          res = function (fieldNamePrefix, fieldName, fieldDef) {
+          res = function (context, fieldDef) {
             const invalidFieldValue = this.invalidFieldValue;
-            return function (value, message, validationOptions) {
-              const v = value[fieldName];
-              if (typePureValidator(v, validationOptions)) // тип правильный
-                if (singleSubvalidator(v, validationOptions)) return; // одна из or-проверок прошла успешно
-              (message || (message = [])).push(invalidFieldValue(value, fieldNamePrefix, fieldName));
+            return function (context, value, message, validationOptions) {
+              if (typePureValidator(value, validationOptions)) // тип правильный
+                if (singleSubvalidator(value, validationOptions)) return; // одна из or-проверок прошла успешно
+              (message || (message = [])).push(invalidFieldValue(context, value));
               return message;
             }
           };

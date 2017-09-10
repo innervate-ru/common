@@ -15,14 +15,14 @@ export default function (typesExport) {
 
   addTypeAdvanced('Fields', function (typeContextPrototype) {
     return function (fields) {
-      const context = Object.create(null); // null - так как не планируется что у Fields могут быть сабвалидаторы
-      context._vtype = typeName;
-      context._build = function () {
-        return function (fieldNamePrefix, fieldName, fieldDef) {
-          return this.validateSubfields.call(this, fieldNamePrefix, fieldName, fields);
+      const typeBuilder = Object.create(null); // null - так как не планируется что у Fields могут быть сабвалидаторы
+      typeBuilder._vtype = 'Fields';
+      typeBuilder._build = function () {
+        return function (context, fieldDef) {
+          return this.validateSubfields(context, fields);
         }
       };
-      return context;
+      return typeBuilder;
     }
   });
 
@@ -87,25 +87,25 @@ export default function (typesExport) {
   //
   //
 
-    if (elementDefinition) { // каждый элемент массива проверяется на соответствие.  Для ошибок в контекст добавлен индекс элемента
-      validateNull()
-
-
-    } else {
-      return {
-        _vtype: 'Array',
-        _build() {
-          return function (fieldNamePrefix, fieldName, fieldDef) {
-            const invalidFieldValue = this.invalidFieldValue;
-            return function (value, message, validationContext) {
-              if (Array.isArray(value[fieldName])) return;
-              (message || (message = [])).push(invalidFieldValue(value, fieldName));
-              return message;
-            }
-          }
-        },
-      };
-    }
+    // if (elementDefinition) { // каждый элемент массива проверяется на соответствие.  Для ошибок в контекст добавлен индекс элемента
+    //   validateNull()
+    //
+    //
+    // } else {
+    //   return {
+    //     _vtype: 'Array',
+    //     _build() {
+    //       return function (fieldNamePrefix, fieldName, fieldDef) {
+    //         const invalidFieldValue = this.invalidFieldValue;
+    //         return function (value, message, validationContext) {
+    //           if (Array.isArray(value[fieldName])) return;
+    //           (message || (message = [])).push(invalidFieldValue(value, fieldName));
+    //           return message;
+    //         }
+    //       }
+    //     },
+    //   };
+    // }
 
 
 // String
