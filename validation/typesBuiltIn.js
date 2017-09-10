@@ -1,3 +1,5 @@
+import prettyPrint from '../utils/prettyPrint'
+
 export default function (typesExport) {
 
   const {VType, addType, addSubvalidator, addTypeAdvanced} = typesExport;
@@ -11,16 +13,100 @@ export default function (typesExport) {
   addType('Function', v => typeof v === 'function');
   addType('Promise', v => v => typeof v === 'object' && v != null && 'then' in v);
 
-  addTypeAdvanced('Fields', function (fields) {
-    return {
-      _vtype: 'Fields',
-      _build() {
+  addTypeAdvanced('Fields', function (typeContextPrototype) {
+    return function (fields) {
+      const context = Object.create(null); // null - так как не планируется что у Fields могут быть сабвалидаторы
+      context._vtype = typeName;
+      context._build = function () {
         return function (fieldNamePrefix, fieldName, fieldDef) {
           return this.validateSubfields.call(this, fieldNamePrefix, fieldName, fields);
         }
-      },
-    };
+      };
+      return context;
+    }
   });
+
+  // addTypeAdvanced('Array', function (typeContextPrototype) {
+  //   const simpleContext = Object.create(typeContextPrototype); // общий случай без проверки элементов массива
+  //   simpleContext._vtype = 'Array';
+  //   simpleContext._build = function () {
+  //     return function (fieldNamePrefix, fieldName, fieldDef) {
+  //       const invalidFieldValue = this.invalidFieldValue;
+  //       return function (value, message, validationContext) {
+  //         if (Array.isArray(value[fieldName])) return;
+  //         (message || (message = [])).push(invalidFieldValue(value, fieldName));
+  //         return message;
+  //       }
+  //     }
+  //   };
+  //   return function (elementDefinition) {
+  //     if (elementDefinition === undefined)
+  //       return simpleContext;
+  //     else if (typeof elementDefinition === 'object' && elementDefinition !== null && !Array.isArray(elementDefinition)) {
+  //       const typeContext = Object.create(typeContextPrototype); // общий случай без проверки элементов массива
+  //       typeContext._vtype = 'Array';
+  //       typeContext._build = function () {
+  //         return function (fieldNamePrefix, fieldName, fieldDef) {
+  //           const invalidFieldValue = this.invalidFieldValue;
+  //           const validateNull = this.validateNull;
+  //           return function (value, message, validationContext) {
+  //             const value = value[fieldName];
+  //             if (Array.isArray(value)) {
+  //               for (let i = 0; i < value.length; i++) {
+  //                 message = validateNull(value)
+  //               }
+  //
+  //
+  //
+  //             }
+  //             (message || (message = [])).push(invalidFieldValue(value, fieldName));
+  //             return message;
+  //           }
+  //         }
+  //       };
+  //       return typeContext;
+  //     } else throw new Error(`Invalid array element declaration: ${prettyPrint(elementDefinition)}`);
+  //
+  //
+  //
+  //
+  //
+  //
+  //     return function (fieldNamePrefix, fieldName, fieldDef) {
+  //       const invalidFieldValue = this.invalidFieldValue;
+  //       const validateNull = this.validateNull;
+  //       return function (value, message, validationContext) {
+  //
+  //
+  //
+  //       };
+  //     };
+  //   };
+  // });
+  //
+  //
+  //
+
+    if (elementDefinition) { // каждый элемент массива проверяется на соответствие.  Для ошибок в контекст добавлен индекс элемента
+      validateNull()
+
+
+    } else {
+      return {
+        _vtype: 'Array',
+        _build() {
+          return function (fieldNamePrefix, fieldName, fieldDef) {
+            const invalidFieldValue = this.invalidFieldValue;
+            return function (value, message, validationContext) {
+              if (Array.isArray(value[fieldName])) return;
+              (message || (message = [])).push(invalidFieldValue(value, fieldName));
+              return message;
+            }
+          }
+        },
+      };
+    }
+
 
 // String
 
@@ -41,6 +127,7 @@ export default function (typesExport) {
 
 // Array
 
-  addSubvalidator(VType.Float(), 'onlyStrings', v => v.every(t => typeof t === 'string'));
+  addSubvalidator(VType.Array(), 'notEmpty', v => v.length > 0);
+  addSubvalidator(VType.Array(), 'onlyStrings', v => v.every(t => typeof t === 'string'));
 
 }

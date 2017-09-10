@@ -19,7 +19,8 @@ test(`добавление и получение типа простого ти�
   t.throws(() => addType('string'), `Missing argument 'typePureValidator'`); // нет второго аргумента
   t.throws(() => addType('string', v => typeof v === 'string'), `Invalid argument 'typeName': 'string'`); // имя типа должно начинаться с большой буквы
   t.throws(() => addType('String', 12), `Invalid argument 'typePureValidator': 12`); // второй аргумент не метод
-  t.throws(() => addType('String', () => {}), `Invalid argument 'typePureValidator': function () {}`); // у метода проверки, должен быть аргумент
+  t.throws(() => addType('String', () => {
+  }), `Invalid argument 'typePureValidator': function () {}`); // у метода проверки, должен быть аргумент
 
   t.is(typeof VType.String, 'function');
   t.is(typeof VType.String(), 'object');
@@ -102,9 +103,11 @@ test(`функции для одинковых наборов сабвалида
 test(`Можно добавлять сложные типы, такие как Fields`, t => {
   const {VType, addTypeAdvanced} = require('./types')._module();
 
-  addTypeAdvanced('AComplexType', function (v1) {
-    return {
-      _build() {
+  addTypeAdvanced('AComplexType', function (typeContextPrototype) {
+    return function (v1) {
+      const context = Object.create(typeContextPrototype); // подключение предоставленного протитотипа, позволяет подключать сабвалидаторы
+      context._vtype = 'AComplexType';
+      context._build = function () {
         return function (fieldNamePrefix, fieldName, fieldDef) {
           const invalidFieldValue = this.invalidFieldValue;
           return function (value, message, validationOptions) {
@@ -113,11 +116,9 @@ test(`Можно добавлять сложные типы, такие как F
             return message;
           }
         };
-      },
-      toString() {
-        return 'Fields';
-      },
-    };
+      };
+      return context;
+    }
   });
 
   const buildTimeValidator = VType.AComplexType(12)._build();

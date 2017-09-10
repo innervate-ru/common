@@ -3,13 +3,11 @@ import defineProps from '../utils/defineProps'
 import prettyPrint from '../utils/prettyPrint'
 import allErrorInfoToMessage from '../utils/allErrorInfoToMessage'
 import InvalidStateError from './InvalidStateError'
-import {validateServiceEvent} from '../events'
-import {validateAndCopyOptionsFactory, validateEventFactory} from '../validation'
 import flattenDeep from 'lodash/flattenDeep'
 import uniq from 'lodash/uniq'
 import cleanStack from 'clean-stack'
-
-import {VType} from '../validation'
+import {VType, validateEventFactory, validateAndCopyOptionsFactory} from '../validation'
+import {BaseEvent} from '../events'
 
 export const DEFAULT_FAIL_RECOVERY_INTERVAL = 60000;
 
@@ -34,7 +32,7 @@ export function config(services) {
           kind: 'event',
           type: 'service.state',
           validate: validateEventFactory({
-            _extends: validateServiceEvent,
+            _extends: BaseEvent,
             state: {type: VType.String().notEmpty(), required: true},
             prevState: {type: VType.String().notEmpty(), required: true},
             reason: {type: VType.String()}, // причина перехода в состояние FAILED - поле message из Error
@@ -49,7 +47,7 @@ export function config(services) {
           kind: 'error',
           type: 'service.error',
           validate: validateEventFactory({ // TODO: Fix
-            _extends: validateServiceEvent,
+            _extends: BaseEvent,
             message: {type: VType.String().notEmpty(), required: true},
             stack: {type: VType.String().notEmpty()},
           }),
@@ -61,10 +59,17 @@ export function config(services) {
           kind: 'info',
           type: 'service.options',
           validate: validateEventFactory({ // TODO: Fix
-            _extends: validateServiceEvent,
+            _extends: BaseEvent,
+            serviceType: {type: VType.String().notEmpty()},
             options: {type: VType.Object()},
           }),
-          toString: (ev) => `${ev.source}: options: '${prettyPrint(ev.options)}'`,
+          toString(ev)  {
+            switch (ev.serviceType) {
+              case 'mssqlconnector':
+                return `${ev.source}: сonnecting to ${ev.options.url}:${ev.options.options.port} as '${ev.options.user}'. database is '${ev.options.options.database}'`
+            }
+            return `${ev.source}: options: '${prettyPrint(ev.options)}'`;
+          },
         },
       ]
     ));

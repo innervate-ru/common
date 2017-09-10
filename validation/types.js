@@ -132,17 +132,18 @@ function _module() {
       throw new Error(`Type '${typeName}' is already defined`);
     }
     providedValidators[typeName] = typePureValidator;
-
-    const typePrototype = typesPrototypes[typeName] = Object.create(simpleTypeContextPrototype);
-    const context = Object.create(typePrototype);
-    context._vtype = typeName;
-
-    addTypeAdvanced(typeName, function () {
-      return context; // всегда возвращается один и тот же контекст.  если используется сабвалидатор, то создается новый контекст
+    addTypeAdvanced(typeName, function (typeContextPrototype) {
+      const context = Object.create(typeContextPrototype);
+      context._vtype = typeName;
+      return function () {
+        return context; // всегда возвращается один и тот же контекст.  если используется сабвалидатор, то создается новый контекст
+      };
     });
   }
 
-  function addTypeAdvanced(typeName, typeContextFactory) {
+  function addTypeAdvanced(typeName, typeContextFactoryFactory) {
+    const typeContextPrototype = typesPrototypes[typeName] = Object.create(simpleTypeContextPrototype);
+    const typeContextFactory = typeContextFactoryFactory(typeContextPrototype);
     typeContextFactory.toString = function () {
       return `Instead VType.${typeName} use VType.${typeName}()`;
     };

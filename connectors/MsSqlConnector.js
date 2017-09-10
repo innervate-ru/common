@@ -20,22 +20,6 @@ const debug = require('debug')('mssql');
  */
 const isConnectionError = (error) => error.__proto__.name === 'ConnectionError';
 
-const validateOptionsOptions = validateAndCopyOptionsFactory({
-  appName: {type: VType.String().notEmpty()},
-  debug: {type: VType.Int()},
-  port: {type: VType.Int()},
-  database: {type: VType.String().notEmpty(), required: true},
-});
-
-const validatePoolConfig = validateAndCopyOptionsFactory({
-  min: {type: VType.Int().positive()},
-  max: {type: VType.Int().positive()},
-  log: {type: VType.Bool()},
-  idleTimeout: {type: VType.Int().positive()},
-  retryDelay: {type: VType.Int().positive()},
-  acquireTimeout: {type: VType.Int().positive()},
-});
-
 const validateOptions = validateAndCopyOptionsFactory({
   description: {type: VType.String()},
   url: {type: VType.String().notEmpty(), required: true},
@@ -104,6 +88,7 @@ export default function (services) {
         time: new Date().getTime(),
         type: 'service.options',
         source: this._service.get('name'),
+        serviceType: 'mssqlconnector',
         options: this._options,
       });
       this._pool = new ConnectionPool(this._poolConfig, this._msSqlConfig);

@@ -3,17 +3,17 @@ import prettyPrint from '../utils/prettyPrint'
 import defineProps from '../utils/defineProps'
 import moment from 'moment'
 import 'moment-duration-format'
-import {validateServiceEvent} from '../events'
-import {validateAndCopyOptionsFactory, validateEventFactory, validatePositiveInt, validateArrayOfString} from '../validation'
+import {VType, validateAndCopyOptionsFactory} from '../validation'
+import {validateEventFactory, BaseEvent} from '../events'
 import {READY, FAILED, config as serviceConfig} from './Service'
 
 const defaultConsole = console;
 
 const hasOwnProperty = Object.prototype.hasOwnProperty;
 
-const checkOptions = validateAndCopyOptionsFactory({
-  name: {type: 'string', required: true, copy: true},
-  services: {type: 'array'},
+const validateAndCopyOptions = validateAndCopyOptionsFactory({
+  name: {type: VType.String(), required: true, copy: true},
+  services: {type: VType.Array()},
 });
 
 let eventTypes;
@@ -29,9 +29,9 @@ export default function (services) {
       kind: 'info',
       type: 'nodemanager.started',
       validate: validateEventFactory({
-        _extends: validateServiceEvent,
-        startDuration: {type: 'int', validate: validatePositiveInt},
-        failedServices: {type: 'array', validate: validateArrayOfString},
+        _extends: BaseEvent,
+        startDuration: {type: VType.Int().positive()},
+        failedServices: {type: VType.Array().onlyStrings()},
       }),
       toString: (ev) => `${ev.source}: started in ${moment.duration(ev.startDuration).format('h:mm:ss', 3)}${ev.failedServices ? `; failed: ${ev.failedServices.join()}` : ``}`,
     },
@@ -41,11 +41,13 @@ export default function (services) {
 
     _serviceCount = 0;
     _serviceStarted = 0;
-    _started = false;
+    _startedPromise = new Promise((resolve, reject) => {
+      this._startedResolve = resolve;
+    });
 
     constructor(options) {
 
-      checkOptions(options, {copyTo: this});
+      validateAndCopyOptions(options, {argument: 'options', copyTo: this});
 
       // выдаем событие nodemanager.started, когда все зарегистрированные сервисы
       const startTime = new Date().getTime();
@@ -73,6 +75,7 @@ export default function (services) {
                 };
                 if (failedServices.length > 0) ev.failedServices = failedServices;
                 bus.info(ev);
+                this._startedResolve();
               } catch (err) {
                 console.error(err);
               }
@@ -129,13 +132,22 @@ export default function (services) {
 
   defineProps(NodeManager, {
     name: {
-      get: function () {
+      get() {
         return this._name;
       }
     },
     services: {
-      get: function () {
+      get() {
         return this._services;
+      }
+    },
+    started: {
+      /**
+       * Возвращает Promise, который переходит в fulfilled состояние, после событие NodeManager started.
+       * @returns {Promise}
+       */
+      get() {
+        return this._startedPromise;
       }
     },
   });

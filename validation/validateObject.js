@@ -58,7 +58,8 @@ export function validateObjectFactory({
 
     const context = {
       anyCopyFunc: false,
-      validateSubfields: _validateSubfields, // validateSubfields нужен для использование в реализации типа VType.Fields
+      validateSubfields: _validateSubfields, // нужен для использование в реализации типа VType.Fields
+      validateNull: _validateNull, // нужен для использование в реализации типа VType.Array, для проверки элементов массива
       invalidFieldValue, // сообщение, о том что поле имеет неправильно значение - для использование в типах, определнных как функция
     };
     for (const fieldName of Object.getOwnPropertyNames(schema)) {

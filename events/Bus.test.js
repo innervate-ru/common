@@ -1,7 +1,7 @@
 import test from 'ava'
 import prettyPrint from '../utils/prettyPrint'
 import {validateEventFactory, validateAndCopyOptionsFactory, validateOptionsFactory} from '../validation/validateObject'
-import {validateEvent} from './index'
+import {BaseEvent} from './index'
 import TestConsole from '../utils/testConsole'
 
 test(`регистрация типов сообщений`, t => {
@@ -13,7 +13,7 @@ test(`регистрация типов сообщений`, t => {
     type: 'source.event',
     kind: 'event',
     validate: validateEventFactory({
-      _extends: validateEvent,
+      _extends: BaseEvent,
       val: {time: 10, type: 'int'},
     }),
     toString: ev => `Message for console: ${prettyPrint(ev.val)}`,
@@ -83,7 +83,7 @@ test(`сообщение без toString`, t => {
     type: 'source.event',
     kind: 'event',
     validate: validateEventFactory({
-      _extends: validateEvent,
+      _extends: BaseEvent,
       val: {time: 10, type: 'int'},
     }),
   });
@@ -111,7 +111,7 @@ kinds.forEach(({kind, console: consoleMethod}, i) => {
       type: 'source.event',
       kind: nextKind,
       validate: validateEventFactory({
-        _extends: validateEvent,
+        _extends: BaseEvent,
         val: {time: 10, type: 'int'},
       }),
     });
@@ -133,7 +133,7 @@ test(`через on подписываемся на необъявленный �
     type: 'source.event',
     kind: 'event',
     validate: validateEventFactory({
-      _extends: validateEvent,
+      _extends: BaseEvent,
       val: {time: 10, type: 'int'},
     }),
   });
@@ -154,7 +154,7 @@ test(`если одно и то же сообщение ргистрируетс
     type: 'source.event',
     kind: 'event',
     validate: validateEventFactory({
-      _extends: validateEvent,
+      _extends: BaseEvent,
       val: {time: 10, type: 'int'},
     }),
   };
@@ -163,7 +163,7 @@ test(`если одно и то же сообщение ргистрируетс
     type: 'source.event', // тип такой же как ev1
     kind: 'event',
     validate: validateEventFactory({
-      _extends: validateEvent,
+      _extends: BaseEvent,
       val: {time: 10, type: 'int'},
     }),
   };
