@@ -237,5 +237,3 @@ export default function Service(name, service, options = {}) {
   if (!testMode) nextStateStep(); // запускаем первый переход
   return wrappedService;
 }
-
-
