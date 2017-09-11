@@ -484,11 +484,9 @@ test(`Моджно добавить проверку элементов масс
   require('./typesBuiltIn').default(typesExport);
   const {VType} = typesExport;
 
-  let v;
-
   const validate = validateObject({
     a: {
-      type: v = VType.Array({ // в параметрах VType.Array задаем описание для элементов массива
+      type: VType.Array({ // в параметрах VType.Array задаем описание для элементов массива
         // required: ... в данном случае не учитывается, так как это не имеет в этом контексте смысла
         null: true, // элементы могут быть null
         type: [VType.Int(), VType.Fields({ // или одного из данных типов число или объект

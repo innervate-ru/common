@@ -21,6 +21,7 @@ export function validateObjectFactory({
   resultWrapper = null,
   copyFields = false,
   validateExtends = false,
+  notPureData = false, // если true, то объект может как свойства содержать методы, что нормельно для объектов опций.  Например, компонента config возвращает структуру с методом get
 }) {
 
   if (!(typeof missingField == 'function')) throw new Error(`Invalid argument 'missingField': ${prettyPrint(missingField)}`);
@@ -47,7 +48,7 @@ export function validateObjectFactory({
   function validateObject(schema = throwIfMissing('schema'), factoryOptions) {
 
     if (!(typeof schema === 'object' && schema !== null && !Array.isArray(schema)))
-      throw new Error(`Invalid argument 'schema': ${schema}`);
+      throw new Error(`Invalid argument 'schema': ${prettyPrint(schema)}`);
 
     let _extends;
     if (hasOwnProperties.call(schema, '_extends')) {
@@ -165,7 +166,7 @@ export function validateObjectFactory({
         let fieldName;
         const context = () => fieldName;
         for (fieldName of Object.getOwnPropertyNames(value)) // поиск полей, которые не ожидаются в событии
-          if (!(fieldName in fields))
+          if (!(fieldName in fields || (notPureData && typeof fields[fieldName] !== 'function')))
             (message || (message = [])).push(unexpectedField(context, value[fieldName]));
         return message;
       }
@@ -353,8 +354,8 @@ export function validateObjectFactory({
   function _validateEitherTypeOrFields(context, fieldDef) {
     const type = fieldDef.type;
     const fields = fieldDef.fields;
-    if (!(type || fields)) throw new Error(`Field '${context()}' must have either 'type' and 'fields' attribute: ${prettyPrint(fieldDef)}`);
-    if (type && fields) throw new Error(`Field '${context()}' cannot have both 'type' and 'fields' attributes: ${prettyPrint(fieldDef)}`);
+    if (!(type || fields)) throw new Error(`Field '${context()}': Must have either 'type' and 'fields' attribute: ${prettyPrint(fieldDef)}`);
+    if (type && fields) throw new Error(`Field '${context()}': Cannot have both 'type' and 'fields' attributes: ${prettyPrint(fieldDef)}`);
 
     if (fields)
       return _validateSubfields.call(this, context, fields);
@@ -458,7 +459,7 @@ export function validateObjectFactory({
         };
 
       default:
-        throw new Error(`Unexpected type: '${type}'`);
+        throw new Error(`Field '${context()}': Unexpected type: '${prettyPrint(type)}'`);
     }
   }
 
@@ -477,6 +478,7 @@ export const validateAndCopyOptionsFactory = validateObjectFactory({
   missingField: messageMissingField,
   invalidFieldValue: messageInvalidFieldValue,
   copyFields: true,
+  // notPureData: true,
   resultWrapper: (validateFunc) => {
     return function (value, validateOptions) {
       const message = validateFunc(value, validateOptions);
@@ -493,6 +495,7 @@ export const validateOptionsFactory = validateObjectFactory({
   missingField: messageMissingField,
   invalidFieldValue: messageInvalidFieldValue,
   copyFields: false,
+  // notPureData: true,
   resultWrapper: (validateFunc) => function (value, validateOptions) {
     const message = validateFunc(value, validateOptions);
     if (message)
@@ -528,4 +531,4 @@ export const validateEventFactory = validateObjectFactory({
   },
 });
 
-export const validateArgumentNameOptions = {argument: 'options'}
+export const validateArgumentNameOptions = {argument: 'options'};

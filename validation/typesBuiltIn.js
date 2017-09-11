@@ -53,7 +53,7 @@ export default function (typesExport) {
             function (context, fieldDef) {
               const invalidFieldValue = this.invalidFieldValue;
               const validateNull = this.validateNull;
-              const elementValidator = validateNull.call(this, () => `${context}:VType.Array(...)`, elementDefinition);
+              const elementValidator = validateNull.call(this, (() => `${context()}:VType.Array(...)`), elementDefinition);
               if (!elementValidator) return anArrayValidator.call(this, context, fieldDef);
               return function (context, value, message, validateOptions) {
                 if (!Array.isArray(value)) {
