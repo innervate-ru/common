@@ -74,6 +74,7 @@ export function validateObjectFactory({
 
     const validatorThis = {
       validateSubfields: _validateSubfields, // validateSubfields нужен для использование в реализации типа VType.Fields
+      validateNull: _validateNull, // validateSubfields нужен для использование в реализации типа VType.Array
       invalidFieldValue, // сообщение, о том что поле имеет неправильно значение - для использование в типах, определнных как функция
 
     };
@@ -306,24 +307,6 @@ export function validateObjectFactory({
   }
 
   /**
-   * Копирует значение поля, если в его описание указан признак copy и при выполнении в опциях есть поле copyTo.
-   */
-  // TODO: Перенести копирование в отдельную ветку
-  // function _copyField(context, fieldDef) {
-  //   const copy = fieldDef.copy;
-  //   if (typeof copy === 'function') return copy.call(this, context, fieldDef);
-  //   else if (typeof copy === 'boolean') {
-  //     if (copy) {
-  //       const destFieldName = `_${fieldName}`;
-  //       return function (context, value, message, validateOptions) {
-  //         validateOptions.copyTo[destFieldName] = value[fieldName];
-  //       }
-  //     }
-  //   } else if (copy === undefined) return;
-  //   throw new Error(`Field '${fieldName}' definition: Invalid attribute 'copy' value: ${prettyPrint(copy)}`);
-  // }
-
-  /**
    * Если свойтсво поля null равное true, проверяет если поле null, то дальнейшие проверки не проводятся.
    */
   function _validateNull(context, fieldDef) {
@@ -349,8 +332,13 @@ export function validateObjectFactory({
         return function (context, value, message, validateOptions) {
           let msg = prevCheck(context, value, message, validateOptions);
           if (!msg) {
-            if (validateFunc(value, validateOptions)) return;
-            (msg || (msg = [])).push(invalidFieldValue(context, value));
+            const resOrReason = validateFunc(value, validateOptions);
+            if (typeof resOrReason === 'string') {
+              (msg || (msg = [])).push(invalidFieldValue(context, value, resOrReason));
+            } else {
+              if (resOrReason) return;
+              (msg || (msg = [])).push(invalidFieldValue(context, value));
+            }
           }
           return msg;
         }
@@ -365,8 +353,8 @@ export function validateObjectFactory({
   function _validateEitherTypeOrFields(context, fieldDef) {
     const type = fieldDef.type;
     const fields = fieldDef.fields;
-    if (!(type || fields)) throw new Error(`Field '${context()}' must have either 'type' and 'fields' attribute`);
-    if (type && fields) throw new Error(`Field '${context()}' cannot have both 'type' and 'fields' attributes`);
+    if (!(type || fields)) throw new Error(`Field '${context()}' must have either 'type' and 'fields' attribute: ${prettyPrint(fieldDef)}`);
+    if (type && fields) throw new Error(`Field '${context()}' cannot have both 'type' and 'fields' attributes: ${prettyPrint(fieldDef)}`);
 
     if (fields)
       return _validateSubfields.call(this, context, fields);
@@ -387,7 +375,7 @@ export function validateObjectFactory({
         else return function (context, value, message, validateOptions) {
           let msg;
           for (const validate of validators) {
-            msg = validate(context, value, message);
+            msg = validate(context, value, undefined, validateOptions);
             if (msg === undefined) return; // одна из проверок прошла успешно
           }
           // как ошибку возвращаем результат посленего валидатора
@@ -479,7 +467,7 @@ export function validateObjectFactory({
 
 export const messageMissingField = (context, value) => `Missing required field '${context()}'`;
 export const messageUnexpectedField = (context, value) => `Unexpected field '${context()}' with value: ${prettyPrint(value)}`;
-export const messageInvalidFieldValue = (context, value) => `Invalid field '${context()}' value: ${prettyPrint(value)}`;
+export const messageInvalidFieldValue = (context, value, reason) => `Invalid field '${context()}' value${reason ? ` (reason: ${reason})` : ''}: ${prettyPrint(value)}`;
 
 /**
  * Проверка опций, например, конструктора.  Каждый уровень (см. _extends) опций проверяется отдельно.  В случае

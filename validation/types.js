@@ -52,18 +52,13 @@ function _module() {
   const typesPrototypes = Object.create(null);
 
   const simpleTypeContextPrototype = {
-    _build() {
+    _build(validateType) { // параметр validateType полезен чтобы совместить нестрандартную проверку и субвалидаторы - пример, тип Array()
 
       const typeName = this._vtype;
-      const typePureValidator = providedValidators[typeName];
-      let key, res;
 
-      if (!hasOwnProperty.call(this, '_subvalidators')) { // простой тип, без дополнительных or-проверок
-
-        key = typeName;
-        if (hasOwnProperty.call(cachedValidators, key)) return cachedValidators[key];
-
-        res = function (context, fieldDef) {
+      if (!validateType) {
+        const typePureValidator = providedValidators[typeName];
+        validateType = function (context, fieldDef) {
           const invalidFieldValue = this.invalidFieldValue;
           if (!(typeof invalidFieldValue === 'function')) throw new Error(`invalidFieldValue not a function`);
           return function (context, value, message, validationOptions) {
@@ -72,6 +67,16 @@ function _module() {
             return message;
           }
         }
+      }
+
+      let key, typeValidateFactory;
+
+      if (!hasOwnProperty.call(this, '_subvalidators')) { // простой тип, без дополнительных or-проверок
+
+        key = typeName;
+        if (hasOwnProperty.call(cachedValidators, key)) return cachedValidators[key];
+
+        typeValidateFactory = validateType;
 
       } else { // тип с or-проверками
 
@@ -80,16 +85,32 @@ function _module() {
         if (hasOwnProperty.call(cachedValidators, key)) return cachedValidators[key];
 
         const typeSubvalidators = subvalidators[typeName];
-
         const normolizedSubvalidators = normolizedSubvalidatorsList.map(v => typeSubvalidators[v]);
 
         if (normolizedSubvalidators.length > 1) {
-          res = function (context, fieldDef) {
+          typeValidateFactory = function (context, fieldDef) {
+            const typeValidator = validateType.call(this, context, fieldDef);
             const invalidFieldValue = this.invalidFieldValue;
             return function (context, value, message, validationOptions) {
-              if (typePureValidator(value, message, validationOptions)) // тип правильный
-                for (const sv of normolizedSubvalidators)
-                  if (sv(value, validationOptions)) return; // одна из or-проверок прошла успешно
+              const msg = typeValidator(context, value, undefined, validationOptions);
+              if (msg) {
+                if (message) {
+                  Array.prototype.apply(message, msg);
+                  return message;
+                }
+                return msg;
+              }
+              let reason;
+              for (const sv of normolizedSubvalidators) {
+                const resOrReason = sv(value, validationOptions);
+                if (typeof resOrReason === 'string') {
+                  (reason || (reason = [])).push(resOrReason);
+                } else if (resOrReason) return; // одна из проверок прошла успешно
+              }
+              if (reason) {
+                (message || (message = [])).push(invalidFieldValue(context, value, reason.join(', ')));
+                return message;
+              }
               (message || (message = [])).push(invalidFieldValue(context, value));
               return message;
             };
@@ -97,11 +118,24 @@ function _module() {
         } else {
           // вариант результата оптимизированный под одну or-проверку
           const singleSubvalidator = normolizedSubvalidators[0];
-          res = function (context, fieldDef) {
+          typeValidateFactory = function (context, fieldDef) {
+            const typeValidator = validateType.call(this, context, fieldDef);
             const invalidFieldValue = this.invalidFieldValue;
             return function (context, value, message, validationOptions) {
-              if (typePureValidator(value, validationOptions)) // тип правильный
-                if (singleSubvalidator(value, validationOptions)) return; // одна из or-проверок прошла успешно
+              const msg = typeValidator(context, value, undefined, validationOptions);
+              if (msg) {
+                if (message) {
+                  Array.prototype.apply(message, msg);
+                  return message;
+                }
+                return msg;
+              }
+              const resOrReason = singleSubvalidator(value, validationOptions);
+              if (typeof resOrReason === 'string') { // вариант когда субвалидатор возвращает описание ошибки
+                (message || (message = [])).push(invalidFieldValue(context, value, resOrReason));
+                return message;
+              }
+              if (resOrReason) return; // одна из or-проверок прошла успешно
               (message || (message = [])).push(invalidFieldValue(context, value));
               return message;
             }
@@ -109,11 +143,11 @@ function _module() {
         }
       }
 
-      res.toString = function () {
+      typeValidateFactory.toString = function () {
         return key;
       };
-      cachedValidators[key] = res;
-      return res;
+      cachedValidators[key] = typeValidateFactory;
+      return typeValidateFactory;
     },
     toString() {
       return this._vtype;
@@ -169,7 +203,7 @@ function _module() {
 
     if (!(typeof vtype === 'string' || (typeof vtype === 'object' && '_vtype' in vtype)))  throw new Error(`Invalid argument 'vtype': ${prettyPrint(vtype)}`);
     if (!(typeof subvalidatorName === 'string' && /^[a-z]\w*$/.test(subvalidatorName))) throw new Error(`Invalid argument 'subvalidatorName': ${prettyPrint(subvalidatorName)}`);
-    if (!(typeof subvalidator === 'function' && subvalidator.length === 1)) throw new Error(`Invalid argument 'subvalidator': ${prettyPrint(subvalidator)}`);
+    if (!(typeof subvalidator === 'function' && 1 <= subvalidator.length && subvalidator.length <= 3)) throw new Error(`Invalid argument 'subvalidator': ${prettyPrint(subvalidator)}`);
 
     const typeName = typeof vtype === 'string' ? vtype : vtype._vtype;
     if (!(typeName in VType)) throw new Error(`Type '${typeName}' is not defined`);

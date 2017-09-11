@@ -11,7 +11,7 @@ import {
 } from './validateObject'
 const missingField = (context) => `Missing '${context()}'`;
 const unexpectedField = (context, value) => `Unexpected '${context()}': ${prettyPrint(value)}`;
-const invalidFieldValue = (context, value) => `Invalid '${context()}': ${prettyPrint(value)}`;
+const invalidFieldValue = (context, value, reason) => `Invalid '${context()}'${reason ? ` (reason: ${reason})` : ''}: ${prettyPrint(value)}`;
 
 const validateObject = validateObjectFactory({missingField, unexpectedField, invalidFieldValue});
 
@@ -203,6 +203,20 @@ test(`Атрибут 'validate'`, t => {
   });
   t.is(validate({optionN: 1}, {v: true}), undefined);
   t.deepEqual(validate({optionN: 12}), [`Invalid 'optionN': 12`]);
+  t.deepEqual(validate({}), undefined); // validate не используется если нет значения
+});
+
+test(`Атрибут 'validate'. Можно указывать причину почему данные не верные`, t => {
+  const validate = validateObject({
+    optionN: {
+      type: 'int', validate: (v, validateOptions) => {
+        t.true(validateOptions == undefined || validateOptions.v == true); // validateOptions передаются в validate
+        return v !== 12 ? true : 'not twelve';
+      }
+    }
+  });
+  t.is(validate({optionN: 1}, {v: true}), undefined);
+  t.deepEqual(validate({optionN: 12}), [`Invalid 'optionN' (reason: not twelve): 12`]);
   t.deepEqual(validate({}), undefined); // validate не используется если нет значения
 });
 
@@ -447,8 +461,6 @@ test(`Можно совмещать fields с другими вариантам�
   require('./typesBuiltIn').default(typesExport);
   const {VType} = typesExport;
 
-  const f = VType.Fields({b: {type: 'int'}, c: {type: VType.String, required: true},});
-
   const validate = validateObject({
     a: {
       type: ['string', VType.Int(), VType.Fields({ // ошибка выводится по последнему в списке типу.  Потому простые типы надо писать вперед
@@ -464,4 +476,47 @@ test(`Можно совмещать fields с другими вариантам�
 
   // Чтобы missing-сообщения были видно важно, чтобы сложный тип был последним в списке
   t.deepEqual(validate({a: {}}), [`Missing 'a.c'`]); // c or-валидаторами не понятно, как выводить детальные ошибки, если тип подошёл ...может вообще посто сокращать invalid ...а остальные оставлять?
+});
+
+test(`Моджно добавить проверку элементов массива, и одновременно с этим использовать сабвалидаторы`, t => {
+
+  const typesExport = require('./types')._module();
+  require('./typesBuiltIn').default(typesExport);
+  const {VType} = typesExport;
+
+  let v;
+
+  const validate = validateObject({
+    a: {
+      type: v = VType.Array({ // в параметрах VType.Array задаем описание для элементов массива
+        // required: ... в данном случае не учитывается, так как это не имеет в этом контексте смысла
+        null: true, // элементы могут быть null
+        type: [VType.Int(), VType.Fields({ // или одного из данных типов число или объект
+          b: {type: VType.Int()},
+          c: {type: VType.String(), required: true}, // при этом если это объект, то поле b обязательное
+        }),]
+      }).notEmpty() // как для других типов, указаываем дополнительные or-проверки
+    },
+  });
+
+  t.is(validate({a: [1, 2, 3]}), undefined);
+  t.is(validate({a: [{b: 1, c: 'aaa'}, {c: 'bbb'}]}), undefined);
+  t.is(validate({a: [null, 2, {c: 'bbb'}]}), undefined);
+
+  // не массив
+  t.deepEqual(validate({a: null}), [`Invalid 'a': null`]);
+  t.deepEqual(validate({a: true}), [`Invalid 'a': true`]);
+  t.deepEqual(validate({a: 12}), [`Invalid 'a': 12`]);
+  t.deepEqual(validate({a: 'str'}), [`Invalid 'a': 'str'`]);
+  t.deepEqual(validate({a: {}}), [`Invalid 'a': {}`]);
+
+  // неверное значение в массиве
+  t.deepEqual(validate({a: ['str', true, []]}), [`Invalid 'a[0]': 'str'`, `Invalid 'a[1]': true`, `Invalid 'a[2]': []`, ]);
+
+  // массив пустой
+  t.deepEqual(validate({a: []}), [`Invalid 'a' (reason: array is empty): []`]);
+
+  // // объект, но нет обязательного поля
+  t.deepEqual(validate({a: [{}, {b: 1}]}), [`Missing 'a[0].c'`, `Missing 'a[1].c'`]);
+
 });
