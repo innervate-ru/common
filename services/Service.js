@@ -15,7 +15,7 @@ export const config = require('lodash/once')(function (services) {
   }
 );
 
-export default function (services) {
+export default require('./getRuntime').default(__filename, function (services) {
 
   const {bus, testMode} = services; // testMode это hack для тестирования - это не сервис, а просто boolean значение ...но он тут никому не должно мешать
 
@@ -386,7 +386,6 @@ export default function (services) {
     // Добавляем проверку что сервис в рабочем состоянии (state == READY) во все методы с именами начинающимися не с подчерка
     // TODO: Note: Этот код не поддерживает наследование сервисов, так как он переопределяет методы только prototype первого уровня
     for (const methodName of Object.getOwnPropertyNames(serviceClass.prototype)) {
-      if ('SERVICE_TYPE' in serviceClass)
       if (methodName === 'constructor') continue;
       if (!methodName.startsWith('_')) {
         let propType;
@@ -411,4 +410,4 @@ export default function (services) {
 
     return ServiceImpl;
   }
-}
+});

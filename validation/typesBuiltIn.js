@@ -9,8 +9,7 @@ export default function (typesExport) {
   addType('Float', v => typeof v == 'number' && !isNaN(v));
   addType('Bool', v => typeof v == 'boolean');
   addType('Object', v => typeof v === 'object' && !Array.isArray(v));
-  // addType('Array', v => Array.isArray(v));
-  addType('Function', v => typeof v === 'function');
+    addType('Function', v => typeof v === 'function');
   addType('Promise', v => v => typeof v === 'object' && v != null && 'then' in v);
 
   addTypeAdvanced('Fields', function (typeContextPrototype) {
