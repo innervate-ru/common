@@ -1,41 +1,18 @@
-import throwIfMissing from 'throw-if-missing'
 import prettyPrint from '../utils/prettyPrint'
 import defineProps from '../utils/defineProps'
-import moment from 'moment'
-import 'moment-duration-format'
-import {VType, validateAndCopyOptionsFactory} from '../validation'
-import {validateEventFactory, BaseEvent} from '../events'
-import {READY, FAILED, config as serviceConfig} from './Service'
-
-const defaultConsole = console;
+import missingService from './missingService'
+import {READY, FAILED} from './Service.states'
 
 const hasOwnProperty = Object.prototype.hasOwnProperty;
 
-const validateAndCopyOptions = validateAndCopyOptionsFactory({
-  name: {type: VType.String(), required: true, copy: true},
-  services: {type: VType.Array()},
+export const config = require('lodash/once')(function (services) {
+  require('./Service').config(services);
+  require('./NodeManager.schema').defineEvents(services);
 });
-
-let eventTypes;
 
 export default function (services) {
 
-  const {bus = throwIfMissing('bus')} = services;
-
-  serviceConfig(services); // регистрируем события из Service, так как будем слушать событие service.state.
-
-  bus.registerEvent(eventTypes || (eventTypes = [
-    {
-      kind: 'info',
-      type: 'nodemanager.started',
-      validate: validateEventFactory({
-        _extends: BaseEvent,
-        startDuration: {type: VType.Int().positive()},
-        failedServices: {type: VType.Array().onlyStrings()},
-      }),
-      toString: (ev) => `${ev.source}: started in ${moment.duration(ev.startDuration).format('h:mm:ss', 3)}${ev.failedServices ? `; failed: ${ev.failedServices.join()}` : ``}`,
-    },
-  ]));
+  const {bus = missingService('bus')} = services;
 
   class NodeManager {
 
@@ -47,7 +24,7 @@ export default function (services) {
 
     constructor(options) {
 
-      validateAndCopyOptions(options, {argument: 'options', copyTo: this});
+      require('./NodeManager.schema').nodeManagerClassOptions(options, {argument: 'options', copyTo: this});
 
       // выдаем событие nodemanager.started, когда все зарегистрированные сервисы
       const startTime = new Date().getTime();

@@ -64,6 +64,10 @@ export default function prettyPrint(arg, level, maxLevel) {
     arg = arg.replace(/\r?\n|\r/g, ''); // Удаление переносов потребовалось, так как иначе, я так и не понял почему, не было видно причины ошибки, если это ошибка содержит stack с переносами
     if (arg.length > MAX_STRING_LENGTH) arg = `${arg.substr(0, MAX_STRING_LENGTH - 3)}...`; // ограничиваем длину выводимых.  полезно для Error.stack и для длинных JSON.
     return `'${arg}'`;
+  } else if (typeof arg === 'function') {
+    let functionAsString = arg.toString();
+    if (functionAsString.length > MAX_STRING_LENGTH) functionAsString = `${functionAsString.substr(0, MAX_STRING_LENGTH - 3)}...`;
+    return `'${functionAsString}'`;
   } else {
     return `${arg}`;
   }

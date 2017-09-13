@@ -22,6 +22,8 @@ export function validateObjectFactory({
   copyFields = false,
   validateExtends = false,
   notPureData = false, // если true, то объект может как свойства содержать методы, что нормельно для объектов опций.  Например, компонента config возвращает структуру с методом get
+  maxUnexpectedItems = 4, // максимальное количество сообщений о не ожиданных полях.  Уменьшает до разумного длину сообщения, если проверяется "левый" объект.  0 - выводить без ограничений
+
 }) {
 
   if (!(typeof missingField == 'function')) throw new Error(`Invalid argument 'missingField': ${prettyPrint(missingField)}`);
@@ -165,9 +167,12 @@ export function validateObjectFactory({
         let message = innerValidateFunc(value, validateOptions);
         let fieldName;
         const context = () => fieldName;
+        let count = 0;
         for (fieldName of Object.getOwnPropertyNames(value)) // поиск полей, которые не ожидаются в событии
-          if (!(fieldName in fields || (notPureData && typeof fields[fieldName] !== 'function')))
+          if (!(fieldName in fields || (notPureData && typeof fields[fieldName] !== 'function'))) {
             (message || (message = [])).push(unexpectedField(context, value[fieldName]));
+            if (++count === maxUnexpectedItems) break;
+          }
         return message;
       }
     }

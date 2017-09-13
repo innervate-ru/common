@@ -1,4 +1,3 @@
-import throwIfMissing from 'throw-if-missing'
 import defineProps from '../utils/defineProps'
 import prettyPrint from '../utils/prettyPrint'
 import allErrorInfoToMessage from '../utils/allErrorInfoToMessage'
@@ -6,91 +5,15 @@ import InvalidStateError from './InvalidStateError'
 import flattenDeep from 'lodash/flattenDeep'
 import uniq from 'lodash/uniq'
 import cleanStack from 'clean-stack'
-import {VType, validateEventFactory, validateAndCopyOptionsFactory} from '../validation'
-import {BaseEvent} from '../events'
 
 export const DEFAULT_FAIL_RECOVERY_INTERVAL = 60000;
 
-export const NOT_INITIALIZED = 'not initialied';
-export const WAITING_OTHER_SERVICES_TO_START = 'waiting other services to start';
-export const INITIALIZING = 'initializing';
-export const INITIALIZE_FAILED = 'initialize failed';
-export const STARTING = 'starting';
-export const READY = 'ready';
-export const STOPPING = 'stopping';
-export const STOPPED = 'stopped';
-export const FAILED = 'failed';
-export const DISPOSING = 'disposing';
-export const DISPOSED = 'disposed';
+import {NOT_INITIALIZED, WAITING_OTHER_SERVICES_TO_START, INITIALIZING, INITIALIZE_FAILED, STARTING, READY, STOPPING, STOPPED, FAILED, DISPOSING, DISPOSED} from './Service.states'
 
-let eventTypes;
-
-export function config(services) {
-  const {bus, testMode} = services;
-  bus.registerEvent(eventTypes || (eventTypes = [ // Важно чтоб eventTypes были в отдельной переменной (не параметр registerEvent, чтоб при повторной регистрации одних и тех же событий не возникало ошибки
-        {
-          kind: 'event',
-          type: 'service.state',
-          validate: validateEventFactory({
-            _extends: BaseEvent,
-            state: {type: VType.String().notEmpty(), required: true},
-            prevState: {type: VType.String().notEmpty(), required: true},
-            reason: {type: VType.String()}, // причина перехода в состояние FAILED - поле message из Error
-          }),
-          toString: (ev) =>
-            // Чтобы не сбивать с толку, при начальном запуске не выводим сообщение что сервис перешел в состояние stopped
-            (ev.state === STOPPED && (ev.prevState === NOT_INITIALIZED || ev.prevState === WAITING_OTHER_SERVICES_TO_START || ev.prevState === INITIALIZING)) ?
-              '' :
-              `${ev.source}: state: '${ev.state}'${ev.reason ? ` (reason: '${ev.reason}')` : ``}`,
-        },
-        {
-          kind: 'error',
-          type: 'service.error',
-          validate: validateEventFactory({ // TODO: Fix
-            _extends: BaseEvent,
-            message: {type: VType.String().notEmpty(), required: true},
-            stack: {type: VType.String().notEmpty()},
-          }),
-          toString: (ev) =>
-            testMode ? `${ev.source}: error: '${ev.message}'` : // для testMode специальное сообщение, которое легко проверять и оно не содержит stack
-              `${ev.source}: error '${ev.message}'\n${ev.stack}`,
-        },
-        {
-          kind: 'info',
-          type: 'service.options',
-          validate: validateEventFactory({ // TODO: Fix
-            _extends: BaseEvent,
-            serviceType: {type: VType.String().notEmpty()},
-            options: {type: VType.Object()},
-          }),
-          toString(ev)  {
-            switch (ev.serviceType) {
-              case 'mssqlconnector':
-                return `${ev.source}: сonnecting to ${ev.options.url}:${ev.options.options.port} as '${ev.options.user}'. database is '${ev.options.options.database}'`
-            }
-            return `${ev.source}: options: '${prettyPrint(ev.options)}'`;
-          },
-        },
-      ]
-    ));
-}
-
-export const validateOptions = validateAndCopyOptionsFactory({
-  // TODO: Доработать валидатор.  В массиве как элементы могут быть вложенные массивы с сервисами.
-  dependsOn: {type: VType.Array(), validator: (dependsOn) => {
-    // проверяем что все элементы массива - сервисы с состояниеми (объекты имеющие свойство _service)
-    for (let i = 0; i < dependsOn.length; i++) { // KB: forEach для проверки использовать нельзя - он пропускает элементы undefined
-      const s = dependsOn[i];
-      if (!(typeof s === 'object' && s !== null && hasOwnProperty.call(s, '_service'))) {
-        // валидатор возвращает true/false, но чтоб легче найти какой элемент списка сервисов неверный - просто выводим в консоль дополнительную информацию
-        console.error(`Invalid value in field 'dependsOn[${i}]': ${prettyPrint(s)}`); // подсказка
-        return false;
-      }
-    }
-    return true;
-  }},
-  failRecoveryInterval: {type: 'int', validate: (v) => v.failRecoveryInterval > 0},
-});
+export const config = require('lodash/once')(function (services) {
+    require('./Service.schema').defineEvents(services);
+  }
+);
 
 export default function (services) {
 
@@ -98,13 +21,16 @@ export default function (services) {
 
   class Service {
 
-    constructor(name, serviceImpl, options) {
+    constructor(name, serviceImpl, SERVICE_TYPE, options) { // SERVICE_TYPE может быть undefined, или это значение свойства SERVICE_TYPE конструктора сервиса
+
+      this._serviceType = SERVICE_TYPE;
+
       /**
        * Имя сервиса, состоящие из имени узла (node) и имени сервиса разделенных двоеточием.
        */
       this._name = `${services.manager.get('name')}:${name}`;
 
-      validateOptions(options, {copyTo: this, argument: 'options', name: this._name});
+      require('./Service.schema').ServiceClassOptions(options, {copyTo: this, argument: 'options', name: this._name});
 
       /**
        * Состояние в котором находится сервис.
@@ -327,6 +253,7 @@ export default function (services) {
         prevState,
       };
       if (this._failureReason) ev.reason = this._failureReason.message;
+      if (this._serviceType) ev.serviceType = this._serviceType;
       bus.event(ev);
 
       // этот вызов должен идти после отправки события о смене состояния в bus
@@ -401,13 +328,15 @@ export default function (services) {
     reportError(error) {
       if (!(error instanceof Error)) error = new Error(`Invalid argument 'error': ${prettyPrint(err)}`);
       const fixedError = allErrorInfoToMessage(error);
-      bus.error({
+      const errEvent = {
         time: new Date().getTime(),
         type: 'service.error',
         source: this._name,
         message: fixedError.message,
         stack: cleanStack(fixedError.stack, {pretty: true}),
-      });
+      };
+      if (this._serviceType) errEvent.serviceType = this._serviceType;
+      bus.error(errEvent);
     }
 
     _buildInvalidStateError(error) {
@@ -449,7 +378,7 @@ export default function (services) {
     class ServiceImpl extends serviceClass {
       constructor(name, options) {
         super(options);
-        this._service = new Service(name, this, options);
+        this._service = new Service(name, this, serviceClass.SERVICE_TYPE, options);
         if (!testMode) this._service._nextStateStep();
       }
     }
@@ -457,6 +386,7 @@ export default function (services) {
     // Добавляем проверку что сервис в рабочем состоянии (state == READY) во все методы с именами начинающимися не с подчерка
     // TODO: Note: Этот код не поддерживает наследование сервисов, так как он переопределяет методы только prototype первого уровня
     for (const methodName of Object.getOwnPropertyNames(serviceClass.prototype)) {
+      if ('SERVICE_TYPE' in serviceClass)
       if (methodName === 'constructor') continue;
       if (!methodName.startsWith('_')) {
         let propType;

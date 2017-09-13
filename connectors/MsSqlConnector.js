@@ -49,6 +49,8 @@ export function config(services) {
   // nothing
 }
 
+const SERVICE_TYPE = require('./MsSqlConnector.serviceType').SERVICE_TYPE;
+
 const validateConnectionOptions = validateAndCopyOptionsFactory({
   cancel: {type: VType.Promise()}, // promise, который если становится resolved, то прерывает выполнение запроса
 });
@@ -84,12 +86,14 @@ export default function (services) {
     };
 
     async _serviceStart() {
+      const optsWithoutPassword = {...this._options};
+      delete optsWithoutPassword.password;
       bus.info({
         time: new Date().getTime(),
         type: 'service.options',
         source: this._service.get('name'),
-        serviceType: 'mssqlconnector',
-        options: this._options,
+        serviceType: SERVICE_TYPE,
+        options: optsWithoutPassword,
       });
       this._pool = new ConnectionPool(this._poolConfig, this._msSqlConfig);
       this._pool.on('error', this._poolError);
@@ -266,6 +270,8 @@ export default function (services) {
       this._connection = null;
     }
   }
+
+  MsSqlConnector.SERVICE_TYPE = SERVICE_TYPE;
 
   return MsSqlConnector;
 }
