@@ -45,10 +45,6 @@ const validateOptions = validateAndCopyOptionsFactory({
   },
 });
 
-export function config(services) {
-  // nothing
-}
-
 const SERVICE_TYPE = require('./MsSqlConnector.serviceType').SERVICE_TYPE;
 
 const validateConnectionOptions = validateAndCopyOptionsFactory({

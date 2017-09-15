@@ -1,6 +1,6 @@
 import prettyPrint from './prettyPrint'
 
-export function missingArgument(name, value) {
+export function missingArgument(name) {
   throw new Error(`Missing argument '${name}'`);
 }
 

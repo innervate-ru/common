@@ -10,11 +10,6 @@ export const DEFAULT_FAIL_RECOVERY_INTERVAL = 60000;
 
 import {NOT_INITIALIZED, WAITING_OTHER_SERVICES_TO_START, INITIALIZING, INITIALIZE_FAILED, STARTING, READY, STOPPING, STOPPED, FAILED, DISPOSING, DISPOSED} from './Service.states'
 
-export const config = require('lodash/once')(function (services) {
-    require('./Service.schema').defineEvents(services);
-  }
-);
-
 export default require('./getRuntime').default(__filename, function (services) {
 
   const {bus, testMode} = services; // testMode это hack для тестирования - это не сервис, а просто boolean значение ...но он тут никому не должно мешать

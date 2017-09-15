@@ -24,10 +24,6 @@ const validateOptions = validateAndCopyOptionsFactory({
   password: {type: VType.String().notEmpty(), required: true, copy: true},
 });
 
-export function config(services) {
-  // nothing
-}
-
 const SERVICE_TYPE = require('./PGConnector.serviceType').SERVICE_TYPE;
 
 export default function (services) {

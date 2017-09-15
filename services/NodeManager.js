@@ -5,11 +5,6 @@ import {READY, FAILED} from './Service.states'
 
 const hasOwnProperty = Object.prototype.hasOwnProperty;
 
-export const config = require('lodash/once')(function (services) {
-  require('./Service').config(services);
-  require('./NodeManager.schema').defineEvents(services);
-});
-
 export default function (services) {
 
   const {bus = missingService('bus')} = services;

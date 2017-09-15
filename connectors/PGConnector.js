@@ -22,10 +22,6 @@ const validateOptions = validateAndCopyOptionsFactory({
   // TODO: Посмотреть в код pg, выписать все опции
 });
 
-export function config(services) {
-  // nothing
-}
-
 const validateConnectionOptions = validateAndCopyOptionsFactory({
   cancel: {type: VType.Promise()}, // promise, который если становится resolved, то прерывает выполнение запроса
 });
