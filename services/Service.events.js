@@ -34,7 +34,7 @@ export default function defineEvents({bus = missingService('bus'), testMode}) {
         type: 'service.error',
         validate: validateEventFactory({ // TODO: Fix
           _extends: BaseEvent,
-          serviceType: {type: VType.String().notEmpty()}
+          serviceType: {type: VType.String().notEmpty()},
           message: {type: VType.String().notEmpty(), required: true},
           stack: {type: VType.String().notEmpty()},
         }),

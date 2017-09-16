@@ -159,7 +159,7 @@ export default function (services = {}) {
       for (const eventType in alterMap) {
         const toString = alterMap[eventType];
         if (!(typeof toString === 'function')) throw new Error(`Argument '${altermap}': Invalid value for key '${eventType}': ${prettyPrint(toString)}`);
-        this._alterToString[eventType] || (this._alterToString[eventType] = []).push(toString);
+        (this._alterToString[eventType] || (this._alterToString[eventType] = [])).push(toString);
       }
     }
 

@@ -1,6 +1,5 @@
 import test from 'ava'
 import sinon from 'sinon'
-import prettyPrint from '../utils/prettyPrint'
 import TestConsole from '../utils/testConsole'
 import {
   DEFAULT_FAIL_RECOVERY_INTERVAL,

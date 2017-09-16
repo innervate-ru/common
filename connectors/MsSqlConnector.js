@@ -1,18 +1,18 @@
 import throwIfMissing from 'throw-if-missing'
 import prettyPrint from '../utils/prettyPrint'
+import addServiceStateValidation from '../services/addServiceStateValidation'
 import defineProps from '../utils/defineProps'
-import {
-  validateAndCopyOptionsFactory,
-  validateArgumentNameOptions,
-  VType,
-} from '../validation'
-
+import oncePerServices from '../services/oncePerServices'
 import ConnectionPool from 'tedious-connection-pool'
 import {Request, ConnectionError} from 'tedious'
+import {
+  validateArgumentNameOptions,
+} from '../validation'
 
-import {STARTING, READY} from '../services'
+import {READY} from '../services'
 
 const debug = require('debug')('mssql');
+const schema = require('./MsSqlConnector.schema');
 
 /**
  * По каким-то, не до конца понятным, причинам error instaceof ConnectionError не cработал.  Этот метод реализаует
@@ -20,38 +20,9 @@ const debug = require('debug')('mssql');
  */
 const isConnectionError = (error) => error.__proto__.name === 'ConnectionError';
 
-const validateOptions = validateAndCopyOptionsFactory({
-  description: {type: VType.String()},
-  url: {type: VType.String().notEmpty(), required: true},
-  user: {type: VType.String().notEmpty(), required: true},
-  password: {type: VType.String().notEmpty(), required: true},
-  options: {
-    fields: {
-      appName: {type: VType.String().notEmpty()},
-      debug: {type: VType.Int()},
-      port: {type: VType.Int()},
-      database: {type: VType.String().notEmpty(), required: true},
-    },
-  },
-  poolConfig: {
-    fields: {
-      min: {type: VType.Int().positive()},
-      max: {type: VType.Int().positive()},
-      log: {type: VType.Bool()},
-      idleTimeout: {type: VType.Int().positive()},
-      retryDelay: {type: VType.Int().positive()},
-      acquireTimeout: {type: VType.Int().positive()},
-    },
-  },
-});
-
 const SERVICE_TYPE = require('./MsSqlConnector.serviceType').SERVICE_TYPE;
 
-const validateConnectionOptions = validateAndCopyOptionsFactory({
-  cancel: {type: VType.Promise()}, // promise, который если становится resolved, то прерывает выполнение запроса
-});
-
-export default function (services) {
+export default oncePerServices(function (services) {
 
   const {bus = throwIfMissing('bus')} = services;
 
@@ -61,7 +32,7 @@ export default function (services) {
 
     constructor(options) {
 
-      validateOptions(options, validateArgumentNameOptions);
+      schema.config(options, validateArgumentNameOptions);
 
       const {url, user, password, options: connectionOptions, poolConfig} = options;
       const {port, database} = options;
@@ -93,7 +64,7 @@ export default function (services) {
       });
       this._pool = new ConnectionPool(this._poolConfig, this._msSqlConfig);
       this._pool.on('error', this._poolError);
-      return this.query('select getdate();', {
+      return this._query('select getdate();', { // вызываем private метод, чтоб не сработала защита что состояние не READY
         cancel: new Promise((resolve, reject) => {
           this._cancelStart = resolve;
         })
@@ -110,7 +81,7 @@ export default function (services) {
     }
 
     async connection(options) {
-      validateConnectionOptions(options, validateArgumentNameOptions);
+      schema.connectionMethodOptions(options, validateArgumentNameOptions);
       let res = new Promise((resolve, reject) => {
         this._pool.acquire((error, connection) => {
           if (error) this._rejectWithError(reject, error);
@@ -146,7 +117,7 @@ export default function (services) {
      * @returns {Promise} {rows - полученные данные; hasNext - есть ли дальше строки, при указании limit}
      */
     async query(statement = throwIfMissing('statement'), options) {
-      let connection = await this.connection(options);
+      let connection = await this._connection(options);
       try {
         return await connection.query(statement, options);
       }
@@ -158,20 +129,21 @@ export default function (services) {
     /**
      * Если это ConnectionError, то это означает что надо:
      * - перевести сервис в состояние FAILED
-     * - вернуть ошибку InvalidStateError
+     * - вернуть ошибку InvalidServiceStateError
      *
      * Иначе, можно просто вернуть ошибку.
      */
     _rejectWithError(reject, error) {
       if (isConnectionError(error)) {
         if (this._service.get('state') === READY) this._service.criticalFailure(error);
-        // ошибка связи во время выполнения запроса - возвращаем InvalidStateError, так же как и когда заранее известно, что связи нет
+        // ошибка связи во время выполнения запроса - возвращаем InvalidServiceStateError, так же как и когда заранее известно, что связи нет
         reject(this._service._buildInvalidStateError(error));
       }
       else reject(error);
-
     }
   }
+
+  addServiceStateValidation(MsSqlConnector, function() { return this._service; });
 
   defineProps(MsSqlConnector, {
     msSqlConfig: {
@@ -184,13 +156,6 @@ export default function (services) {
         return this._poolConfig;
       }
     },
-  });
-
-  const validateQueryOptions = validateAndCopyOptionsFactory({
-    params: {type: VType.Function()}, // функция, которой передается как аргумен tedious.Request, чтобы она через requies.addParameter могла заполнить параметры
-    offset: {type: VType.Int().zero().positive()}, // строка, начиная с которой загружаются строки
-    limit: {type: VType.Int().positive()}, // строка, до которой включительно загружаются строки
-    context: {type: VType.String().notEmpty()}, // shortid контектса
   });
 
   class Connection {
@@ -217,7 +182,7 @@ export default function (services) {
     async query(statement = throwIfMissing('statement'), options) {
 
       if (!(typeof statement === 'string' && statement.length > 0))  throw new Error(`Invalid argument 'statement': ${prettyPrint(statement)}`);
-      validateQueryOptions(options, validateArgumentNameOptions);
+      schema.validateQueryMethodOptions(options, validateArgumentNameOptions);
 
       const {params = null, offset = 0, limit = Number.MAX_SAFE_INTEGER, context} = options || {};
 
@@ -267,10 +232,12 @@ export default function (services) {
     }
   }
 
+  addServiceStateValidation(MsSqlConnector, function() { return this._connector._service; });
+
   MsSqlConnector.SERVICE_TYPE = SERVICE_TYPE;
 
   return MsSqlConnector;
-}
+});
 
 function copyRowData(columns) {
   let res = {};

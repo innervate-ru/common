@@ -1,16 +1,18 @@
+import oncePerServices from './oncePerServices'
 import defineProps from '../utils/defineProps'
 import prettyPrint from '../utils/prettyPrint'
 import allErrorInfoToMessage from '../utils/allErrorInfoToMessage'
-import InvalidStateError from './InvalidStateError'
+import InvalidServiceStateError from './InvalidServiceStateError'
 import flattenDeep from 'lodash/flattenDeep'
 import uniq from 'lodash/uniq'
 import cleanStack from 'clean-stack'
+import addServiceStateValidation from './addServiceStateValidation'
 
 export const DEFAULT_FAIL_RECOVERY_INTERVAL = 60000;
 
 import {NOT_INITIALIZED, WAITING_OTHER_SERVICES_TO_START, INITIALIZING, INITIALIZE_FAILED, STARTING, READY, STOPPING, STOPPED, FAILED, DISPOSING, DISPOSED} from './Service.states'
 
-export default require('./getRuntime').default(__filename, function (services) {
+export default oncePerServices(function (services) {
 
   const {bus, testMode} = services; // testMode это hack для тестирования - это не сервис, а просто boolean значение ...но он тут никому не должно мешать
 
@@ -19,6 +21,16 @@ export default require('./getRuntime').default(__filename, function (services) {
     constructor(name, serviceImpl, SERVICE_TYPE, options) { // SERVICE_TYPE может быть undefined, или это значение свойства SERVICE_TYPE конструктора сервиса
 
       this._serviceType = SERVICE_TYPE;
+
+      /**
+       * Время, когда была выполнена первая операция на сервисе, после запуска.  Нужно, чтобы отслеживать интервал который сервис работает без ошибок.
+       */
+      this._firstOpTime = null;
+
+      /**
+       * Счетчик быстрых перезагрузок - когода перезагрузка происходит сразу после ошибки.  Нужно, чтобы при частых быстрых перезагрузках, сервис останавливался в состоянии FAILED.
+       */
+      this._quickRestartsCount = 0;
 
       /**
        * Имя сервиса, состоящие из имени узла (node) и имени сервиса разделенных двоеточием.
@@ -125,6 +137,7 @@ export default require('./getRuntime').default(__filename, function (services) {
         }
       }
 
+      // TODO: Добавить состояние и логику для быстрой перезагрузке в состоянии READY
       // TODO: Uptime
     }
 
@@ -167,6 +180,7 @@ export default require('./getRuntime').default(__filename, function (services) {
           });
           break;
         case READY:
+          this._firstOpTime = null;
           if (!this._isAllDependsAreReady || this._stop || this._failureReason || this._dispose) this._setState(STOPPING, {
             method: this._serviceStop,
             failureReason: this._failureReason,
@@ -293,6 +307,10 @@ export default require('./getRuntime').default(__filename, function (services) {
       this._nextStateStep();
     }
 
+    touch() {
+      if (this._firstOpTime === null) this._firstOpTime = new Date().getTime();
+    }
+
     /**
      * Разборка сервиса.  Возвращает Promise, который будет resolved, когда состояние будет DISPOSED.
      */
@@ -335,7 +353,7 @@ export default require('./getRuntime').default(__filename, function (services) {
     }
 
     _buildInvalidStateError(error) {
-      return new InvalidStateError({service: this, state: this._service.state, error: error})
+      return new InvalidServiceStateError({service: this._serviceImpl, state: this.state, error: error})
     };
   }
 
@@ -378,30 +396,7 @@ export default require('./getRuntime').default(__filename, function (services) {
       }
     }
 
-    // Добавляем проверку что сервис в рабочем состоянии (state == READY) во все методы с именами начинающимися не с подчерка
-    // TODO: Note: Этот код не поддерживает наследование сервисов, так как он переопределяет методы только prototype первого уровня
-    for (const methodName of Object.getOwnPropertyNames(serviceClass.prototype)) {
-      if (methodName === 'constructor') continue;
-      if (!methodName.startsWith('_')) {
-        let propType;
-        try {
-          propType = typeof serviceClass.prototype[methodName];
-        } catch (err) {
-          continue; // это может бьть get метод, который сработал с ошибкой, так как this не верный
-        }
-        if (propType !== 'function') continue; // оборачиваем проверкой только методы, которые могли быть определены как методы класса, или через Object.defineProperties
-        const method = serviceClass[methodName];
-        ServiceImpl.prototype[methodName] = function () {
-          if (this._service.state !== READY) throw this._buildInvalidStateError(err);
-          try {
-            return method.apply(this, arguments);
-          } catch (err) {
-            if (this._service.state === READY) throw err;
-            else throw this._buildInvalidStateError(err);
-          }
-        }
-      }
-    }
+    addServiceStateValidation(serviceClass, function() { return this._service; });
 
     return ServiceImpl;
   }

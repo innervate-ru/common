@@ -1,41 +1,22 @@
-import prettyPrint from '../utils/prettyPrint'
+import pg from 'pg';
 import {missingArgument, invalidArgument} from '../utils/arguments'
-
-import defineProps from '../utils/defineProps'
+import oncePerServices from '../services/oncePerServices'
+import addServiceStateValidation from '../services/addServiceStateValidation'
 import {
-  validateAndCopyOptionsFactory,
   validateArgumentNameOptions,
-  VType,
 } from '../validation'
 
-import pg from 'pg';
-
-const validateOptions = validateAndCopyOptionsFactory({
-  description: {type: VType.String()},
-  url: {type: VType.String().notEmpty(), required: true},
-  port: {type: VType.Int()},
-  user: {type: VType.String().notEmpty(), required: true},
-  password: {type: VType.String().notEmpty(), required: true},
-  database: {type: VType.String().notEmpty(), required: true},
-  max: {type: VType.Int().positive()},
-  idleTimeoutMillis: {type: VType.Int().positive()},
-  // TODO: Посмотреть в код pg, выписать все опции
-});
-
-const validateConnectionOptions = validateAndCopyOptionsFactory({
-  cancel: {type: VType.Promise()}, // promise, который если становится resolved, то прерывает выполнение запроса
-});
-
 const SERVICE_TYPE = require('./PGConnector.serviceType').SERVICE_TYPE;
+const schema = require('./PGConnector.schema');
 
-export default function (services) {
+export default oncePerServices(function (services) {
 
   const {bus = throwIfMissing('bus')} = services;
 
-  class Postgres {
+  class PGConnector {
 
     constructor(options) {
-      validateOptions(options, validateArgumentNameOptions);
+      schema.config(options, validateArgumentNameOptions);
       this._options = options;
     }
 
@@ -53,7 +34,7 @@ export default function (services) {
       this._pool.on('error', (error, client) => {
         this._service.criticalFailure(error);
       });
-      return this.query(`select now();`);
+      return this._query(`select now();`);
     }
 
     async _serviceStop() {
@@ -64,7 +45,7 @@ export default function (services) {
       return new Promise((resolve, reject) => {
         this._pool.connect(function (err, client, done) {
           if (err) reject(err);
-          else resolve(new Connection(client, done));
+          else resolve(new Connection(this, client, done));
         });
       })
     }
@@ -88,9 +69,12 @@ export default function (services) {
     }
   }
 
+  addServiceStateValidation(PGConnector, function () { return this._service; });
+
   class Connection {
 
-    constructor(client, done) {
+    constructor(connector, client, done) {
+      this._connector = connector;
       this._connection = client;
       this._done = done;
     }
@@ -111,7 +95,9 @@ export default function (services) {
     }
   }
 
-  Postgres.SERVICE_TYPE = SERVICE_TYPE;
+  addServiceStateValidation(Connection, function () { return this._connector._service; });
 
-  return Postgres;
-}
+  PGConnector.SERVICE_TYPE = SERVICE_TYPE;
+
+  return PGConnector;
+});

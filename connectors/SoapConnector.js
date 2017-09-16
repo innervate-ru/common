@@ -1,15 +1,9 @@
 import * as fs from 'fs'
 import path from 'path'
-
-import {
-  validateAndCopyOptionsFactory,
-  VType,
-} from '../validation'
-
-import prettyPrint from '../utils/prettyPrint'
-import {missingArgument, invalidArgument} from '../utils/arguments'
-
+import oncePerServices from '../services/oncePerServices'
 import ensureDir from 'ensure-dir'
+import {READY} from '../services/Service.states'
+import InvalidServiceStateError from '../services/InvalidServiceStateError'
 
 import urlApi from 'url'
 import soap from 'soap'
@@ -17,16 +11,10 @@ import SoapErrorException from '../errors/SoapErrorException'
 
 const debug = require('debug')('soap');
 
-const validateOptions = validateAndCopyOptionsFactory({
-  description: {type: VType.String()},
-  uri: {type: VType.String().notEmpty(), required: true/*, copy: true*/},
-  login: {type: VType.String().notEmpty(), required: true/*, copy: true*/},
-  password: {type: VType.String().notEmpty(), required: true, copy: true},
-});
-
 const SERVICE_TYPE = require('./PGConnector.serviceType').SERVICE_TYPE;
+const schema = require('./PGConnector.schema');
 
-export default function (services) {
+export default oncePerServices(function (services) {
 
   const {bus = throwIfMissing('bus')} = services;
 
@@ -34,7 +22,7 @@ export default function (services) {
 
     constructor(options) {
       debug('ctor: %O', arguments);
-      validateOptions(options, {argument: 'options', copyTo: this});
+      schema.config(options, {argument: 'options', copyTo: this});
       this._options = options;
       // TODO:  Привести к общему виду.  При переходе с задачи интеграции с 1С на интеграцию с МТС Connect, url -> uri, user -> login
       this._url = options.uri;
@@ -67,15 +55,23 @@ export default function (services) {
         let methodDesc = methods[methodName];
         this[methodName] = function (args) {
           debug('method: %s; args: %j', methodName, args);
+          const service = this._service;
+          if (service.state !== READY) throw this._service._buildInvalidStateError(); // та же логика, как то что добавляет services/addServiceStateValidation
           return new Promise(function (resolve, reject) {
             client[methodName](args, function (err, result) {
               if (err) reject(new SoapErrorException({url, action: methodName, err}));
               else resolve(result);
             })
-          });
+          }).catch((error) => {
+            if (services.state !== READY) return Promise.rejected(new InvalidServiceStateError(error));
+            return Promise.rejected(error);
+          })
         }
       }
     }
+
+    // TODO: Добавить проверку, что при очередном рестарте не поменялась схема - писать в bus как предупреждение
+    // TODO: Удалять старые методы при restart
 
     async _serviceStart() {
       const optsWithoutPassword = {...this._options};
@@ -120,4 +116,4 @@ export default function (services) {
   Soap.SERVICE_TYPE = SERVICE_TYPE;
 
   return Soap;
-}
+});
