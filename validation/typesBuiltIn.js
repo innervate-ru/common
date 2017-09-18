@@ -7,9 +7,9 @@ export default function (typesExport) {
   addType('String', v => typeof v === 'string');
   addType('Int', v => Number.isInteger(v));
   addType('Float', v => typeof v == 'number' && !isNaN(v));
-  addType('Bool', v => typeof v == 'boolean');
+  addType('Boolean', v => typeof v == 'boolean');
   addType('Object', v => typeof v === 'object' && !Array.isArray(v));
-    addType('Function', v => typeof v === 'function');
+  addType('Function', v => typeof v === 'function');
   addType('Promise', v => v => typeof v === 'object' && v != null && 'then' in v);
 
   addTypeAdvanced('Fields', function (typeContextPrototype) {
@@ -83,8 +83,8 @@ export default function (typesExport) {
   addSubvalidator(VType.Float(), 'positive', v => v > 0 ? true : 'not positive');
   addSubvalidator(VType.Float(), 'negative', v => v < 0 ? true : 'not negative');
 
-  //addSubvalidator(VType.Array(), 'notEmpty', v => v.length > 0);
   addSubvalidator(VType.Array(), 'notEmpty', (v) => v.length > 0 ? true : `array is empty`);
   addSubvalidator(VType.Array(), 'onlyStrings', v => v.every(t => typeof t === 'string') ? true : 'not all strings');
+  addSubvalidator(VType.Array(), 'notEmptyAndOnlyStrings', v => v.length === 0 ? `array is empty` : v.every(t => typeof t === 'string') ? true : 'not all strings');
 
 }

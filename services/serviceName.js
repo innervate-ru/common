@@ -1,14 +1,12 @@
 import path from 'path'
 
-const join = path.join(process.cwd(), '/services');
-
 function removeExt(s) {
   const n = s.lastIndexOf('.');
   return s.substr(0, n);
 }
 
 /**
- * Возвращает элементы имени сервиса, в виде массива.
+ * Возвращает именя сервиса, как строку разделенную слешами.
  *
  * Имя сервиса формируется на основе полного имени головоного файла.
  *
@@ -18,13 +16,13 @@ function removeExt(s) {
  * Если файл сервис не index.js, то в конце имени сервиса идет название файла, без расширения.
  *
  * @param filename Путь файлу, взятые в исходном файле из константы __filename
- * @returns {Array} Имя сервиса в виде массива строк
+ * @returns {String} Имя сервиса в виде строки
  */
 export default function serviceName(filename) {
 
   const r = path.relative(process.cwd(), filename);
 
-  const s = r.split(/\/|\\/);
+  const s = filename.split(/\/|\\/);
 
   if (s[s.length - 1] === 'index.js') s.pop(); // удаляем из имени index
   else s[s.length - 1] = removeExt(s[s.length - 1]); // для других файлов, убираем только расширение
