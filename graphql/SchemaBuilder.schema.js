@@ -24,4 +24,5 @@ export const SchemaBuilderBuildMethodOptions = validateOptionsFactory({
 export const LevelBuilderBuildMethodOptions = validateOptionsFactory({
   _extends: SchemaBuilderBuildMethodOptions,
   parentLevelBuilder: {type: VType.Object(), required: true},
+  context: {type: VType.Object()},
 });

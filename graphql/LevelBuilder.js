@@ -29,7 +29,7 @@ export default class LevelBuilder {
     this._builders = [];
     this._buildersCompletedCount = 0;
 
-    this._parentLevelBuilder = this._typeDefs = this._levelResolver = this._done = this._builderArgs = null;
+    this._parentLevelBuilder = this._typeDefs = this._resolvers = this._levelQueryResolver = this._levelMutationResolver = this._done = this._builderArgs = null;
   }
 
   addBuilder(builder = missingArgument('builder')) {
@@ -53,7 +53,7 @@ export default class LevelBuilder {
     const {name = missingArgument('name'), type = missingArgument('type'), typeDef, resolver} = query;
     if (typeDef) this._typeDefs.push(typeDef);
     this._queries.push(query);
-    if (resolver) this.getResolver()[name] = resolver;
+    if (resolver) this._getQueryResolver()[name] = resolver;
   }
 
   /**
@@ -68,14 +68,31 @@ export default class LevelBuilder {
     const {name = missingArgument('name'), type = missingArgument('type'), typeDef, resolver} = mutation;
     if (typeDef) this._typeDefs.push(typeDef);
     this._mutations.push(mutation);
-    if (resolver) this.getResolver()[name] = resolver;
+    if (resolver) this._getMutationResolver()[name] = resolver;
   }
 
   /**
-   * Возвращает объект resolver для данного уровня.
+   * Возвращает объект resolver для query данного уровня.
    */
-  getResolver() {
-    return this._levelResolver || (this._levelResolver = this._parentLevelBuilder.getResolver()[this._name] = Object.create(null));
+  _getQueryResolver() {
+    if (this._levelQueryResolver) return this._levelQueryResolver;
+    const typeName = `${this.getTypeBaseName()}Query`;
+    // чтобы apollo server дошёл до определенного уровня вложенности - нужно на верних уровнях запроса возвращать пустые объекты, которые буду заполнены ниже
+    this._parentLevelBuilder._getQueryResolver()[this._name] = function () { return Object.create(null); };
+    // в apollo server резловеры конкретного типа, находят в ветке первого уровня - имя типа
+    return this._levelQueryResolver = this._resolvers[typeName] = Object.create(null);
+  }
+
+  /**
+   * Возвращает объект resolver для mutation данного уровня.
+   */
+  _getMutationResolver() {
+    if (this._levelMutationResolver) return this._levelMutationResolver;
+    const typeName = `${this.getTypeBaseName()}Mutation`;
+    // чтобы apollo server дошёл до определенного уровня вложенности - нужно на верних уровнях запроса возвращать пустые объекты, которые буду заполнены ниже
+    this._parentLevelBuilder._getMutationResolver()[this._name] = function () { return Object.create(null); };
+    // в apollo server резловеры конкретного типа, находят в ветке первого уровня - имя типа
+    return this._levelMutationResolver = this._resolvers[typeName] = Object.create(null);
   }
 
   /**
@@ -90,17 +107,17 @@ export default class LevelBuilder {
     if (++this._buildersCompletedCount === this._builders.length) this._done();
   };
 
-  async _runBuilders(args) {
+  async _runBuilders(options) {
 
     if (this._builders.length === 0) throw new Error('List of builders is empty');
 
-    const {parentLevelBuilder, typeDefs, resolvers} = args;
+    const {typeDefs, resolvers, context} = options;
 
     const donePromise = new Promise((resolve, reject) => {
       this._done = resolve;
     });
 
-    const builderArgs = this._builderArgs = {parentLevelBuilder: this, typeDefs, resolvers};
+    const builderArgs = this._builderArgs = {parentLevelBuilder: this, typeDefs, resolvers, context};
     this._builders.forEach(builder => (builder instanceof LevelBuilder ? builder.build(builderArgs) : builder(builderArgs)).then(this._builderFinished));
 
     return donePromise; // ждем когда все билдеры сработают
@@ -120,6 +137,7 @@ export default class LevelBuilder {
 
     this._parentLevelBuilder = parentLevelBuilder;
     this._typeDefs = typeDefs;
+    this._resolvers = resolvers;
 
     await this._runBuilders(options);
 

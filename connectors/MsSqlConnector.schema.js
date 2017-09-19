@@ -20,7 +20,7 @@ export const config = validateAndCopyOptionsFactory({
     fields: {
       min: {type: VType.Int().positive()},
       max: {type: VType.Int().positive()},
-      log: {type: VType.Bool()},
+      log: {type: VType.Boolean()},
       idleTimeout: {type: VType.Int().positive()},
       retryDelay: {type: VType.Int().positive()},
       acquireTimeout: {type: VType.Int().positive()},
