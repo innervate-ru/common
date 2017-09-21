@@ -111,7 +111,7 @@ test(`Можно добавлять сложные типы, такие как F
       context._build = function () {
         return function (context, fieldDef) {
           const invalidFieldValue = this.invalidFieldValue;
-          return function (context, value, message, validationOptions) {
+          return function (context, value, message, validateOptions) {
             if (value === v1) return;
             (message || (message = [])).push(invalidFieldValue(context, value));
             return message;

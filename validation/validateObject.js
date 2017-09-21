@@ -1,4 +1,4 @@
-import throwIfMissing from 'throw-if-missing'
+import {missingArgument} from './arguments'
 import prettyPrint from '../utils/prettyPrint'
 
 const hasOwnProperties = Object.prototype.hasOwnProperty;
@@ -15,9 +15,9 @@ const hasOwnProperties = Object.prototype.hasOwnProperty;
  *  Так же есть возможность копировать часть свойств одного объекта в другой, чтобы не писать рутинный код в каждом конкретном случае.
  */
 export function validateObjectFactory({
-  missingField = throwIfMissing('missingField'),
+  missingField = missingArgument('missingField'),
   unexpectedField = null,
-  invalidFieldValue = throwIfMissing('invalidFieldValue'),
+  invalidFieldValue = missingArgument('invalidFieldValue'),
   resultWrapper = null,
   copyFields = false,
   validateExtends = false,
@@ -36,18 +36,18 @@ export function validateObjectFactory({
    * Метод применяющий метод валидации для конкретного поля объекта.
    */
   function validateSpecificField(generalValidator, fieldContext, fieldName) {
-    return function (objectValue, message, validationOptions) {
-      return generalValidator((() => fieldContext), objectValue[fieldName], message, validationOptions);
+    return function (objectValue, message, validateOptions) {
+      return generalValidator((() => fieldContext), objectValue[fieldName], message, validateOptions);
     }
   }
 
   function validateSpecificSubfield(generalValidator, fieldContext, fieldName) {
-    return function (context, objectValue, message, validationOptions) {
-      return generalValidator((() => `${context()}.${fieldName}`), objectValue[fieldName], message, validationOptions);
+    return function (context, objectValue, message, validateOptions) {
+      return generalValidator((() => `${context()}.${fieldName}`), objectValue[fieldName], message, validateOptions);
     }
   }
 
-  function validateObject(schema = throwIfMissing('schema'), factoryOptions) {
+  function validateObject(schema = missingArgument('schema'), factoryOptions) {
 
     if (!(typeof schema === 'object' && schema !== null && !Array.isArray(schema)))
       throw new Error(`Invalid argument 'schema': ${prettyPrint(schema)}`);
@@ -536,4 +536,30 @@ export const validateEventFactory = validateObjectFactory({
   },
 });
 
-export const validateArgumentNameOptions = {argument: 'options'};
+/**
+ * Проверка объектов событий.  При обнаружении ошибки пишется в console.warn.  Проверяются сразу все уровни, если есть _extends.
+ */
+export const validateStructureFactory = validateObjectFactory({
+  missingField: messageMissingField,
+  unexpectedField: messageUnexpectedField,
+  invalidFieldValue: messageInvalidFieldValue,
+  validateExtends: true,
+  resultWrapper: (validateFunc, factoryOptions) => {
+
+    const fields = validateFunc.fields;
+
+    if (factoryOptions && factoryOptions.throwException)
+      return function (value, validateOptions) {
+        let message = validateFunc(value, validateOptions);
+        if (message) throw new Error(`Structure ${prettyPrint(value)}: ${message.join('; ')}`);
+        return message;
+      };
+    else return function (value, validateOptions) {
+      let message = validateFunc(value, validateOptions);
+      if (message)
+        ((validateOptions && validateOptions.console) || console)
+          .warn(`${validateOptions && validateOptions.name ? `${validateOptions.name}: ` : ``}Structure ${prettyPrint(value)}: ${message.join('; ')}`);
+      return message;
+    };
+  },
+});

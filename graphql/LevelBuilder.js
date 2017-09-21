@@ -1,9 +1,10 @@
 import {missingArgument, invalidArgument} from '../utils/arguments'
 import sortBy from 'lodash/sortBy'
 import TypeBuilder from './TypeBuilder'
-import {validateArgumentNameOptions} from '../validation'
+import wrapResolver from './wrapResolver'
 
 const schema = require('./SchemaBuilder.schema');
+const VALIDATE_OPTIONS = {argument: 'options'};
 const VALIDATE_QUERY = {argument: 'query'};
 const VALIDATE_MUTATION = {argument: 'mutation'};
 
@@ -29,7 +30,7 @@ export default class LevelBuilder {
     this._builders = [];
     this._buildersCompletedCount = 0;
 
-    this._parentLevelBuilder = this._typeDefs = this._resolvers = this._levelQueryResolver = this._levelMutationResolver = this._done = this._builderArgs = null;
+    this._parentLevelBuilder = this._typeDefs = this._resolvers = this._levelQueryResolver = this._levelMutationResolver = this._done = this._reject = this._builderArgs = null;
   }
 
   addBuilder(builder = missingArgument('builder')) {
@@ -53,7 +54,7 @@ export default class LevelBuilder {
     const {name = missingArgument('name'), type = missingArgument('type'), typeDef, resolver} = query;
     if (typeDef) this._typeDefs.push(typeDef);
     this._queries.push(query);
-    if (resolver) this._getQueryResolver()[name] = resolver;
+    if (resolver) this._getQueryResolver()[name] = wrapResolver(resolver);
   }
 
   /**
@@ -68,7 +69,7 @@ export default class LevelBuilder {
     const {name = missingArgument('name'), type = missingArgument('type'), typeDef, resolver} = mutation;
     if (typeDef) this._typeDefs.push(typeDef);
     this._mutations.push(mutation);
-    if (resolver) this._getMutationResolver()[name] = resolver;
+    if (resolver) this._getMutationResolver()[name] = wrapResolver(resolver);
   }
 
   /**
@@ -104,7 +105,14 @@ export default class LevelBuilder {
   }
 
   _builderFinished = () => {
-    if (++this._buildersCompletedCount === this._builders.length) this._done();
+    if (++this._buildersCompletedCount === this._builders.length && this._done()) this._done(); // если _done нет, значит случилась ошибка
+  };
+
+  _builderFailed = (error) => {
+    if (this._reject) {
+      this._reject(error);
+      this._reject = this._done = null;
+    }
   };
 
   async _runBuilders(options) {
@@ -115,6 +123,7 @@ export default class LevelBuilder {
 
     const donePromise = new Promise((resolve, reject) => {
       this._done = resolve;
+      this._reject = reject;
     });
 
     const builderArgs = this._builderArgs = {parentLevelBuilder: this, typeDefs, resolvers, context};
@@ -131,7 +140,7 @@ export default class LevelBuilder {
    * @returns {Promise.<*>} Когда процесс сборки закончен
    */
   async build(options) {
-    schema.LevelBuilderBuildMethodOptions(options, validateArgumentNameOptions);
+    schema.LevelBuilderBuildMethodOptions(options, VALIDATE_OPTIONS);
 
     const {parentLevelBuilder, typeDefs, resolvers} = options;
 

@@ -3,9 +3,9 @@ import prettyPrint from '../utils/prettyPrint'
 import sortBy from 'lodash/sortBy'
 import TypeBuilder from './TypeBuilder'
 import LevelBuilder from './LevelBuilder'
-import {validateArgumentNameOptions} from '../validation'
 
 const schema = require('./SchemaBuilder.schema');
+const VALIDATE_OPTIONS = {argument: 'options'};
 
 const QUERY_ROOT_TYPE = 'RootQuery';
 const MUTATION_ROOT_TYPE = 'RootMutation';
@@ -66,7 +66,7 @@ export default class SchemaBuilder extends LevelBuilder {
   }
 
   async build(options = missingArgument('options')) {
-    schema.SchemaBuilderBuildMethodOptions(options, validateArgumentNameOptions);
+    schema.SchemaBuilderBuildMethodOptions(options, VALIDATE_OPTIONS);
 
     const {typeDefs, resolvers} = options;
 

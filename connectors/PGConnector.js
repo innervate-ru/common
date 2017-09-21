@@ -2,11 +2,9 @@ import pg from 'pg';
 import {missingArgument, invalidArgument} from '../utils/arguments'
 import oncePerServices from '../services/oncePerServices'
 import addServiceStateValidation from '../services/addServiceStateValidation'
-import {
-  validateArgumentNameOptions,
-} from '../validation'
 
 const SERVICE_TYPE = require('./PGConnector.serviceType').SERVICE_TYPE;
+const VALIDATE_OPTIONS = {argument: 'options'};
 const schema = require('./PGConnector.schema');
 
 export default oncePerServices(function (services) {
@@ -16,7 +14,7 @@ export default oncePerServices(function (services) {
   class PGConnector {
 
     constructor(options) {
-      schema.config(options, validateArgumentNameOptions);
+      schema.config(options, VALIDATE_OPTIONS);
       this._options = options;
     }
 

@@ -518,3 +518,18 @@ test(`Можно добавить проверку элементов масси
   t.deepEqual(validate({a: [{}, {b: 1}]}), [`Missing 'a[0].c'`, `Missing 'a[1].c'`]);
 
 });
+
+test(`Можно передать дополнительный валидатор как параметр VType.Object (для списка параметров)`, t => {
+
+  const typesExport = require('./types')._module();
+  require('./typesBuiltIn').default(typesExport);
+  const {VType} = typesExport;
+
+  const validate = validateObject({
+    a: {type: VType.Object(v => hasOwnProperty.call(v, 'build') ? true : 'not a builder')},
+  });
+
+  t.is(validate({a: {build: function() {}}}), undefined);
+  t.deepEqual(validate({a: {}}), [`Invalid 'a' (reason: not a builder): {}`]);
+  t.deepEqual(validate({a: false}), [`Invalid 'a': false`]); // не объект
+});

@@ -5,9 +5,6 @@ import defineProps from '../utils/defineProps'
 import oncePerServices from '../services/oncePerServices'
 import ConnectionPool from 'tedious-connection-pool'
 import {Request, ConnectionError} from 'tedious'
-import {
-  validateArgumentNameOptions,
-} from '../validation'
 
 import {READY} from '../services'
 
@@ -21,6 +18,7 @@ const schema = require('./MsSqlConnector.schema');
 const isConnectionError = (error) => error.__proto__.name === 'ConnectionError';
 
 const SERVICE_TYPE = require('./MsSqlConnector.serviceType').SERVICE_TYPE;
+const VALIDATE_OPTIONS = {argument: 'options'};
 
 export default oncePerServices(function (services) {
 
@@ -32,7 +30,7 @@ export default oncePerServices(function (services) {
 
     constructor(options) {
 
-      schema.config(options, validateArgumentNameOptions);
+      schema.config(options, VALIDATE_OPTIONS);
 
       const {url, user, password, options: connectionOptions, poolConfig} = options;
       const {port, database} = options;
@@ -81,7 +79,7 @@ export default oncePerServices(function (services) {
     }
 
     async connection(options) {
-      schema.connectionMethodOptions(options, validateArgumentNameOptions);
+      schema.connectionMethodOptions(options, VALIDATE_OPTIONS);
       let res = new Promise((resolve, reject) => {
         this._pool.acquire((error, connection) => {
           if (error) this._rejectWithError(reject, error);
@@ -182,7 +180,7 @@ export default oncePerServices(function (services) {
     async query(statement = throwIfMissing('statement'), options) {
 
       if (!(typeof statement === 'string' && statement.length > 0))  throw new Error(`Invalid argument 'statement': ${prettyPrint(statement)}`);
-      schema.validateQueryMethodOptions(options, validateArgumentNameOptions);
+      schema.validateQueryMethodOptions(options, VALIDATE_OPTIONS);
 
       const {params = null, offset = 0, limit = Number.MAX_SAFE_INTEGER, context} = options || {};
 

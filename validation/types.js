@@ -61,7 +61,7 @@ function _module() {
         validateType = function (context, fieldDef) {
           const invalidFieldValue = this.invalidFieldValue;
           if (!(typeof invalidFieldValue === 'function')) throw new Error(`invalidFieldValue not a function`);
-          return function (context, value, message, validationOptions) {
+          return function (context, value, message, validateOptions) {
             if (typePureValidator(value)) return;
             (message || (message = [])).push(invalidFieldValue(context, value));
             return message;
@@ -91,8 +91,8 @@ function _module() {
           typeValidateFactory = function (context, fieldDef) {
             const typeValidator = validateType.call(this, context, fieldDef);
             const invalidFieldValue = this.invalidFieldValue;
-            return function (context, value, message, validationOptions) {
-              const msg = typeValidator(context, value, undefined, validationOptions);
+            return function (context, value, message, validateOptions) {
+              const msg = typeValidator(context, value, undefined, validateOptions);
               if (msg) {
                 if (message) {
                   Array.prototype.apply(message, msg);
@@ -102,7 +102,7 @@ function _module() {
               }
               let reason;
               for (const sv of normolizedSubvalidators) {
-                const resOrReason = sv(value, validationOptions);
+                const resOrReason = sv(value, validateOptions);
                 if (typeof resOrReason === 'string') {
                   (reason || (reason = [])).push(resOrReason);
                 } else if (resOrReason) return; // одна из проверок прошла успешно
@@ -121,8 +121,8 @@ function _module() {
           typeValidateFactory = function (context, fieldDef) {
             const typeValidator = validateType.call(this, context, fieldDef);
             const invalidFieldValue = this.invalidFieldValue;
-            return function (context, value, message, validationOptions) {
-              const msg = typeValidator(context, value, undefined, validationOptions);
+            return function (context, value, message, validateOptions) {
+              const msg = typeValidator(context, value, undefined, validateOptions);
               if (msg) {
                 if (message) {
                   Array.prototype.apply(message, msg);
@@ -130,7 +130,7 @@ function _module() {
                 }
                 return msg;
               }
-              const resOrReason = singleSubvalidator(value, validationOptions);
+              const resOrReason = singleSubvalidator(value, validateOptions);
               if (typeof resOrReason === 'string') { // вариант когда субвалидатор возвращает описание ошибки
                 (message || (message = [])).push(invalidFieldValue(context, value, resOrReason));
                 return message;
