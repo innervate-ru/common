@@ -176,7 +176,7 @@ test(`Атрибут 'copy'`, t => {
   });
 
   const dest2 = {};
-  t.is(validateWithoutCopy({a: 1, b: 2, c: 3}, {copyTo: dest}), undefined);
+  t.is(validateWithoutCopy({a: 1, b: 2, c: 3}, {copyTo: dest2}), undefined);
   t.deepEqual(dest2, {});
   t.is(validateWithoutCopy({a: 12}), undefined); // ошибки что нет опции copyTo не возникает
   t.is(validateWithoutCopy({a: 12}, {anotherOption: true}), undefined); // ошибки что нет опции copyTo не возникает
@@ -190,6 +190,36 @@ test(`Атрибут 'copy'`, t => {
     }
   }), `Field 'a.b': For any subfield it is not allowed to have a 'copy' attribute`);
 
+  // если поля нет в данных, то значение в объекте не затирается
+  const dest3 = {_a: 'a', bCopy1: 'b', bCopy2: 'c'};
+  t.is(validateWithCopy({c: 3}, {copyTo: dest3}), undefined);
+  // полей для копирования не было, потому значение _а не изменились, а bCopy1 и bCopy2 изменились, так как нет проверки наличия исходного поля в кастомном методе копировании - см. выше
+  // это позволяет задавать значение по умолчанию полями в jscript-классах
+  t.deepEqual(dest3, {_a: 'a', bCopy1: undefined, bCopy2: undefined});
+});
+
+test(`Атрибут 'default'`, t => {
+  // что копирование было доступно, надо создать validatorFactory c опцией copyFields: true
+  const validateObjectWithCopy = validateObjectFactory({
+    missingField,
+    unexpectedField,
+    invalidFieldValue,
+    copyFields: true
+  }); // вариант с копированием нужен только в этом тесте
+  const validateWithCopy = validateObjectWithCopy({
+    a: {type: 'int', copy: true, default: 12},
+  });
+
+  const obj = {};
+  t.is(validateWithCopy({}, {copyTo: obj}), undefined);
+  t.deepEqual(obj, {_a: 12}); // default значение
+
+  t.is(validateWithCopy({a: 121}, {copyTo: obj}), undefined);
+  t.deepEqual(obj, {_a: 121});
+
+  t.throws(() => validateObjectWithCopy({
+    a: {type: 'int', copy: true, default: 'wrong value type'},
+  }), `Field 'a': Invalid value of 'default': 'wrong value type'`);
 });
 
 test(`Атрибут 'validate'`, t => {
@@ -533,3 +563,18 @@ test(`Можно передать дополнительный валидато�
   t.deepEqual(validate({a: {}}), [`Invalid 'a' (reason: not a builder): {}`]);
   t.deepEqual(validate({a: false}), [`Invalid 'a': false`]); // не объект
 });
+
+test.skip(`сделать атрибут array`, t => {
+  // TODO: Сделать чтоб у массива required означало наличие минимум одного элемента
+  // TODO: Сделать элемент array
+});
+
+test.todo(`возможность указывать кастомный валидатор в VType.Function`);
+test.todo(`возможность указывать кастомный валидатор в VType.Int ...`);
+test.todo(`даже когда параметр validateExtends = false, но есть метод unexpectedFields - проверять все поля, включая поля из _extends`);
+
+// можно сделать рекурентные типы, для раскручивания вложенных подобных структур - непример tree у SchemaBuilder'а
+// VType.Recurrent(type => VType.Object({type: VType.Fields({a: {type: type}});
+// идея в том, что в качестве параметр передавать VType builder, который возвращает промежуточную функцию валидации, которая дальше использует внешнию функцию
+// которую вернет через билдер метод
+test.todo(`сделать рекурентный тип`);

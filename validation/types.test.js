@@ -16,8 +16,7 @@ test(`добавление и получение типа простого ти�
   t.throws(() => addType('string'), `Missing argument 'typePureValidator'`); // нет второго аргумента
   t.throws(() => addType('string', v => typeof v === 'string'), `Invalid argument 'typeName': 'string'`); // имя типа должно начинаться с большой буквы
   t.throws(() => addType('String', 12), `Invalid argument 'typePureValidator': 12`); // второй аргумент не метод
-  t.throws(() => addType('String', () => {
-  }), `Invalid argument 'typePureValidator': function () {}`); // у метода проверки, должен быть аргумент
+  t.throws(() => addType('String', () => {}), `Invalid argument 'typePureValidator': 'function () {}'`); // у метода проверки, должен быть аргумент
 
   t.is(typeof VType.String, 'function');
   t.is(typeof VType.String(), 'object');

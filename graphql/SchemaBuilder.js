@@ -5,7 +5,6 @@ import TypeBuilder from './TypeBuilder'
 import LevelBuilder from './LevelBuilder'
 
 const schema = require('./SchemaBuilder.schema');
-const VALIDATE_OPTIONS = {argument: 'options'};
 
 const QUERY_ROOT_TYPE = 'RootQuery';
 const MUTATION_ROOT_TYPE = 'RootMutation';
@@ -29,6 +28,7 @@ export default class SchemaBuilder extends LevelBuilder {
 
   constructor(schemaTree) {
     super({name: 'Root'});
+    schema.ctor_schemaTree(schemaTree);
 
     this._resolvers = this._levelQueryResolver = this._levelMutationResolver = null;
 
@@ -66,7 +66,7 @@ export default class SchemaBuilder extends LevelBuilder {
   }
 
   async build(options = missingArgument('options')) {
-    schema.SchemaBuilderBuildMethodOptions(options, VALIDATE_OPTIONS);
+    schema.build_options(options)
 
     const {typeDefs, resolvers} = options;
 

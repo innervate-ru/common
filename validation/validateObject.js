@@ -1,4 +1,4 @@
-import {missingArgument} from './arguments'
+import {missingArgument, invalidArgument} from './arguments'
 import prettyPrint from '../utils/prettyPrint'
 
 const hasOwnProperties = Object.prototype.hasOwnProperty;
@@ -55,7 +55,7 @@ export function validateObjectFactory({
     let _extends;
     if (hasOwnProperties.call(schema, '_extends')) {
       _extends = schema._extends;
-      if (!((typeof _extends === 'function' && hasOwnProperties.call(_extends, 'fields'))))
+      if (!((typeof _extends === 'function' && 'fields' in _extends)))
         throw new Error(`Invalid value of _extends: ${prettyPrint(_extends)}`);
     }
 
@@ -109,15 +109,25 @@ export function validateObjectFactory({
         const copy = fieldDef.copy;
         if (typeof copy === 'function') {
           const generalCopier = copy.call(validatorThis, context, fieldDef, fieldName);
-          const fieldContext = context();
-          copiers.push((value, message, validateOptions) => generalCopier((() => fieldContext), value, message, validateOptions));
+          copiers.push((value, message, validateOptions) => generalCopier(context, value, message, validateOptions));
         } else if (typeof copy === 'boolean') {
           if (copy) {
             const destFieldName = `_${fieldName}`;
             const fieldToCopy = fieldName;
-            copiers.push(function (value, message, validateOptions) {
-              validateOptions.copyTo[destFieldName] = value[fieldToCopy];
-            });
+            if (hasOwnProperties.call(fieldDef, 'default')) {
+              const defaultValue = fieldDef.default;
+              const isWrong = generalValidator(context, defaultValue);
+              if (isWrong) throw new Error(`Field '${context()}': Invalid value of 'default': ${prettyPrint(defaultValue)}`);
+              copiers.push(function (value, message, validateOptions) {
+                const v = value[fieldToCopy];
+                validateOptions.copyTo[destFieldName] = v === undefined ? defaultValue : v;
+              });
+            }
+            else
+              copiers.push(function (value, message, validateOptions) {
+                const v = value[fieldToCopy];
+                if (v !== undefined) validateOptions.copyTo[destFieldName] = v;
+              });
           }
         } else throw new Error(`Field '${context()}': Invalid attribute 'copy' value: ${prettyPrint(copy)}`);
       }
@@ -132,7 +142,7 @@ export function validateObjectFactory({
 
     if (validateExtends && schema._extends) {
       const innerValidateFunc = validateFunc;
-      const parentValidate = (schema._extends.validate);
+      const parentValidate = schema._extends.validate;
       validateFunc = function (value, validateOptions) { // прогоняем полную функцию проверки для родительской структуры, кроме её врапера - без выдачи результата наружу
         const message = parentValidate(value, validateOptions);
         return innerValidateFunc(value, message, validateOptions) || message;
@@ -464,7 +474,7 @@ export function validateObjectFactory({
         };
 
       default:
-        throw new Error(`Field '${context()}': Unexpected type: '${prettyPrint(type)}'`);
+        throw new Error(`Field '${context()}': Unexpected type: ${prettyPrint(type)}`);
     }
   }
 
@@ -494,12 +504,45 @@ export const validateAndCopyOptionsFactory = validateObjectFactory({
 });
 
 /**
+ * Проверка опций, например, конструктора.  Каждый уровень (см. _extends) опций проверяется отдельно.  В случае
+ * ошибки, выбрасывается Exception с переченем ошибок найденных на данном уровне проверки. *
+ */
+export const validateFullAndCopyOptionsFactory = validateObjectFactory({
+  missingField: messageMissingField,
+  unexpectedField: messageUnexpectedField, // выдаем сообщения о полях, которые не ожидаем
+  invalidFieldValue: messageInvalidFieldValue,
+  copyFields: true,
+  // notPureData: true,
+  resultWrapper: (validateFunc) => {
+    return function (value, validateOptions) {
+      const message = validateFunc(value, validateOptions);
+      if (message)
+        throw new Error(`${validateOptions && validateOptions.name ? `${validateOptions.name}: ` : ``}Invalid argument '${(validateOptions && validateOptions.argument) || 'value'}': ${message.join('; ')}`);
+    }
+  },
+});
+
+/**
  * Вариант проверки опций, без копирования.
  */
 export const validateOptionsFactory = validateObjectFactory({
   missingField: messageMissingField,
   invalidFieldValue: messageInvalidFieldValue,
-  copyFields: false,
+  // notPureData: true,
+  resultWrapper: (validateFunc) => function (value, validateOptions) {
+    const message = validateFunc(value, validateOptions);
+    if (message)
+      throw new Error(`${validateOptions && validateOptions.name ? `${validateOptions.name}: ` : ``}Invalid argument '${(validateOptions && validateOptions.argument) || 'value'}': ${message.join('; ')}`);
+  },
+});
+
+/**
+ * Вариант проверки опций, без копирования и без возможности передачи лишних
+ */
+export const validateFullOptionsFactory = validateObjectFactory({
+  missingField: messageMissingField,
+  unexpectedField: messageUnexpectedField, // выдаем сообщения о полях, которые не ожидаем
+  invalidFieldValue: messageInvalidFieldValue,
   // notPureData: true,
   resultWrapper: (validateFunc) => function (value, validateOptions) {
     const message = validateFunc(value, validateOptions);
@@ -563,3 +606,87 @@ export const validateStructureFactory = validateObjectFactory({
     };
   },
 });
+
+/**
+ * Helper для создания метода проверки опций конструктора класса.  Этот вариант (см. ThisClass в названии) проверяет только
+ * опции добавленные в этом классе, и не проверяет опции класса предка и не сообщает если есть опции про которые он не
+ * знает - они могут быть опциями класса наследника
+ */
+export const validateThisClassCtorOptions = function (schema = missingArgument('schema')) {
+  const validate = validateAndCopyOptionsFactory(schema);
+  const res = function (obj, options) { return validate(options, {argument: 'options', copyTo: obj}); };
+  Object.setPrototypeOf(res, validate); // чтобы были доступны данные схемы, необходимые для _extends
+  return res;
+};
+
+/**
+ * Helper для создания метода проверки опций конструктора класса.  Этот вариант (см. FinishedClass в названии) проверяет только опции
+ * добавленные в этом классе, но в отличии от validateThisClassCtorOptions, так же проверят что опции содержат не ожидаемые поля для
+ * этого класса и классов предков.  Поэтому, этот метод можно использовать только в конструкторая классов, от которые не будет выполняться
+ * наследование.
+ */
+export const validateFinishedClassCtorOptions = function (schema = missingArgument('schema')){
+  const validate = validateFullAndCopyOptionsFactory(schema);
+  const res = function (obj, options) {
+    if (!(arguments.length === 2))  throw new Error(`Invalid number of arguments: Must be two: 1. this; 2. options)`);
+    validate(options, {argument: 'options', copyTo: obj});
+  }
+  Object.setPrototypeOf(res, validate); // чтобы были доступны данные схемы, необходимые для _extends
+  return res;
+};
+
+// TODO: Прокоменировать методы ниже, когда заработают
+
+export const validateThisClassMethodArgsBuilder = function (schema = missingArgument('schema')) {
+  const validate = validateOptionsFactory(schema);
+  const res = function (argumentName = missingArgument('argumentName')) {
+    if (!(typeof argumentName === 'string' && argumentName.length > 0)) invalidArgument('argumentName');
+    const options = {argument: argumentName};
+    const res2 = function (value) { validate(value, options); }
+    Object.setPrototypeOf(res2, validate); // чтобы были доступны данные схемы, необходимые для _extends
+    return res2;
+  };
+  Object.setPrototypeOf(res, validate); // чтобы были доступны данные схемы, необходимые для _extends
+  return res;
+};
+
+export const validateThisClassMethodArgs = function (argumentName = missingArgument('argumentName'), schema = missingArgument('schema')) {
+  return validateThisClassMethodArgsBuilder(schema)(argumentName);
+};
+
+export const validateFinishedMethodArgsBuilder = function (schema = missingArgument('schema')) {
+  const validate = validateFullOptionsFactory(schema);
+  const res = function (argumentName = missingArgument('argumentName')) {
+    if (!(typeof argumentName === 'string' && argumentName.length > 0)) invalidArgument('argumentName');
+    const options = {argument: argumentName};
+    const res2 = function (value) { validate(value, options); };
+    Object.setPrototypeOf(res2, validate); // чтобы были доступны данные схемы, необходимые для _extends
+    return res2;
+  };
+  Object.setPrototypeOf(res, validate); // чтобы были доступны данные схемы, необходимые для _extends
+  return res;
+};
+
+export const validateFinishedMethodArgs = function (argumentName = missingArgument('argumentName'), schema = missingArgument('schema')) {
+  return validateThisClassMethodArgsBuilder(schema)(argumentName);
+};
+
+/**
+ * Структура облегчающая по средствам IDE IntelliJ IDEA написание, и чтение разных валидаторов.
+ */
+export const validate = {
+  ctor: {
+    this: validateThisClassCtorOptions,
+    finished: validateFinishedClassCtorOptions,
+  },
+  method: {
+    this: validateThisClassMethodArgs,
+    finished: validateFinishedMethodArgs,
+  },
+  builder: {
+    method: {
+      this: validateThisClassMethodArgsBuilder,
+      finished: validateFinishedMethodArgsBuilder,
+    }
+  },
+};

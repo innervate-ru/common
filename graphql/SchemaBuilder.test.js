@@ -46,8 +46,8 @@ test.todo(`Добавление mutation через LevelBuilder`);
 test.only(`Добавление сложной иерархии, с указанием resolver'ов`, async t => {
   const schemaBuilder = new SchemaBuilder();
   const lvl1Builder = new LevelBuilder({name: 'lvl1'});
-  const resolverStub1 = sinon.stub();
-  const resolverStub2 = sinon.stub();
+  const resolverStub1 = function (object, args) {}; // тут не получается пользоваться sinon.stub(), так как валидаторы проверяют, что
+  const resolverStub2 = function (object, args) {}; // resolver это функцию в которой два или три параметра
   schemaBuilder.addBuilder(lvl1Builder);
   lvl1Builder.addBuilder(async ({parentLevelBuilder, typeDefs = missingArgument('typeDefs'), resolvers = missingArgument('resolvers')}) => {
     parentLevelBuilder.addQuery({
@@ -68,14 +68,14 @@ test.only(`Добавление сложной иерархии, с указан
   await schemaBuilder.build({typeDefs, resolvers});
 
   t.deepEqual(typeDefs, [
-    'type q1Result {a: Int, b: String}', // TODO: Make upper-case
-    'type lvl1Query {q1: q1Result!}',
-    'type lvl1Mutation {q2: String}',
-    'type RootQuery {lvl1: lvl1Query}',
-    'type RootMutation {lvl1: lvl1Mutation}',
-    'schema {query: RootQuery, mutation: RootMutation}',
+    'type q1Result {a: Int, b: String}',
+    'type lvl1Query {\nq1: q1Result!\n}',
+    'type lvl1Mutation {\nq2: String\n}',
+    'type RootQuery {\nlvl1: lvl1Query\n}',
+    'type RootMutation {\nlvl1: lvl1Mutation\n}',
+    'schema {\nquery: RootQuery,\nmutation: RootMutation\n}',
   ]);
-  t.deepEqual(resolvers, {lvl1: {q1: resolverStub1, q2: resolverStub2}});
+  // t.deepEqual(resolvers, {lvl1: {q1: resolverStub1, q2: resolverStub2}}); // TODO: Это тест со времен, когда я думал что резолверы так же работают в иерархии как в Relay
 });
 
 test.todo(`Если один из билдеров вернул ошибку, то весь процесс должен остановиться с этой ошибкой`);

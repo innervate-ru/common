@@ -5,7 +5,7 @@ export default function (typesExport) {
   const {VType, addType, addSubvalidator, addTypeAdvanced} = typesExport;
 
   // типы Undefined и Null нужны, чтобы их можно включать в список типов в параметре types - особенно полезно для validateParameter, где параметр только список типов
-  addType('Undefined', v => v === undefined );
+  addType('Undefined', v => v === undefined);
   addType('Null', v => v === null);
 
   addType('String', v => typeof v === 'string');
@@ -24,33 +24,36 @@ export default function (typesExport) {
       typeBuilder._vtype = 'Object';
       if (!validator) { // просто объект, без дополнительной проверки
         typeBuilder._build = function () {
-          return function (context, fieldDef) {
-            const invalidFieldValue = this.invalidFieldValue;
-            return function (context, value, message, validateOptions) {
-              if (typeof value === 'object' && !Array.isArray(value)) return;
-              (message || (message = [])).push(invalidFieldValue(context, value));
-              return message;
-            }
-          }
-        }
+          return typeContextPrototype._build.call(this,
+            function (context, fieldDef) {
+              const invalidFieldValue = this.invalidFieldValue;
+              return function (context, value, message, validateOptions) {
+                if (typeof value === 'object' && !Array.isArray(value)) return;
+                (message || (message = [])).push(invalidFieldValue(context, value));
+                return message;
+              }
+            })
+        };
       } else { // вариант когда валидатор задан
         typeBuilder._build = function () {
-          return function (context, fieldDef) {
-            const invalidFieldValue = this.invalidFieldValue;
-            return function (context, value, message, validateOptions) {
-              if (typeof value === 'object' && !Array.isArray(value)) {
-                const resOrReason = validator(value, validateOptions);
-                if (typeof resOrReason === 'string') {
-                  (message || (message = [])).push(invalidFieldValue(context, value, resOrReason));
-                  return message;
+          return typeContextPrototype._build.call(this,
+            function (context, fieldDef) {
+              const invalidFieldValue = this.invalidFieldValue;
+              return function (context, value, message, validateOptions) {
+                if (typeof value === 'object' && !Array.isArray(value)) {
+                  const resOrReason = validator(value, validateOptions);
+                  if (typeof resOrReason === 'string') {
+                    (message || (message = [])).push(invalidFieldValue(context, value, resOrReason));
+                    return message;
+                  }
+                  if (resOrReason) return;
                 }
-                if (resOrReason) return;
+                (message || (message = [])).push(invalidFieldValue(context, value));
+                return message;
               }
-              (message || (message = [])).push(invalidFieldValue(context, value));
-              return message;
             }
-          }
-        }
+          )
+        };
       }
       return typeBuilder;
     }
@@ -85,8 +88,8 @@ export default function (typesExport) {
     const generalArrayTypeBuilder = Object.create(typeContextPrototype);
     generalArrayTypeBuilder._vtype = 'Array';
     generalArrayTypeBuilder._build = function () {
-      return anArrayValidator;
-    };
+      return typeContextPrototype._build.call(this, anArrayValidator);
+    }
 
     return function (elementDefinition) { // если elementDefinition не правильное значение,  то при построении вложенного валидатора будет ошибка
       if (elementDefinition === undefined) return generalArrayTypeBuilder;
@@ -132,5 +135,4 @@ export default function (typesExport) {
   addSubvalidator(VType.Array(), 'notEmpty', (v) => v.length > 0 ? true : `array is empty`);
   addSubvalidator(VType.Array(), 'onlyStrings', v => v.every(t => typeof t === 'string') ? true : 'not all strings');
   addSubvalidator(VType.Array(), 'notEmptyAndOnlyStrings', v => v.length === 0 ? `array is empty` : v.every(t => typeof t === 'string') ? true : 'not all strings');
-
 }

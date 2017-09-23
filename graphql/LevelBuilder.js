@@ -3,10 +3,7 @@ import sortBy from 'lodash/sortBy'
 import TypeBuilder from './TypeBuilder'
 import wrapResolver from './wrapResolver'
 
-const schema = require('./SchemaBuilder.schema');
-const VALIDATE_OPTIONS = {argument: 'options'};
-const VALIDATE_QUERY = {argument: 'query'};
-const VALIDATE_MUTATION = {argument: 'mutation'};
+const schema = require('./LevelBuilder.schema');
 
 /**
  * Хотя apollo-server позволяет задавать схему как набор отдельных фрагментов, и позволяет делать 'extend type' - http://dev.apollodata.com/tools/graphql-tools/generate-schema.html#extend-types
@@ -16,21 +13,29 @@ const VALIDATE_MUTATION = {argument: 'mutation'};
  */
 export default class LevelBuilder {
 
-  /**
-   *
-   * @param name Имя типа
-   */
+  // копируются из options конструктора
+  _name; // имя уровня
+  _description; // описание сервиса для graphql схемы
+
+  _queries = []; // список query, которые добавили билдеры
+  _mutations = []; // список mutation, которые добавили билдеры
+
+  _builders = []; // список билдеров вложенных в этот уровень.  это могут объекты LevelBuilder или конечные билдеры, получающие {parentLevelBuilder, typeDefs, resolvers}
+  _buildersCompletedCount = 0; // количество билдеров завершивших работу.  когда совпадает с длиной _builders, означает что можно завершать билдер этого объекта
+
+  _parentLevelBuilder; // билдер, в который этот объект добавляет свой query и свой mutation, при условии что они получились не пустыми
+  _typeDefs; // общий список типов, который потом отдается в схему apollo graphql
+  _resolvers; // корневой объект resolvers, который можно добавлять резолверы типа: _resolvers[<typeName>][<queryName>] = (obj, args, context) => {}
+
+  _levelQueryResolver; // объект с query резолверами, для этого уровня
+  _levelMutationResolver; // объект с mutation резолверами, для этого уровня
+
+  _builderArgs; // аргументы, который передаются билдерам из _builders[].  они одинаковые для всех билдеров из списка
+  _done; // resolve() для промиса, который возвращает метод build(...)
+  _reject; // reject() для промиса, который возвращает метод build(...)
+
   constructor(options) {
-
-    schema.LevelBuilderOptions(options, {argument: 'options', copyTo: this});
-
-    this._queries = [];
-    this._mutations = [];
-
-    this._builders = [];
-    this._buildersCompletedCount = 0;
-
-    this._parentLevelBuilder = this._typeDefs = this._resolvers = this._levelQueryResolver = this._levelMutationResolver = this._done = this._reject = this._builderArgs = null;
+    schema.ctor_options(this, options);
   }
 
   addBuilder(builder = missingArgument('builder')) {
@@ -50,7 +55,7 @@ export default class LevelBuilder {
    * @param type Тип поля/метода
    */
   addQuery(query = missingArgument('query')) {
-    schema.addFieldOptions(query, VALIDATE_QUERY)
+    schema.addQuery_query(query)
     const {name = missingArgument('name'), type = missingArgument('type'), typeDef, resolver} = query;
     if (typeDef) this._typeDefs.push(typeDef);
     this._queries.push(query);
@@ -65,11 +70,18 @@ export default class LevelBuilder {
    * @param type Тип поля/метода
    */
   addMutation(mutation = missingArgument('mutation')) {
-    schema.addFieldOptions(mutation, VALIDATE_MUTATION)
+    schema.addMutation_mutation(mutation);
     const {name = missingArgument('name'), type = missingArgument('type'), typeDef, resolver} = mutation;
     if (typeDef) this._typeDefs.push(typeDef);
     this._mutations.push(mutation);
     if (resolver) this._getMutationResolver()[name] = wrapResolver(resolver);
+  }
+
+  /**
+   * Добавляет описание уровня.
+   */
+  setDescription(description) {
+    this._description = description;
   }
 
   /**
@@ -132,15 +144,8 @@ export default class LevelBuilder {
     return donePromise; // ждем когда все билдеры сработают
   }
 
-  /**
-   *
-   * @param parentLevelBuilder Объект класса GraphQLBuilder или просто метод build
-   * @param typeDefs Коллекция фрагметов описания схемы
-   * @param resolvers Объект резолверов
-   * @returns {Promise.<*>} Когда процесс сборки закончен
-   */
   async build(options) {
-    schema.LevelBuilderBuildMethodOptions(options, VALIDATE_OPTIONS);
+    schema.build_options(options);
 
     const {parentLevelBuilder, typeDefs, resolvers} = options;
 
@@ -152,18 +157,18 @@ export default class LevelBuilder {
 
     if (this._queries.length > 0) { // добавляем query поле в родительский билдер
       const typeName = `${this.getTypeBaseName()}Query`;
-      const typeBuilder = new TypeBuilder({name: typeName});
+      const typeBuilder = new TypeBuilder({name: typeName, description: this._description});
       sortBy(this._queries, v => v.name);
       this._queries.forEach(v => typeBuilder.addField(v));
-      parentLevelBuilder.addQuery({name: this._name, type: typeName, typeDef: typeBuilder.build()});
+      parentLevelBuilder.addQuery({description: this._description, name: this._name, type: typeName, typeDef: typeBuilder.build()});
     }
 
     if (this._mutations.length > 0) { // добавляем mutation поле в родительский билдер
       const typeName = `${this.getTypeBaseName()}Mutation`;
-      const typeBuilder = new TypeBuilder({name: typeName});
+      const typeBuilder = new TypeBuilder({name: typeName, description: this._description});
       sortBy(this._mutations, v => v.name);
       this._mutations.forEach(v => typeBuilder.addField(v));
-      parentLevelBuilder.addMutation({name: this._name, type: typeName, typeDef: typeBuilder.build()});
+      parentLevelBuilder.addMutation({description: this._description, name: this._name, type: typeName, typeDef: typeBuilder.build()});
     }
   }
 }

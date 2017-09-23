@@ -8,8 +8,7 @@ import {
 const selectLocale = {
   name: 'locale_prefered_locales',
 
-  description: `
-    Для списка поддерживаемых клиентом локализаций, возвращает наиболее подходящую.`,
+  description: `Для списка поддерживаемых клиентом локализаций, возвращает наиболее подходящую.`,
 
   args: {
     supportedLocales: {
