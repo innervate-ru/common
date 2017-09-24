@@ -57,14 +57,35 @@ function _module() {
       const typeName = this._vtype;
 
       if (!validateType) {
-        const typePureValidator = providedValidators[typeName];
-        validateType = function (context, fieldDef) {
-          const invalidFieldValue = this.invalidFieldValue;
-          if (!(typeof invalidFieldValue === 'function')) throw new Error(`invalidFieldValue not a function`);
-          return function (context, value, message, validateOptions) {
-            if (typePureValidator(value)) return;
-            (message || (message = [])).push(invalidFieldValue(context, value));
-            return message;
+        if (hasOwnProperty.call(this, '_validator')) {
+          const typePureValidator = providedValidators[typeName];
+          const validator = this._validator;
+          validateType = function (context, fieldDef) {
+            const invalidFieldValue = this.invalidFieldValue;
+            if (!(typeof invalidFieldValue === 'function')) throw new Error(`invalidFieldValue not a function`);
+            return function (context, value, message, validateOptions) {
+              if (typePureValidator(value)) {
+                const resOrReason = validator(value);
+                if (typeof resOrReason === 'string') {
+                  (message || (message = [])).push(invalidFieldValue(context, value, resOrReason));
+                  return message;
+                }
+                if (resOrReason) return;
+              }
+              (message || (message = [])).push(invalidFieldValue(context, value));
+              return message;
+            }
+          }
+        } else {
+          const typePureValidator = providedValidators[typeName];
+          validateType = function (context, fieldDef) {
+            const invalidFieldValue = this.invalidFieldValue;
+            if (!(typeof invalidFieldValue === 'function')) throw new Error(`invalidFieldValue not a function`);
+            return function (context, value, message, validateOptions) {
+              if (typePureValidator(value)) return;
+              (message || (message = [])).push(invalidFieldValue(context, value));
+              return message;
+            }
           }
         }
       }
@@ -167,8 +188,16 @@ function _module() {
     addTypeAdvanced(typeName, function (typeContextPrototype) {
       const context = Object.create(typeContextPrototype);
       context._vtype = typeName;
-      return function () {
-        return context; // всегда возвращается один и тот же контекст.  если используется сабвалидатор, то создается новый контекст
+      return function (validator) { // можно указать валидатор прямо в скобках у типа
+        if (validator === undefined)
+          return context; // возвращается один и тот же контекст, если нет валидатора.  если используется сабвалидатор, то создается новый контекст
+        else {
+          if (!(typeof validator === 'function' && validator.length === 1)) invalidArgument('validator', validator);
+          const context = Object.create(typeContextPrototype);
+          context._vtype = typeName;
+          context._validator = validator;
+          return context;
+        }
       };
     });
   }

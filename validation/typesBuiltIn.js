@@ -12,52 +12,9 @@ export default function (typesExport) {
   addType('Int', v => Number.isInteger(v));
   addType('Float', v => typeof v == 'number' && !isNaN(v));
   addType('Boolean', v => typeof v == 'boolean');
+  addType('Object', v => typeof v === 'object' && !Array.isArray(v));
   addType('Function', v => typeof v === 'function');
   addType('Promise', v => v => typeof v === 'object' && v != null && 'then' in v);
-
-  addTypeAdvanced('Object', function (typeContextPrototype) {
-    return function (validator) {
-
-      if (!(validator === undefined || typeof validator === 'function')) invalidArgument('validator', validator);
-
-      const typeBuilder = Object.create(null); // null - так как не планируется что у Fields могут быть сабвалидаторы
-      typeBuilder._vtype = 'Object';
-      if (!validator) { // просто объект, без дополнительной проверки
-        typeBuilder._build = function () {
-          return typeContextPrototype._build.call(this,
-            function (context, fieldDef) {
-              const invalidFieldValue = this.invalidFieldValue;
-              return function (context, value, message, validateOptions) {
-                if (typeof value === 'object' && !Array.isArray(value)) return;
-                (message || (message = [])).push(invalidFieldValue(context, value));
-                return message;
-              }
-            })
-        };
-      } else { // вариант когда валидатор задан
-        typeBuilder._build = function () {
-          return typeContextPrototype._build.call(this,
-            function (context, fieldDef) {
-              const invalidFieldValue = this.invalidFieldValue;
-              return function (context, value, message, validateOptions) {
-                if (typeof value === 'object' && !Array.isArray(value)) {
-                  const resOrReason = validator(value, validateOptions);
-                  if (typeof resOrReason === 'string') {
-                    (message || (message = [])).push(invalidFieldValue(context, value, resOrReason));
-                    return message;
-                  }
-                  if (resOrReason) return;
-                }
-                (message || (message = [])).push(invalidFieldValue(context, value));
-                return message;
-              }
-            }
-          )
-        };
-      }
-      return typeBuilder;
-    }
-  });
 
   addTypeAdvanced('Fields', function (typeContextPrototype) {
 
@@ -89,34 +46,21 @@ export default function (typesExport) {
     generalArrayTypeBuilder._vtype = 'Array';
     generalArrayTypeBuilder._build = function () {
       return typeContextPrototype._build.call(this, anArrayValidator);
-    }
+    };
 
-    return function (elementDefinition) { // если elementDefinition не правильное значение,  то при построении вложенного валидатора будет ошибка
-      if (elementDefinition === undefined) return generalArrayTypeBuilder;
+    return function (itemType) { // если itemType не правильное значение,  то при построении вложенного валидатора будет ошибка
+      if (itemType === undefined) return generalArrayTypeBuilder;
       else {
-        const arrayValidatorWithItemsValidationBuilder = Object.create(typeContextPrototype);
-        arrayValidatorWithItemsValidationBuilder._vtype = 'Array';
-        arrayValidatorWithItemsValidationBuilder._build = function () {
+        const itemTypedArrayBuilder = Object.create(typeContextPrototype);
+        itemTypedArrayBuilder._vtype = 'Array';
+        itemTypedArrayBuilder._build = function () {
           return typeContextPrototype._build.call(this,
             function (context, fieldDef) {
-              const invalidFieldValue = this.invalidFieldValue;
-              const validateNull = this.validateNull;
-              const elementValidator = validateNull.call(this, (() => `${context()}:VType.Array(...)`), elementDefinition);
-              if (!elementValidator) return anArrayValidator.call(this, context, fieldDef);
-              return function (context, value, message, validateOptions) {
-                if (!Array.isArray(value)) {
-                  (message || (message = [])).push(invalidFieldValue(context, value));
-                  return message;
-                }
-                let i;
-                const itemContext = () => `${context()}[${i}]`;
-                for (i = 0; i < value.length; i++)
-                  message = elementValidator(itemContext, value[i], message, validateOptions) || message;
-                return message;
-              }
-            });
+              return this.validateArray(context, itemType);
+            }
+          );
         };
-        return arrayValidatorWithItemsValidationBuilder;
+        return itemTypedArrayBuilder;
       }
     };
   });

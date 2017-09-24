@@ -523,7 +523,7 @@ test(`Можно добавить проверку элементов масси
           b: {type: VType.Int()},
           c: {type: VType.String(), required: true}, // при этом если это объект, то поле b обязательное
         }),]
-      }).notEmpty() // как для других типов, указаываем дополнительные or-проверки
+      }).notEmpty() // как для других типов, указаываем дополнительные or-проверки.  Хотя конкретно notEmpty() можно реализовать сказав required: true, в описании типа элементов массива
     },
   });
 
@@ -564,14 +564,75 @@ test(`Можно передать дополнительный валидато�
   t.deepEqual(validate({a: false}), [`Invalid 'a': false`]); // не объект
 });
 
-test.skip(`сделать атрибут array`, t => {
-  // TODO: Сделать чтоб у массива required означало наличие минимум одного элемента
-  // TODO: Сделать элемент array
+test(`возможность указывать кастомный валидатор в VType.Function`, t => {
+  const typesExport = require('./types')._module();
+  require('./typesBuiltIn').default(typesExport);
+  const {VType} = typesExport;
+
+  const validate = validateObject({
+    n: {type: VType.Int(v => (2 <= v && v <= 4) ? true : `out of range`)},
+    s: {type: VType.String((s => s.startsWith('#')))},
+  });
+
+  t.is(validate({n: 3, s: '# 123'}), undefined);
+  t.deepEqual(validate({n: 0, s: 'wrong'}), [
+    `Invalid 'n' (reason: out of range): 0`,
+    `Invalid 's': 'wrong'`,
+  ]);
 });
 
-test.todo(`возможность указывать кастомный валидатор в VType.Function`);
-test.todo(`возможность указывать кастомный валидатор в VType.Int ...`);
-test.todo(`даже когда параметр validateExtends = false, но есть метод unexpectedFields - проверять все поля, включая поля из _extends`);
+test(`даже когда параметр validateExtends = false, но есть метод unexpectedFields - проверять все поля, включая поля из _extends`, t => {
+  const typesExport = require('./types')._module();
+  require('./typesBuiltIn').default(typesExport);
+  const {VType} = typesExport;
+
+  const validateParent = validateObject({
+    v1: {required: true, type: VType.String()},
+  });
+
+  const validate = validateObject({
+    _extends: validateParent,
+    v2: {required: true, type: VType.String()},
+  });
+  t.is(validate({v1: 'str', v2: 'str'}), undefined);
+  t.deepEqual(validate({v1: 'str', v2: 'str', v3: 'str'}), [`Unexpected 'v3': 'str'`]);
+});
+
+test(`сделать атрибут array`, t => {
+  // TODO: Сделать чтоб у массива required означало наличие минимум одного элемента
+  // TODO: Сделать элемент array
+
+  const typesExport = require('./types')._module();
+  require('./typesBuiltIn').default(typesExport);
+  const {VType} = typesExport;
+
+  const validateA = validateObject({
+    a: {array: {required: true, // не пустой массив
+      fields: { // состоящий из объектов в плями
+        b: {type: 'str', required: true},
+        c: {type: 'int'},
+      }
+    }},
+  });
+
+  t.is(validateA({a: [{b: 'test', c: 12}, {b: 'str'}]}));
+  t.deepEqual(validateA({a: [{c: 12}]}), [`Missing 'a[0].b'`]);
+  t.deepEqual(validateA({a: []}), [`Invalid 'a' (reason: array is empty): []`]);
+
+  const validateB = validateObject({
+    b: {array: {type: 'int', validate: v => v > 3}} // массив из чисел больше трех, который может быть пустым
+  });
+
+  t.is(validateB({b: []}), undefined);
+  t.is(validateB({b: [4, 5, 6]}), undefined);
+  t.deepEqual(validateB({b: [2, 1, 0, -1, -2]}), [
+    `Invalid 'b[0]': 2`,
+    `Invalid 'b[1]': 1`,
+    `Invalid 'b[2]': 0`,
+    `...`,
+  ]); // срабатывает ограничение на количество выдаваемых ошибок из массива
+
+});
 
 // можно сделать рекурентные типы, для раскручивания вложенных подобных структур - непример tree у SchemaBuilder'а
 // VType.Recurrent(type => VType.Object({type: VType.Fields({a: {type: type}});

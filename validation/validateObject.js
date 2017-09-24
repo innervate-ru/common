@@ -23,6 +23,7 @@ export function validateObjectFactory({
   validateExtends = false,
   notPureData = false, // если true, то объект может как свойства содержать методы, что нормельно для объектов опций.  Например, компонента config возвращает структуру с методом get
   maxUnexpectedItems = 4, // максимальное количество сообщений о не ожиданных полях.  Уменьшает до разумного длину сообщения, если проверяется "левый" объект.  0 - выводить без ограничений
+  maxInvalidArrayItems = 4, // максимальное количество сообщение об ошибках в элементах массива.  Последние выводится в ..., чтоб показать что проверка дальше не проводилась
 
 }) {
 
@@ -77,6 +78,7 @@ export function validateObjectFactory({
 
     const validatorThis = {
       validateSubfields: _validateSubfields, // validateSubfields нужен для использование в реализации типа VType.Fields
+      validateArray: _validateArray,
       validateNull: _validateNull, // validateSubfields нужен для использование в реализации типа VType.Array
       invalidFieldValue, // сообщение, о том что поле имеет неправильно значение - для использование в типах, определнных как функция
 
@@ -287,6 +289,36 @@ export function validateObjectFactory({
     }
   }
 
+  function _validateArray(context, itemType) {
+    const elementValidator = _validateNull.call(this, (() => `${context()}:VType.Array(...)`), itemType);
+    const isRequired = !!itemType.required;
+    return function (context, value, message, validateOptions) {
+      if (!Array.isArray(value)) {
+        (message || (message = [])).push(invalidFieldValue(context, value));
+        return message;
+      }
+      if (isRequired && value.length === 0) {
+        (message || (message = [])).push(invalidFieldValue(context, value, 'array is empty'));
+        return message;
+      }
+      let i;
+      const itemContext = () => `${context()}[${i}]`;
+      let count = 0;
+      for (i = 0; i < value.length; i++) {
+        const msg = elementValidator(itemContext, value[i], undefined, validateOptions);
+        if (msg) {
+          if (++count === maxInvalidArrayItems) {
+            message.push('...');
+            return message;
+          }
+          if (message) Array.prototype.push.apply(message, msg);
+          else message = msg;
+        }
+      }
+      return message;
+    };
+  }
+
   /**
    * Если свойство поля required равно true, то проверяет что поле присутствует в объекте.  Иначе возвращает ошибку.
    * Если свойство поля required равно false, то вызывает следуюший шаг проверки, если поле присутствует в объекте.
@@ -369,11 +401,19 @@ export function validateObjectFactory({
   function _validateEitherTypeOrFields(context, fieldDef) {
     const type = fieldDef.type;
     const fields = fieldDef.fields;
-    if (!(type || fields)) throw new Error(`Field '${context()}': Must have either 'type' and 'fields' attribute: ${prettyPrint(fieldDef)}`);
-    if (type && fields) throw new Error(`Field '${context()}': Cannot have both 'type' and 'fields' attributes: ${prettyPrint(fieldDef)}`);
+    const array = fieldDef.array;
+    let cnt = 0;
+    if (type) { ++cnt; }
+    if (fields) { ++cnt; }
+    if (array) { ++cnt; }
+
+    if (cnt === 0) throw new Error(`Field '${context()}': Must have either 'type', 'fields' or 'array' attribute: ${prettyPrint(fieldDef)}`);
+    if (cnt != 1) throw new Error(`Field '${context()}': Cannot have in the same time 'type', 'fields' and 'array' attributes: ${prettyPrint(fieldDef)}`);
 
     if (fields)
       return _validateSubfields.call(this, context, fields);
+    else if (array)
+      return _validateArray.call(this, context, array);
     else
       return _validateListOfTypes.call(this, context, fieldDef);
   }
