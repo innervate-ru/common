@@ -11,8 +11,8 @@ import SoapErrorException from '../errors/SoapErrorException'
 
 const debug = require('debug')('soap');
 
-const SERVICE_TYPE = require('./PGConnector.serviceType').SERVICE_TYPE;
-const schema = require('./PGConnector.schema');
+const SERVICE_TYPE = require('./SoapConnector.serviceType').SERVICE_TYPE;
+const schema = require('./SoapConnector.schema');
 
 export default oncePerServices(function (services) {
 
@@ -86,7 +86,7 @@ export default oncePerServices(function (services) {
       return new Promise((resolve, reject) => {
         let urlObject = urlApi.parse(this._url);
         if (this._user) urlObject.auth = `${this._user}:${this._password}`;
-        soap.createClient(`${urlApi.format(urlObject)}?wsdl`, (err, client) => {
+        soap.createClient(`${urlApi.format(urlObject)}`, (err, client) => {
           if (err) {
             debug('client creation failed %O', err);
             reject(new SoapErrorException({url: this._url, method: 'createClient', err}));
