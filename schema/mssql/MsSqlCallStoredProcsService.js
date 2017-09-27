@@ -5,6 +5,7 @@ import addServiceStateValidation from '../../services/addServiceStateValidation'
 import prettyPrint from '../../utils/prettyPrint'
 import addErrorContext from '../../utils/addErrorContext'
 import tedious from 'tedious'
+import {stringToTediousTypeMap} from '../../connectors/MsSqlConnector.types'
 
 const TYPES = tedious.TYPES; // http://tediousjs.github.io/tedious/api-datatypes.html
 
@@ -54,58 +55,32 @@ function processSchema(schema) {
 
 function addMethod(model) {
 
-  const addParamsToRequestBuilder = addParamsToRequestBuilderBuilder(model);
+  let paramsDef;
+  const params = model.params;
+  if (params) {
+    paramsDef = Object.create(null);
+    for (const paramName in params) {
+      if (hasOwnProperty.call(params, paramName)) {
+        const parameterModel = params[paramName];
+        if (parameterModel.mssqlType) {
+          if (!hasOwnProperty.call(stringToTediousTypeMap, parameterModel.mssqlType)) throw new Error(`Unknown MsSqlConnector type: ${prettyPrint(parameterModel.mssqlType)}`);
+          paramsDef[paramName] = parameterModel.mssqlType;
+        } else if (parameterModel.type) {
+          if (!hasOwnProperty.call(stringToTediousTypeMap, parameterModel.type)) throw new Error(`Unknown MsSqlConnector type: ${prettyPrint(parameterModel.type)}`);
+          paramsDef[paramName] = parameterModel.type;
+        } else {
+          throw new Error(`Missing 'type' or 'mssqlType' attribute`);
+        }
+      }
+    }
+  }
+
   const storedProcName = model.name;
 
   this[storedProcName] = /*async*/ function (args = {}) {
 
     const {_offset = 0, _limit = Number.MAX_SAFE_INTEGER, ...params} = args;
 
-    return this._connector.callProcedure(storedProcName, {offset: _offset, limit: _limit, params: Object.keys(params).length > 0 ? addParamsToRequestBuilder(params) : null});
+    return this._connector.callProcedure(storedProcName, {offset: _offset, limit: _limit, paramsDef, params});
   }
-}
-
-function addParamsToRequestBuilderBuilder(model) {
-  const paramsMap = Object.create(null);
-  let parameterModel;
-  try {
-    for (parameterModel of model.params) {
-      const parameterName = parameterModel.name;
-      const SQLType = modelToMsSqlType(parameterModel);
-      paramsMap[parameterName] = function (request, value) {
-        request.addParameter(parameterName, SQLType, value);
-      }
-    }
-  } catch (error) {
-    addErrorContext(`Parameter '${model.name}'`, error);
-  }
-  return function (params) {
-    return function (request) {
-      for (const paramName in params) {
-        if (!hasOwnProperty.call(params, paramName)) continue;
-        if (!hasOwnProperty.call(paramsMap, paramName)) throw new Error(`Unexpected parameter '${paramName}'`);
-        paramsMap[paramName](request, params[paramName]);
-      }
-    }
-  }
-}
-
-function modelToMsSqlType(parameterModel) {
-  if (parameterModel.mssqlType) {
-    if (!hasOwnProperty(TYPES, parameterModel.mssqlType)) throw new Error(`Unknown MsSql type: '${prettyPrint(parameterModel.mssqlType)}'`);
-    return TYPES[parameterModel.mssqlType];
-  }
-  switch (parameterModel.type) {
-    case 'string':
-      return TYPES.NVarChar;
-    case 'int':
-      return TYPES.Int;
-    case 'bit':
-      return TYPES.Bit;
-    case 'float':
-      return TYPES.Float;
-    case 'date':
-      return TYPES.DateTime;
-  }
-  throw new Error(`Unknown type: '${prettyPrint()}'`)
 }

@@ -5,14 +5,17 @@ import defineProps from '../utils/defineProps'
 import oncePerServices from '../services/oncePerServices'
 import ConnectionPool from 'tedious-connection-pool'
 import {Request, ConnectionError} from 'tedious'
-
+import {stringToTediousTypeMap, tediouseTypeByValue} from './MsSqlConnector.types'
 import {READY} from '../services'
+import addErrorContext from '../utils/addErrorContext'
 
+const hasOwnProperty = Object.prototype.hasOwnProperty;
 const debug = require('debug')('mssql');
 const schema = require('./MsSqlConnector.schema');
 
-// TODO: Передавать аргументы просто map'ом, и опция передавать типы отдельным map'ом
-// TODO: Передавать контекст
+// TODO: + Передавать аргументы просто map'ом, и опция передавать типы отдельным map'ом
+// TODO: Вместо того чтобы дергать отдельные методы, сделать просто метод exec, и передавать в него всё про запрос, включая context, чтоб это клалось в ошибки и логировкалось как параметры запроса
+// TODO: Передавать контекст - сохранять в ошибке все параметры
 // TODO: Добавить в ошибки тип запроса, параметры
 
 /**
@@ -232,7 +235,7 @@ export default oncePerServices(function (services) {
 
       schema.query_options(options);
 
-      let {params, offset, limit, context} = options || {};
+      let {paramsDef, params, offset, limit, context} = options || {};
       if (typeof offset !== 'number') offset = 0;
       if (typeof limit !== 'number') limit = Number.MAX_SAFE_INTEGER;
       const lastRow = Math.min(offset + limit, Number.MAX_SAFE_INTEGER);
@@ -251,7 +254,32 @@ export default oncePerServices(function (services) {
           }
         });
 
-        if (params) params(request);
+        if (params) {
+          let paramName;
+          try {
+            for (paramName in params) {
+              const paramValue = params[paramName];
+              let tedType;
+              if (paramsDef && hasOwnProperty.call(paramsDef, hasOwnProperty)) {
+                const def = paramsDef[paramName];
+                if (typeof def === 'object') { // когда заданы дополнительные свойства
+                  const {type, length, precision, scale} = def; // TODO: Добавить валидацию
+                  if (hasOwnProperty.call(stringToTediousTypeMap, type)) throw new Error(`Unknown type: ${prettyPrint(type)}`);
+                  tedType = stringToTediousTypeMap[type];
+                } else if (typeof def === 'string') {
+                  if (hasOwnProperty.call(stringToTediousTypeMap, def)) throw new Error(`Unknown type: ${prettyPrint(def)}`);
+                  tedType = stringToTediousTypeMap[def];
+                } else throw new Error(`Invalid parameter '${paramName}' definition: ${prettyPrint(def)}`);
+              } else {
+                tedType = tediouseTypeByValue(paramValue);
+              }
+              request.addParameter(paramName, tedType, paramValue);
+            }
+          }
+          catch (error) {
+            addErrorContext(`Parameter '${paramName}'`);
+          }
+        }
 
         let rowIndex = 0;
         request.on('columnMetadata', function (_columns) {
