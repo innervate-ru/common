@@ -353,7 +353,7 @@ export default oncePerServices(function (services) {
     }
 
     _buildInvalidStateError(error) {
-      return new InvalidServiceStateError({service: this._serviceImpl, state: this.state, error: error})
+      return new InvalidServiceStateError({service: this.name, state: this.state, error: error})
     };
   }
 
@@ -396,7 +396,7 @@ export default oncePerServices(function (services) {
       }
     }
 
-    addServiceStateValidation(serviceClass, function() { return this._service; });
+    addServiceStateValidation(serviceClass.prototype, function() { return this._service; });
 
     return ServiceImpl;
   }

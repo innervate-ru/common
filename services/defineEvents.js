@@ -24,18 +24,18 @@ export default function defineEvents(services = missingArgument('services')) {
 
     debug('searching: %s', rootPath);
 
-    let error, listCompleted;
+    let error, listCompleted, listReject;
     let directoriesInProcess = 0;
     const eventDefinitionFiles = [];
 
     const dirDone = () => {
-      if (--directoriesInProcess === 0) listCompleted();
+      if (--directoriesInProcess === 0) if (!error) listCompleted();
     };
 
     const processIfSubdir = (currentPath) => {
       fs.lstat(currentPath, function (err, stat) {
         if (err) {
-          error = err;
+          if (!error) listReject(error = err);
           dirDone();
           return;
         }
@@ -46,7 +46,7 @@ export default function defineEvents(services = missingArgument('services')) {
 
     const processReaddirResult = (currentPath) => (err, files) => {
       if (err) {
-        error = err;
+        if (!error) listReject(error = err);
         dirDone();
         return;
       }
@@ -66,11 +66,13 @@ export default function defineEvents(services = missingArgument('services')) {
     };
 
     if (!(typeof rootPath === 'string')) invalidArgument('rootPath', rootPath);
-    const listIsReady = new Promise(function (resolve, reject) {
+
+    await new Promise(function (resolve, reject) {
       listCompleted = resolve;
+      listReject = reject;
+      processDir(rootPath); // запускает процесс сканирования директорий, который завершается когда счетчик directoriesInProcess становится ноль
     });
-    processDir(rootPath); // запускает процесс сканирования директорий, который завершается когда счетчик directoriesInProcess становится ноль
-    await listIsReady;
+
     eventDefinitionFiles.sort(); // сортируем, чтоб процесс загрузки был предсказуемым
     for (const filename of eventDefinitionFiles) {
       debug('loaded: %s', filename);

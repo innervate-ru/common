@@ -1,4 +1,5 @@
 import moment from 'moment'
+import 'moment-duration-format'
 import missingService from './missingService'
 
 import {VType, validateEventFactory, BaseEvent} from '../events'

@@ -4,6 +4,9 @@ export default function (typesExport) {
 
   const {VType, addType, addSubvalidator, addTypeAdvanced} = typesExport;
 
+  // когда надо просто сделать поле, без подробностей
+  addType('Any', v => true);
+
   // типы Undefined и Null нужны, чтобы их можно включать в список типов в параметре types - особенно полезно для validateParameter, где параметр только список типов
   addType('Undefined', v => v === undefined);
   addType('Null', v => v === null);

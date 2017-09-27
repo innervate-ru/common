@@ -1,7 +1,8 @@
-import {VType, validateAndCopyOptionsFactory} from '../validation'
+import {VType, validate} from '../validation'
 
-export const nodeManagerClassOptions = validateAndCopyOptionsFactory({
-  name: {type: VType.String(), required: true, copy: true},
-  services: {type: VType.Array()},
+const hasOwnProperty = Object.prototype.hasOwnProperty;
+
+export const ctor_options = validate.ctor.finished({
+  name: {required: true, type: VType.String(), copy: true},
+  services: {type: VType.Array({type: VType.Object(), validate: s => hasOwnProperty.call(s, 'name') && hasOwnProperty.call(s, 'default') ? true : `not a Service builder`})},
 });
-

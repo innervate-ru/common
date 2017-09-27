@@ -1,7 +1,7 @@
 import {missingArgument, invalidArgument} from './arguments'
 import prettyPrint from '../utils/prettyPrint'
 
-const hasOwnProperties = Object.prototype.hasOwnProperty;
+const hasOwnProperty = Object.prototype.hasOwnProperty;
 
 /**
  * Общий код, который позволяет организовать проверку заполнености объектов, в нескольких сценариях:
@@ -54,14 +54,14 @@ export function validateObjectFactory({
       throw new Error(`Invalid argument 'schema': ${prettyPrint(schema)}`);
 
     let _extends;
-    if (hasOwnProperties.call(schema, '_extends')) {
+    if (hasOwnProperty.call(schema, '_extends')) {
       _extends = schema._extends;
       if (!((typeof _extends === 'function' && 'fields' in _extends)))
         throw new Error(`Invalid value of _extends: ${prettyPrint(_extends)}`);
     }
 
     let _validate;
-    if (hasOwnProperties.call(schema, '_validate')) {
+    if (hasOwnProperty.call(schema, '_validate')) {
       _validate = schema._validate;
       if (!(_validate === undefined || _validate === null || typeof _validate === 'function'))
         throw new Error(`Invalid value of _validate: ${prettyPrint(_validate)}`);
@@ -86,7 +86,8 @@ export function validateObjectFactory({
 
     let fieldName;
     const context = () => fieldName;
-    for (fieldName of Object.getOwnPropertyNames(schema)) {
+    for (fieldName in schema) {
+      if (!hasOwnProperty.call(schema, fieldName)) continue;
       if (fieldName.startsWith('_')) {
         switch (fieldName) {
           case '_extends':
@@ -97,7 +98,7 @@ export function validateObjectFactory({
         }
       }
 
-      if (hasOwnProperties.call(fields, fieldName)) throw new Error(`Field '${context()}' is already defined in parent structure`);
+      if (hasOwnProperty.call(fields, fieldName)) throw new Error(`Field '${context()}' is already defined in parent structure`);
       fields[fieldName] = true;
 
       const fieldDef = schema[fieldName];
@@ -107,7 +108,7 @@ export function validateObjectFactory({
 
       if (fieldDef.required) requiredFields.push(missingField(context));
 
-      if (copyFields && hasOwnProperties.call(fieldDef, 'copy')) {
+      if (copyFields && hasOwnProperty.call(fieldDef, 'copy')) {
         const copy = fieldDef.copy;
         if (typeof copy === 'function') {
           const generalCopier = copy.call(validatorThis, context, fieldDef, fieldName);
@@ -116,7 +117,7 @@ export function validateObjectFactory({
           if (copy) {
             const destFieldName = `_${fieldName}`;
             const fieldToCopy = fieldName;
-            if (hasOwnProperties.call(fieldDef, 'default')) {
+            if (hasOwnProperty.call(fieldDef, 'default')) {
               const defaultValue = fieldDef.default;
               const isWrong = generalValidator(context, defaultValue);
               if (isWrong) throw new Error(`Field '${context()}': Invalid value of 'default': ${prettyPrint(defaultValue)}`);
@@ -180,11 +181,13 @@ export function validateObjectFactory({
         let fieldName;
         const context = () => fieldName;
         let count = 0;
-        for (fieldName of Object.getOwnPropertyNames(value)) // поиск полей, которые не ожидаются в событии
+        for (fieldName in value) { // поиск полей, которые не ожидаются в событии
+          if (!hasOwnProperty.call(value, fieldName)) continue;
           if (!(fieldName in fields || (notPureData && typeof fields[fieldName] !== 'function'))) {
             (message || (message = [])).push(unexpectedField(context, value[fieldName]));
             if (++count === maxUnexpectedItems) break;
           }
+        }
         return message;
       }
     }
@@ -210,7 +213,7 @@ export function validateObjectFactory({
     if (copiers.length > 0) { // если есть копирование, то обязательно должна быть опция 'copyTo'
       const innerValidateFunc = validateFunc;
       validateFunc = function (value, validateOptions) {
-        if (!validateOptions || !hasOwnProperties.call(validateOptions, 'copyTo'))
+        if (!validateOptions || !hasOwnProperty.call(validateOptions, 'copyTo'))
           throw new Error(`Missing option 'copyTo': ${prettyPrint(validateOptions)}`);
         const copyTo = validateOptions.copyTo;
         if (!(typeof copyTo === 'object' && copyTo !== null && !Array.isArray(copyTo)))
@@ -253,11 +256,12 @@ export function validateObjectFactory({
 
     let subfieldName;
     const context = () => `${parentContext()}.${subfieldName}`;
-    for (subfieldName of Object.getOwnPropertyNames(fields)) {
+    for (subfieldName in fields) {
+      if (!hasOwnProperty.call(fields, subfieldName)) continue;
       if (subfieldName.startsWith('_')) throw new Error(`Field '${parentContext()}': Invalid subfield name: '${subfieldName}'`);
       fieldsMap[subfieldName] = true;
       const fieldDef = fields[subfieldName];
-      if (hasOwnProperties.call(fieldDef, 'copy')) throw new Error(`Field '${context()}': For any subfield it is not allowed to have a 'copy' attribute`);
+      if (hasOwnProperty.call(fieldDef, 'copy')) throw new Error(`Field '${context()}': For any subfield it is not allowed to have a 'copy' attribute`);
       const generalValidator = _validateRequired.call(this, context, fieldDef);
       if (generalValidator) validators.push(validateSpecificSubfield(generalValidator, context(), subfieldName));
     }
@@ -274,9 +278,11 @@ export function validateObjectFactory({
         message = innerValidateSubfields(parentContext, value, message, validateOptions) || message;
         let subfieldName;
         const context = () => `${parentContext()}.${subfieldName}`;
-        for (subfieldName of Object.getOwnPropertyNames(value))
+        for (subfieldName in value) {
+          if (!hasOwnProperty.call(value, subfieldName)) continue;
           if (!(subfieldName in fieldsMap))
             (message || (message = [])).push(unexpectedField(context, value[subfieldName]));
+        }
         return message;
       }
     }
@@ -454,6 +460,9 @@ export function validateObjectFactory({
     if (typeof type === 'object' && type != null && '_vtype' in type) return type._build().call(this, context, fieldDef);
 
     switch (type) {
+
+      case 'any': return;
+
       case 'str':
       case 'string':
         return function (context, value, message, validateOptions) {

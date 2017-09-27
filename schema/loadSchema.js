@@ -3,7 +3,9 @@ import throwIfMissing from 'throw-if-missing'
 import * as fs from 'fs'
 import path from 'path'
 
-let cache = {};
+const hasOwnProperty = Object.prototype.hasOwnProperty;
+
+let cache = Object.create(null);
 
 /**
  * Загружает *.js файлы из указанной директории, без просмотра поддиректорий.  При этом данным возвращаемым через
@@ -16,8 +18,8 @@ let cache = {};
  */
 export function loadFiles(schemaPath = throwIfMissing('schemaPath')) {
   const dir = path.resolve(process.cwd(), schemaPath);
-  if (cache.hasOwnProperty(dir)) return cache[dir];
-  let files = fs.readdirSync(dir);
+  if (hasOwnProperty.call(cache, dir)) return cache[dir];
+  let files = fs.readdirSync(dir); // тут нет смысла использовать асинхроинный readdir, так как файлы всё равно грузятся синхронным методом require()
   let res = [];
   for (let filename of files) {
     // оставляем только файлы, которые не начинаются с подчерка и имеют расширение js

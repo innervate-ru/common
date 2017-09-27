@@ -1,9 +1,6 @@
-import {
-  validateAndCopyOptionsFactory,
-  VType,
-} from '../validation'
+import {VType, validate} from '../validation'
 
-export const config = validateAndCopyOptionsFactory({
+export const ctor_options = validate.ctor.finished({
   description: {type: VType.String()},
   url: {type: VType.String().notEmpty(), required: true},
   user: {type: VType.String().notEmpty(), required: true},
@@ -28,13 +25,13 @@ export const config = validateAndCopyOptionsFactory({
   },
 });
 
-export const connectionMethodOptions = validateAndCopyOptionsFactory({
+export const connection_options = validate.method.finished('options', {
   cancel: {type: VType.Promise()}, // promise, который если становится resolved, то прерывает выполнение запроса
 });
 
-export const validateQueryMethodOptions = validateAndCopyOptionsFactory({
-  params: {type: VType.Function()}, // функция, которой передается как аргумен tedious.Request, чтобы она через requies.addParameter могла заполнить параметры
-  offset: {type: VType.Int().zero().positive()}, // строка, начиная с которой загружаются строки
-  limit: {type: VType.Int().positive()}, // строка, до которой включительно загружаются строки
-  context: {type: VType.String().notEmpty()}, // shortid контектса
+export const query_options = validate.method.finished('options', {
+  params: {null: true, type: VType.Function()}, // функция, которой передается как аргумен tedious.Request, чтобы она через requies.addParameter могла заполнить параметры
+  offset: {null: true, type: VType.Int().zero().positive()}, // строка, начиная с которой загружаются строки
+  limit: {null: true, type: VType.Int().positive()}, // сколько строк загружается
+  context: {null: true, type: VType.String().notEmpty()}, // shortid контектса
 });

@@ -1,4 +1,4 @@
-import throwIfMissing from 'throw-if-missing'
+import {missingArgument, invalidArgument} from '../validation'
 import prettyPrint from '../utils/prettyPrint'
 import addServiceStateValidation from '../services/addServiceStateValidation'
 import defineProps from '../utils/defineProps'
@@ -18,11 +18,10 @@ const schema = require('./MsSqlConnector.schema');
 const isConnectionError = (error) => error.__proto__.name === 'ConnectionError';
 
 const SERVICE_TYPE = require('./MsSqlConnector.serviceType').SERVICE_TYPE;
-const VALIDATE_OPTIONS = {argument: 'options'};
 
 export default oncePerServices(function (services) {
 
-  const {bus = throwIfMissing('bus')} = services;
+  const {bus = missingArgument('bus')} = services;
 
   class MsSqlConnector {
 
@@ -30,7 +29,7 @@ export default oncePerServices(function (services) {
 
     constructor(options) {
 
-      schema.config(options, VALIDATE_OPTIONS);
+      schema.ctor_options(this, options);
 
       const {url, user, password, options: connectionOptions, poolConfig} = options;
       const {port, database} = options;
@@ -79,7 +78,7 @@ export default oncePerServices(function (services) {
     }
 
     async connection(options) {
-      schema.connectionMethodOptions(options, VALIDATE_OPTIONS);
+      schema.connection_options(options);
       let res = new Promise((resolve, reject) => {
         this._pool.acquire((error, connection) => {
           if (error) this._rejectWithError(reject, error);
@@ -101,7 +100,7 @@ export default oncePerServices(function (services) {
     }
 
     /**
-     * Выполняет запрос к БД.
+     * Выполняет SQL запрос к БД.
      *
      * Опции:
      *    - params - Функция, которой передается как аргумен tedious.Request, чтобы она через requies.addParameter могла заполнить параметры
@@ -114,13 +113,37 @@ export default oncePerServices(function (services) {
      * @param options
      * @returns {Promise} {rows - полученные данные; hasNext - есть ли дальше строки, при указании limit}
      */
-    async query(statement = throwIfMissing('statement'), options) {
+    async query(statement = missingArgument('statement'), options) {
       let connection = await this._connection(options);
       try {
-        return await connection.query(statement, options);
+        return await connection._query(statement, options);
       }
       finally {
-        connection.end();
+        connection._end();
+      }
+    }
+
+    /**
+     * Выполняет запрос к хранимой процедуре в БД.
+     *
+     * Опции:
+     *    - params - Функция, которой передается как аргумен tedious.Request, чтобы она через requies.addParameter могла заполнить параметры
+     *    - offset - строка, начиная с которой загружаются строки
+     *    - limit - строка, до которой включительно загружаются строки
+     *    - context - shortid контектса
+     *    - cancel - promise, который если становится resolved, то прерывает выполнение запроса
+     *
+     * @param storedProcName Название хранимой процедуры
+     * @param options
+     * @returns {Promise} {rows - полученные данные; hasNext - есть ли дальше строки, при указании limit}
+     */
+    async callProcedure(storedProcName = missingArgument('storedProcName'), options) {
+      let connection = await this._connection(options);
+      try {
+        return await connection._callProcedure(storedProcName, options);
+      }
+      finally {
+        connection._end();
       }
     }
 
@@ -141,7 +164,7 @@ export default oncePerServices(function (services) {
     }
   }
 
-  addServiceStateValidation(MsSqlConnector, function() { return this._service; });
+  addServiceStateValidation(MsSqlConnector.prototype, function() { return this._service; });
 
   defineProps(MsSqlConnector, {
     msSqlConfig: {
@@ -164,7 +187,7 @@ export default oncePerServices(function (services) {
     }
 
     /**
-     * Выполняет запрос к БД.
+     * Выполняет SQL запрос к БД.
      *
      * Опции:
      *    - params - Функция, которой передается как аргумен tedious.Request, чтобы она через requies.addParameter могла заполнить параметры
@@ -177,12 +200,38 @@ export default oncePerServices(function (services) {
      * @param options
      * @returns {Promise} {rows - полученные данные; hasNext - есть ли дальше строки, при указании limit}
      */
-    async query(statement = throwIfMissing('statement'), options) {
+    query(statement = missingArgument('statement'), options) {
+      if (!(typeof statement === 'string' && statement.length > 0)) invalidArgument('statement', statement);
+      return this._innerQuery('execSql', statement, options);
+    }
 
-      if (!(typeof statement === 'string' && statement.length > 0))  throw new Error(`Invalid argument 'statement': ${prettyPrint(statement)}`);
-      schema.validateQueryMethodOptions(options, VALIDATE_OPTIONS);
+    /**
+     * Выполняет запрос к хранимой процедуре в БД.
+     *
+     * Опции:
+     *    - params - Функция, которой передается как аргумен tedious.Request, чтобы она через requies.addParameter могла заполнить параметры
+     *    - offset - строка, начиная с которой загружаются строки
+     *    - limit - строка, до которой включительно загружаются строки
+     *    - context - shortid контектса
+     *    - cancel - promise, который если становится resolved, то прерывает выполнение запроса
+     *
+     * @param storedProcName Название хранимой процедуры
+     * @param options
+     * @returns {Promise} {rows - полученные данные; hasNext - есть ли дальше строки, при указании limit}
+     */
+    callProcedure(storedProcName = missingArgument('storedProcName'), options) {
+      if (!(typeof storedProcName === 'string' && storedProcName.length > 0)) invalidArgument('storedProcName', storedProcName);
+      return this._innerQuery('callProcedure', storedProcName, options);
+    }
 
-      const {params = null, offset = 0, limit = Number.MAX_SAFE_INTEGER, context} = options || {};
+    async _innerQuery(execMethod, statement = missingArgument('statement'), options) {
+
+      schema.query_options(options);
+
+      let {params, offset, limit, context} = options || {};
+      if (typeof offset !== 'number') offset = 0;
+      if (typeof limit !== 'number') limit = Number.MAX_SAFE_INTEGER;
+      const lastRow = Math.min(offset + limit, Number.MAX_SAFE_INTEGER);
 
       return new Promise((resolve, reject) => {
 
@@ -206,9 +255,9 @@ export default oncePerServices(function (services) {
         });
         request.on('row', function (columns) {
           debug('row %d', rowIndex);
-          if (offset <= rowIndex && rowIndex <= limit)
+          if (offset <= rowIndex && rowIndex < lastRow)
             res.push(copyRowData(columns));
-          if (rowIndex > limit)
+          if (rowIndex == lastRow)
             if (!hasNext) { // это первая строка, после строки limit - завершаем процесс, и ставим hasNext = true
               debug('cancel request');
               hasNext = true;
@@ -220,7 +269,7 @@ export default oncePerServices(function (services) {
         //   debug(`doneProc`);
         // });
 
-        this._connection.execSql(request);
+        this._connection[execMethod](request);
       });
     }
 
@@ -230,7 +279,7 @@ export default oncePerServices(function (services) {
     }
   }
 
-  addServiceStateValidation(MsSqlConnector, function() { return this._connector._service; });
+  addServiceStateValidation(Connection.prototype, function() { return this._connector._service; });
 
   MsSqlConnector.SERVICE_TYPE = SERVICE_TYPE;
 

@@ -511,7 +511,7 @@ export default class SchemaToGraphQL {
     }
     if (field.type == 'xml') {
       const xmlFieldName = field.name;
-      const jsonFieldName = `${field.name}__json`
+      const jsonFieldName = `${field.name}__json`;
       return function (rows) {
         for (const row of rows) {
           const xml = row[xmlFieldName];

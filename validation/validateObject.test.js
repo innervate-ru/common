@@ -641,15 +641,15 @@ test.skip(`сделать рекурентный тип`, t => {
   require('./typesBuiltIn').default(typesExport);
   const {VType} = typesExport;
 
-  // const validatorStruct = validateObject({
-  //   v: {
-  //     type: VType.Recurrent(type => // параметр это тип, который можно использовать в структуре или массиве, чтобы сделать структуру рекурентной
-  //       VType.Fields({
-  //         name: {type: String},
-  //         children: {array: {type}}
-  //       })),
-  //   }
-  // });
+  const validatorStruct = validateObject({
+    v: {
+      type: VType.Recurrent(type => // параметр это тип, который можно использовать в структуре или массиве, чтобы сделать структуру рекурентной
+        VType.Fields({
+          name: {type: String},
+          children: {array: {type}}
+        })),
+    }
+  });
 
   const validatorArray = validateObject({v: {type: VType.Recurrent(type => VType.Array({type: [VType.Int(), type]}))}});
 
@@ -661,3 +661,22 @@ test.skip(`сделать рекурентный тип`, t => {
   // TODO: Сделать чтоб тип, можно было отдавать перечнем ...или может сразу описание элемента, как для массива ...тогда полезно будет учитвать required - что один уровень обязательный
   // TODO: Щас типы можно использовать только при определении переменных ...а хочется recurrenct сделать на верхнем уро
 });
+
+test.skip(`валидация простыми типами`, t => {
+  const typesExport = require('./types')._module();
+  require('./typesBuiltIn').default(typesExport);
+  const {VType} = typesExport;
+
+  const method_v = VType.String(v => v.length > 3).name('v').build();
+  t.is(method_v('1234'), undefined);
+
+  validate.param('v', VType.String(v => v.length > 3).finished()); // выдавать предупреждение что для
+
+  // 1. лучше билдер для проверки параметров сделать отдельным
+  // 2. для структур, подумать над тем чтоб сделать спец. субвалидатор finished, который бы включал unexpectedFields \
+  // 2a. или подумать о том, чтобы сделать отдельный тип VType.FinalFields, который бы не позволял использоваться его в extends ...
+
+
+});
+
+test.todo(`_extends во вложенных структурах`); // почему бы ему не работать

@@ -67,7 +67,7 @@ export default oncePerServices(function (services) {
     }
   }
 
-  addServiceStateValidation(PGConnector, function () { return this._service; });
+  addServiceStateValidation(PGConnector.prototype, function () { return this._service; });
 
   class Connection {
 
@@ -93,7 +93,7 @@ export default oncePerServices(function (services) {
     }
   }
 
-  addServiceStateValidation(Connection, function () { return this._connector._service; });
+  addServiceStateValidation(Connection.prototype, function () { return this._connector._service; });
 
   PGConnector.SERVICE_TYPE = SERVICE_TYPE;
 

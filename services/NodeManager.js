@@ -5,6 +5,7 @@ import missingService from './missingService'
 import {READY, FAILED} from './Service.states'
 
 const hasOwnProperty = Object.prototype.hasOwnProperty;
+const schema = require('./NodeManager.schema');
 
 export default oncePerServices(function (services) {
 
@@ -19,8 +20,7 @@ export default oncePerServices(function (services) {
     });
 
     constructor(options) {
-
-      require('./NodeManager.schema').nodeManagerClassOptions(options, {argument: 'options', copyTo: this});
+      schema.ctor_options(this, options);
 
       // выдаем событие nodemanager.started, когда все зарегистрированные сервисы
       const startTime = new Date().getTime();

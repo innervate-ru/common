@@ -55,6 +55,7 @@ function _module() {
     _build(validateType) { // параметр validateType полезен чтобы совместить нестрандартную проверку и субвалидаторы - пример, тип Array()
 
       const typeName = this._vtype;
+      const reusableValidator = !validateType; // если это параметризированный тип, то его кешировать не надо, так как для одного _vtype будут разные варианты проверок
 
       if (!validateType) {
         if (hasOwnProperty.call(this, '_validator')) {
@@ -95,15 +96,16 @@ function _module() {
       if (!hasOwnProperty.call(this, '_subvalidators')) { // простой тип, без дополнительных or-проверок
 
         key = typeName;
-        if (hasOwnProperty.call(cachedValidators, key)) return cachedValidators[key];
+        if (reusableValidator && hasOwnProperty.call(cachedValidators, key)) return cachedValidators[key];
 
         typeValidateFactory = validateType;
 
       } else { // тип с or-проверками
 
         const normolizedSubvalidatorsList = uniq(this._subvalidators).sort();
-        key = `${typeName}_${normolizedSubvalidatorsList.join('_')}`;
-        if (hasOwnProperty.call(cachedValidators, key)) return cachedValidators[key];
+
+          key = `${typeName}_${normolizedSubvalidatorsList.join('_')}`;
+          if (reusableValidator && hasOwnProperty.call(cachedValidators, key)) return cachedValidators[key];
 
         const typeSubvalidators = subvalidators[typeName];
         const normolizedSubvalidators = normolizedSubvalidatorsList.map(v => typeSubvalidators[v]);
@@ -167,7 +169,7 @@ function _module() {
       typeValidateFactory.toString = function () {
         return key;
       };
-      cachedValidators[key] = typeValidateFactory;
+      if (reusableValidator) cachedValidators[key] = typeValidateFactory;
       return typeValidateFactory;
     },
     toString() {
