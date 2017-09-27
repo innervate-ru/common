@@ -11,6 +11,10 @@ import {READY} from '../services'
 const debug = require('debug')('mssql');
 const schema = require('./MsSqlConnector.schema');
 
+// TODO: Передавать аргументы просто map'ом, и опция передавать типы отдельным map'ом
+// TODO: Передавать контекст
+// TODO: Добавить в ошибки тип запроса, параметры
+
 /**
  * По каким-то, не до конца понятным, причинам error instaceof ConnectionError не cработал.  Этот метод реализаует
  * duck-typing для проверки что tedious вернул ошибку типа ConnectionError.
