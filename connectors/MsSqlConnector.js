@@ -260,14 +260,14 @@ export default oncePerServices(function (services) {
             for (paramName in params) {
               const paramValue = params[paramName];
               let tedType;
-              if (paramsDef && hasOwnProperty.call(paramsDef, hasOwnProperty)) {
+              if (paramsDef && hasOwnProperty.call(paramsDef, paramName)) {
                 const def = paramsDef[paramName];
                 if (typeof def === 'object') { // когда заданы дополнительные свойства
                   const {type, length, precision, scale} = def; // TODO: Добавить валидацию
-                  if (hasOwnProperty.call(stringToTediousTypeMap, type)) throw new Error(`Unknown type: ${prettyPrint(type)}`);
+                  if (!hasOwnProperty.call(stringToTediousTypeMap, type)) throw new Error(`Unknown type: ${prettyPrint(type)}`);
                   tedType = stringToTediousTypeMap[type];
                 } else if (typeof def === 'string') {
-                  if (hasOwnProperty.call(stringToTediousTypeMap, def)) throw new Error(`Unknown type: ${prettyPrint(def)}`);
+                  if (!hasOwnProperty.call(stringToTediousTypeMap, def)) throw new Error(`Unknown type: ${prettyPrint(def)}`);
                   tedType = stringToTediousTypeMap[def];
                 } else throw new Error(`Invalid parameter '${paramName}' definition: ${prettyPrint(def)}`);
               } else {
@@ -277,7 +277,7 @@ export default oncePerServices(function (services) {
             }
           }
           catch (error) {
-            addErrorContext(`Parameter '${paramName}'`);
+            addErrorContext(`Parameter '${paramName}'`, error);
           }
         }
 
