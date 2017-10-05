@@ -1,9 +1,10 @@
+import {oncePerServices} from '../services'
 import missingService from '../services/missingService'
 import {STARTING} from '../services/Service.states'
 
 const SERVICE_TYPE = require('./SoapConnector.serviceType').SERVICE_TYPE;
 
-export default function defineEvents({bus = missingService('bus')}) {
+export default oncePerServices(function defineEvents({bus = missingService('bus')}) {
 
   bus.alterToString({
 
@@ -15,4 +16,4 @@ export default function defineEvents({bus = missingService('bus')}) {
       `${ev.source}: сonnecting to ${ev.options.uri} as '${ev.options.login}'`,
 
   });
-}
+})

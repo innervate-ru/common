@@ -1,7 +1,8 @@
+import {oncePerServices} from '../services'
 import missingService from '../services/missingService'
 import {VType, validateEventFactory, BaseEvent} from '../events'
 
-export default function defineEvents({bus = missingService('bus')}) {
+export default oncePerServices(function defineEvents({bus = missingService('bus')}) {
   bus.registerEvent([
     {
       kind: 'warn',
@@ -12,4 +13,4 @@ export default function defineEvents({bus = missingService('bus')}) {
       }),
     },
   ]);
-};
+})

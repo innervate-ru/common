@@ -1,10 +1,11 @@
+import oncePerServices from './oncePerServices'
 import moment from 'moment'
 import 'moment-duration-format'
 import missingService from './missingService'
 
 import {VType, validateEventFactory, BaseEvent} from '../events'
 
-export default function defineEvents({bus = missingService('bus')}) {
+export default oncePerServices(function defineEvents({bus = missingService('bus')}) {
   bus.registerEvent([
     {
       kind: 'info',
@@ -17,4 +18,4 @@ export default function defineEvents({bus = missingService('bus')}) {
       toString: (ev) => `${ev.source}: node started in ${moment.duration(ev.startDuration).format('h:mm:ss', 3)}${ev.failedServices ? `; failed: ${ev.failedServices.join()}` : ``}`,
     },
   ]);
-};
+})

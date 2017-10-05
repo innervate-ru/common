@@ -1,7 +1,8 @@
+import {oncePerServices} from '../services'
 import missingService from '../services/missingService'
 import {STARTING} from '../services/Service.states'
 
-export default function defineEvents({bus = missingService('bus')}) {
+export default oncePerServices(function defineEvents({bus = missingService('bus')}) {
 
   const SERVICE_TYPE = require('./MsSqlConnector.serviceType').SERVICE_TYPE;
 
@@ -15,4 +16,4 @@ export default function defineEvents({bus = missingService('bus')}) {
       `${ev.source}: сonnecting to ${ev.options.url}:${ev.options.options.port} as '${ev.options.user}'. database is '${ev.options.options.database}'`,
 
   });
-}
+})

@@ -7,7 +7,7 @@ import ConnectionPool from 'tedious-connection-pool'
 import {Request, ConnectionError} from 'tedious'
 import {stringToTediousTypeMap, tediouseTypeByValue} from './MsSqlConnector.types'
 import {READY} from '../services'
-import addErrorContext from '../utils/addErrorContext'
+import addPrefixToErrorMessage from '../utils/addPrefixToErrorMessage'
 
 const hasOwnProperty = Object.prototype.hasOwnProperty;
 const debug = require('debug')('mssql');
@@ -51,7 +51,6 @@ export default oncePerServices(function (services) {
 
     _poolError = (error) => {
       // TODO: Проверить что сюда попадают ошибки от неправильных запросов
-      console.info('error');
       if (this._service.state === READY)
         this._service.criticalFailure(error);
     };
@@ -120,8 +119,9 @@ export default oncePerServices(function (services) {
      * @param options
      * @returns {Promise} {rows - полученные данные; hasNext - есть ли дальше строки, при указании limit}
      */
+    // TODO: Obsolete
     async query(statement = missingArgument('statement'), options) {
-      let connection = await this._connection(options);
+      let connection = await this._connection(options); // TODO: Обработать ошибки
       try {
         return await connection._query(statement, options);
       }
@@ -144,10 +144,37 @@ export default oncePerServices(function (services) {
      * @param options
      * @returns {Promise} {rows - полученные данные; hasNext - есть ли дальше строки, при указании limit}
      */
+    // TODO: Obsolete
     async callProcedure(storedProcName = missingArgument('storedProcName'), options) {
       let connection = await this._connection(options);
       try {
         return await connection._callProcedure(storedProcName, options);
+      }
+      finally {
+        connection._end();
+      }
+    }
+
+    /**
+     * Выполняет запрос к хранимой процедуре в БД.
+     *
+     * Опции:
+     *    - query - SQL запрос (Важно: Обязательно должен быть указан один из параметров query или procedure)
+     *    - procedure - имя хранимой процедуры
+     *    - params - Функция, которой передается как аргумен tedious.Request, чтобы она через requies.addParameter могла заполнить параметры
+     *    - offset - строка, начиная с которой загружаются строки
+     *    - limit - строка, до которой включительно загружаются строки
+     *    - context - shortid контекста, в котором выполняется запрос
+     *    - cancel - promise, который если становится resolved, то прерывает выполнение запроса
+     *
+     * @param storedProcName Название хранимой процедуры
+     * @param options
+     * @returns {Promise} {rows - полученные данные; hasNext - есть ли дальше строки, при указании limit}
+     */
+    async exec(options) {
+      let connection = await this._connection(options);
+      try {
+        return await connection._exec(options);
       }
       finally {
         connection._end();
@@ -207,9 +234,10 @@ export default oncePerServices(function (services) {
      * @param options
      * @returns {Promise} {rows - полученные данные; hasNext - есть ли дальше строки, при указании limit}
      */
+    // TODO: Obsolete
     query(statement = missingArgument('statement'), options) {
       if (!(typeof statement === 'string' && statement.length > 0)) invalidArgument('statement', statement);
-      return this._innerQuery('execSql', statement, options);
+      return this._innerExec({...options, query: statement});
     }
 
     /**
@@ -226,16 +254,37 @@ export default oncePerServices(function (services) {
      * @param options
      * @returns {Promise} {rows - полученные данные; hasNext - есть ли дальше строки, при указании limit}
      */
+    // TODO: Obsolete
     callProcedure(storedProcName = missingArgument('storedProcName'), options) {
       if (!(typeof storedProcName === 'string' && storedProcName.length > 0)) invalidArgument('storedProcName', storedProcName);
-      return this._innerQuery('callProcedure', storedProcName, options);
+      return this._innerExec({...options, procedure: storedProcName});
     }
 
-    async _innerQuery(execMethod, statement = missingArgument('statement'), options) {
+    /**
+     * Выполняет запрос к хранимой процедуре в БД.
+     *
+     * Опции:
+     *    - query - SQL запрос (Важно: Обязательно должен быть указан один из параметров query или procedure)
+     *    - procedure - имя хранимой процедуры
+     *    - params - Функция, которой передается как аргумен tedious.Request, чтобы она через requies.addParameter могла заполнить параметры
+     *    - offset - строка, начиная с которой загружаются строки
+     *    - limit - строка, до которой включительно загружаются строки
+     *    - context - shortid контекста, в котором выполняется запрос
+     *    - cancel - promise, который если становится resolved, то прерывает выполнение запроса
+     *
+     * @param options
+     * @returns {Promise} {rows - полученные данные; hasNext - есть ли дальше строки, при указании limit; columns - методанные возвращаенных колонок}
+     */
+    exec(options) {
+      return this._innerExec(options);
+    }
+
+    async _innerExec(options) {
 
       schema.query_options(options);
+      this._options = options;
 
-      let {paramsDef, params, offset, limit, context} = options || {};
+      let {query, procedure, paramsDef, params, offset, limit, context} = options || {};
       if (typeof offset !== 'number') offset = 0;
       if (typeof limit !== 'number') limit = Number.MAX_SAFE_INTEGER;
       const lastRow = Math.min(offset + limit, Number.MAX_SAFE_INTEGER);
@@ -246,8 +295,9 @@ export default oncePerServices(function (services) {
         let res = [];
         let hasNext = false;
 
-        let request = new Request(statement, (error, rowCount) => {
+        let request = new Request(query || procedure, (error, rowCount) => {
           if (error && error.code != 'ECANCEL') {
+            error.callOptions = this._options;
             this._connector._rejectWithError(reject, error);
           } else {
             resolve({rows: res, hasNext, columns});
@@ -277,7 +327,7 @@ export default oncePerServices(function (services) {
             }
           }
           catch (error) {
-            addErrorContext(`Parameter '${paramName}'`, error);
+            addPrefixToErrorMessage(`Parameter '${paramName}'`, error);
           }
         }
 
@@ -301,7 +351,10 @@ export default oncePerServices(function (services) {
         //   debug(`doneProc`);
         // });
 
-        this._connection[execMethod](request);
+        if (query)
+          this._connection.execSql(request);
+        else
+          this._connection.callProcedure(request);
       });
     }
 

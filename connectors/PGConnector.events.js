@@ -1,9 +1,10 @@
+import {oncePerServices} from '../services'
 import missingService from '../services/missingService'
 import {STARTING} from '../services/Service.states'
 
 const SERVICE_TYPE = require('./PGConnector.serviceType').SERVICE_TYPE;
 
-export default function defineEvents({bus = missingService('bus')}) {
+export default oncePerServices(function defineEvents({bus = missingService('bus')}) {
 
   bus.alterToString({
 
@@ -13,4 +14,4 @@ export default function defineEvents({bus = missingService('bus')}) {
     'service.options': ev => ev.serviceType !== SERVICE_TYPE ? false :
       `${ev.source}: сonnecting to ${ev.options.url}:${ev.options.port} as '${ev.options.user}'. database is '${ev.options.database}'`,
   });
-}
+})

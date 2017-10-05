@@ -3,7 +3,7 @@ import missingService from '../../services/missingService'
 import oncePerServices from '../../services/oncePerServices'
 import addServiceStateValidation from '../../services/addServiceStateValidation'
 import prettyPrint from '../../utils/prettyPrint'
-import addErrorContext from '../../utils/addErrorContext'
+import addPrefixToErrorMessage from '../../utils/addPrefixToErrorMessage'
 import tedious from 'tedious'
 import {stringToTediousTypeMap} from '../../connectors/MsSqlConnector.types'
 
@@ -49,7 +49,7 @@ function processSchema(schema) {
     for (methodModel of schema)
       addMethod.call(this, methodModel);
   } catch (error) {
-    addErrorContext(`Method ${prettyPrint(methodModel)}`, error);
+    addPrefixToErrorMessage(`Method ${prettyPrint(methodModel)}`, error);
   }
 }
 

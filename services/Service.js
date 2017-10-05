@@ -1,16 +1,29 @@
 import oncePerServices from './oncePerServices'
 import defineProps from '../utils/defineProps'
 import prettyPrint from '../utils/prettyPrint'
-import allErrorInfoToMessage from '../utils/allErrorInfoToMessage'
 import InvalidServiceStateError from './InvalidServiceStateError'
 import flattenDeep from 'lodash/flattenDeep'
 import uniq from 'lodash/uniq'
-import cleanStack from 'clean-stack'
 import addServiceStateValidation from './addServiceStateValidation'
+import errorDataToEvent from '../errors/errorDataToEvent'
+import shortid from 'shortid'
+import addContextToError from '../context/addContextToError'
 
 export const DEFAULT_FAIL_RECOVERY_INTERVAL = 60000;
 
-import {NOT_INITIALIZED, WAITING_OTHER_SERVICES_TO_START, INITIALIZING, INITIALIZE_FAILED, STARTING, READY, STOPPING, STOPPED, FAILED, DISPOSING, DISPOSED} from './Service.states'
+import {
+  NOT_INITIALIZED,
+  WAITING_OTHER_SERVICES_TO_START_OR_FAIL,
+  INITIALIZING,
+  INITIALIZE_FAILED,
+  STARTING,
+  READY,
+  STOPPING,
+  STOPPED,
+  FAILED,
+  DISPOSING,
+  DISPOSED
+} from './Service.states'
 
 export default oncePerServices(function (services) {
 
@@ -109,7 +122,7 @@ export default oncePerServices(function (services) {
           const dependsOnMap = this._dependsOn = {};
           let dependsOnCount = 0;
           dependsOn.forEach(v => {
-            if (dependsOnMap[v._service.name] = (v._service.state === READY)) dependsOnCount++;
+            if (dependsOnMap[v._service.name] = (v._service.state === READY || v._service.state === FAILED)) dependsOnCount++;
           });
           this._isAllDependsAreReady = (dependsOnCount === dependsOnTotal);
           bus.on('service.state', ev => {
@@ -139,18 +152,19 @@ export default oncePerServices(function (services) {
 
       // TODO: Добавить состояние и логику для быстрой перезагрузке в состоянии READY
       // TODO: Uptime
+      // TODO: Operations timing
     }
 
     _nextStateStep() {
       switch (this._state) {
         case NOT_INITIALIZED:
-          if (this._isAllDependsAreReady) this._setState(INITIALIZING, {method: this._serviceInit, nextState: STOPPED});
-          else this._setState(WAITING_OTHER_SERVICES_TO_START);
+          if (this._isAllDependsAreReady) this._setState(INITIALIZING, {method: '_serviceInit', nextState: STOPPED});
+          else this._setState(WAITING_OTHER_SERVICES_TO_START_OR_FAIL);
           break;
-        case WAITING_OTHER_SERVICES_TO_START:
-          if (this._dispose) this._setState(DISPOSING, {method: this._serviceDispose, nextState: DISPOSED});
+        case WAITING_OTHER_SERVICES_TO_START_OR_FAIL:
+          if (this._dispose) this._setState(DISPOSING, {method: '_serviceDispose', nextState: DISPOSED});
           else if (this._isAllDependsAreReady) this._setState(INITIALIZING, {
-            method: this._serviceInit,
+            method: '_serviceInit',
             nextState: STOPPED
           });
           return;
@@ -159,22 +173,22 @@ export default oncePerServices(function (services) {
           else if (this._currentOpPromise.isRejected()) this._setState(INITIALIZE_FAILED, {failureReason: this._currentOpPromise.reason()});
           break;
         case STOPPED:
-          if (this._dispose) this._setState(DISPOSING, {method: this._serviceDispose, nextState: DISPOSED});
+          if (this._dispose) this._setState(DISPOSING, {method: '_serviceDispose', nextState: DISPOSED});
           else if (this._isAllDependsAreReady && !this._stop) this._setState(STARTING, {
-            method: this._serviceStart,
+            method: '_serviceStart',
             nextState: READY
           });
           break;
         case STARTING:
           if (this._currentOpPromise.isFulfilled()) {
             if (this._stop || !this._isAllDependsAreReady) this._setState(STOPPING, {
-              method: this._serviceStop,
+              method: '_serviceStop',
               nextState: STOPPED
             });
             else this._setState(READY);
           }
           else if (this._currentOpPromise.isRejected()) this._setState(STOPPING, {
-            method: this._serviceStop,
+            method: '_serviceStop',
             failureReason: this._currentOpPromise.reason(),
             nextState: FAILED,
           });
@@ -182,7 +196,7 @@ export default oncePerServices(function (services) {
         case READY:
           this._firstOpTime = null;
           if (!this._isAllDependsAreReady || this._stop || this._failureReason || this._dispose) this._setState(STOPPING, {
-            method: this._serviceStop,
+            method: '_serviceStop',
             failureReason: this._failureReason,
             nextState: this._failureReason ? FAILED : STOPPED,
           });
@@ -194,11 +208,11 @@ export default oncePerServices(function (services) {
           }
           break;
         case FAILED: // будет переведен в состояние STOPPED после restartInterval (см. setTimeout в setFailed() выше)
-          if (this._dispose) this._setState(DISPOSING, {method: this._serviceDispose, nextState: DISPOSED});
+          if (this._dispose) this._setState(DISPOSING, {method: '_serviceDispose', nextState: DISPOSED});
           else if (this._stop) this._setState(STOPPED);
           break;
         case INITIALIZE_FAILED:
-          if (this._dispose) this._setState(DISPOSING, {method: this._serviceDispose, nextState: DISPOSED});
+          if (this._dispose) this._setState(DISPOSING, {method: '_serviceDispose', nextState: DISPOSED});
           break;
         case DISPOSING:
           if (this._currentOpPromise.isFulfilled() || this._currentOpPromise.isRejected()) this._setState(DISPOSED);
@@ -226,9 +240,15 @@ export default oncePerServices(function (services) {
 
       this._failureReason = failureReason || null;
 
-      if (method) {
-
-        const promise = this._currentOpPromise = method.call(this._serviceImpl).catch(this._reportMethodError);
+      const methodImpl = this[method];
+      if (methodImpl) {
+        const args = Object.create(null);
+        args.context = shortid();
+        const promise = this._currentOpPromise = methodImpl.call(this._serviceImpl, args).catch((error) => {
+          addContextToError(args, args, error, {svc: this._name, method});
+          this._reportError(error);
+          return Promise.rejected(error);
+        });
         if (!('then' in promise)) throw new Error(`Method must return a promise: ${prettyPrint(method)}`);
 
         if (testMode)
@@ -261,7 +281,10 @@ export default oncePerServices(function (services) {
         state: newState,
         prevState,
       };
-      if (this._failureReason) ev.reason = this._failureReason.message;
+      if (this._failureReason) {
+        const reason = ev.reason = Object.create(null);
+        errorDataToEvent(this._failureReason, reason);
+      }
       if (this._serviceType) ev.serviceType = this._serviceType;
       bus.event(ev);
 
@@ -277,7 +300,7 @@ export default oncePerServices(function (services) {
      * Прим.: Такая форма записи в ES6 делает метод который уже привязан к инстансу объекта
      */
     _reportMethodError = (error) => {
-      this.reportError(error);
+      this._reportError(error);
       return Promise.rejected(error);
     };
 
@@ -330,7 +353,7 @@ export default oncePerServices(function (services) {
       if (this._state !== READY) throw new Error(`Critical error thrown in wrong state '${this._state}': '${prettyPrint(error)}'`);
       if (!(error instanceof Error)) error = new Error(`Invalid argument 'error': ${prettyPrint(err)}`);
       this._failureReason = error;
-      this.reportError(error);
+      this._reportError(error);
       this._nextStateStep();
     }
 
@@ -338,17 +361,15 @@ export default oncePerServices(function (services) {
      * Отправляет ошибку в шину, с указанием сервиса как источника данных об ошибке.
      * @param error Объект типа Error
      */
-    reportError(error) {
+    _reportError(error) {
       if (!(error instanceof Error)) error = new Error(`Invalid argument 'error': ${prettyPrint(err)}`);
-      const fixedError = allErrorInfoToMessage(error);
       const errEvent = {
         time: new Date().getTime(),
         type: 'service.error',
         source: this._name,
-        message: fixedError.message,
-        stack: cleanStack(fixedError.stack, {pretty: true}),
       };
       if (this._serviceType) errEvent.serviceType = this._serviceType;
+      errorDataToEvent(error, errEvent);
       bus.error(errEvent);
     }
 
@@ -396,7 +417,9 @@ export default oncePerServices(function (services) {
       }
     }
 
-    addServiceStateValidation(serviceClass.prototype, function() { return this._service; });
+    addServiceStateValidation(serviceClass.prototype, function () {
+      return this._service;
+    });
 
     return ServiceImpl;
   }

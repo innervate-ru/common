@@ -1,10 +1,10 @@
 import test from 'ava'
 import sinon from 'sinon'
 import TestConsole from '../utils/testConsole'
+import {DEFAULT_FAIL_RECOVERY_INTERVAL} from './Service'
 import {
-  DEFAULT_FAIL_RECOVERY_INTERVAL,
   NOT_INITIALIZED,
-  WAITING_OTHER_SERVICES_TO_START,
+  WAITING_OTHER_SERVICES_TO_START_OR_FAIL,
   INITIALIZING,
   INITIALIZE_FAILED,
   STARTING,
@@ -14,7 +14,7 @@ import {
   FAILED,
   DISPOSING,
   DISPOSED
-} from './index'
+} from './Service.states'
 
 // ВНИМАНИЕ: Налетел на проблему, что тесты валятся когда работают вместе и используют sinon.useFakeTimers().  Поэтому тесты надо запускать в режиме serial.
 test.beforeEach(t => {
@@ -24,6 +24,7 @@ test.afterEach(t => {
   t.context.clock.restore();
 });
 
+// TODO: Добавить в событие, сколько времени занимала операция
 // TODO: Информация для монитора: какое время сервис находится в состоянии, причины почему он не может быть запусщен
 // TODO: Методанные - команды которые можно выполнить на сервисе
 
@@ -33,9 +34,6 @@ test.beforeEach(t => {
     const name = `s${i}`;
     return {
       name,
-      config: (services) => {
-        require('./index').config(services);
-      },
       default: (services) => {
         const dependsOn = [];
         for (let j = 1; j < i; j++) dependsOn.push(services[`s${j}`]);
@@ -140,6 +138,7 @@ test.serial(`Фатальная ошибка при работе сервиса,
   const testConsole = new TestConsole();
   const services = {console: testConsole, testMode: true};
   services.bus = new (require('../events').Bus(services))();
+  require('./Service.events').default(services);
   const nodeManager = new (require('./index').NodeManager(services))({
     name: 'node1',
     services: [t.context.s1],
@@ -160,8 +159,8 @@ test.serial(`Фатальная ошибка при работе сервиса,
 
   try {
     t.is(testConsole.getLogAndClear(),
-      `error: node1:s1: error: '{name: 'Error', message: 'some error'}' | ` +
-      `info: node1:s1: state: 'failed' (reason: 'some error')`);
+      `error: node1:s1: error: 'Error: some error' | ` +
+      `info: node1:s1: state: 'failed' (reason: 'Error: some error')`);
   } catch (err) {
     console.error(err);
   }
@@ -187,9 +186,6 @@ test.serial(`Переходы сообщений с ожиданием испо�
   const name = 's';
   const svcS = {
     name,
-    config: (services) => {
-      require('./index').config(services);
-    },
     default: (services) => {
       return new (require('./index').Service(services)(class DummyService {
         _serviceInit() {
@@ -254,9 +250,6 @@ test.serial(`Ошибка в асинхронном методе - при ини
   const name = 's';
   const svcS = {
     name,
-    config: (services) => {
-      require('./index').config(services);
-    },
     default: (services) => {
       return new (require('./index').Service(services)(class DummyService {
         _serviceInit() {
@@ -308,9 +301,6 @@ test.serial(`Ошибка в асинхронном методе - при зап
   const name = 's';
   const svcS = {
     name,
-    config: (services) => {
-      require('./index').config(services);
-    },
     default: (services) => {
       return new (require('./index').Service(services)(class DummyService {
         _serviceStart() {
@@ -369,9 +359,6 @@ test.serial(`Ошибка в асинхронном методе - при ост
   const name = 's';
   const svcS = {
     name,
-    config: (services) => {
-      require('./index').config(services);
-    },
     default: (services) => {
       return new (require('./index').Service(services)(class DummyService {
         _serviceStop() {
@@ -385,6 +372,7 @@ test.serial(`Ошибка в асинхронном методе - при ост
   const testConsole = new TestConsole();
   const services = {console: testConsole, testMode: true};
   services.bus = new (require('../events').Bus(services))();
+  require('./Service.events').default(services);
   const nodeManager = new (require('./index').NodeManager(services))({
     name: 'node1',
     services: [svcS],
@@ -409,7 +397,7 @@ test.serial(`Ошибка в асинхронном методе - при ост
   t.is(s.state, STOPPED);
   t.is(s.failureReason, null); // ошибки при остановке, не считаются критическими проблемами для сервиса
   t.is(testConsole.getLogAndClear(), // но ошибка ушла в bus
-    `error: node1:s: error: '{name: 'Error', message: 'some error'}' | ` +
+    `error: node1:s: error: 'Error: some error' | ` +
     `info: node1:s: state: 'stopped'`
   );
 
@@ -419,9 +407,6 @@ test.serial(`Ошибка в асинхронном методе - при дес
   const name = 's';
   const svcS = {
     name,
-    config: (services) => {
-      require('./index').config(services);
-    },
     default: (services) => {
       return new (require('./index').Service(services)(class DummyService {
         _serviceDispose() {
@@ -435,6 +420,7 @@ test.serial(`Ошибка в асинхронном методе - при дес
   const testConsole = new TestConsole();
   const services = {console: testConsole, testMode: true};
   services.bus = new (require('../events').Bus(services))();
+  require('./Service.events').default(services);
   const nodeManager = new (require('./index').NodeManager(services))({
     name: 'node1',
     services: [svcS],
@@ -458,18 +444,15 @@ test.serial(`Ошибка в асинхронном методе - при дес
   t.true(disposePromise.isFulfilled());
   t.is(s.failureReason, null); // ошибки при остановке, не считаются критическими проблемами для сервиса
   t.is(testConsole.getLogAndClear(), // но ошибка ушла в bus
-    `error: node1:s: error: '{name: 'Error', message: 'some error'}' | ` +
+    `error: node1:s: error: 'Error: some error' | ` +
     `info: node1:s: state: 'disposed'`
   );
 });
 
-test.serial(`Ожидание в статусе WAITING_OTHER_SERVICES_TO_START пока сервис от которого есть зависимость стартанет. Остановка сервиса после STARTING, если сервис от которого он зависи остановился`, t => {
+test.serial(`Ожидание в статусе WAITING_OTHER_SERVICES_TO_START_OR_FAIL пока сервис от которого есть зависимость стартанет. Остановка сервиса после STARTING, если сервис от которого он зависи остановился`, t => {
   const name = 's';
   const svcS = {
     name,
-    config: (services) => {
-      require('./index').config(services);
-    },
     default: (services) => {
       return new (require('./index').Service(services)(class DummyService {
         _serviceInit() {
@@ -497,11 +480,11 @@ test.serial(`Ожидание в статусе WAITING_OTHER_SERVICES_TO_START 
   t.false(s._isAllDependsAreReady);
   s._nextStateStep();
   t.is(s1.state, NOT_INITIALIZED);
-  t.is(s.state, WAITING_OTHER_SERVICES_TO_START); // ждем червис s1
+  t.is(s.state, WAITING_OTHER_SERVICES_TO_START_OR_FAIL); // ждем червис s1
 
   s1._nextStateStep();
   t.is(s1.state, STOPPED);
-  t.is(s.state, WAITING_OTHER_SERVICES_TO_START);
+  t.is(s.state, WAITING_OTHER_SERVICES_TO_START_OR_FAIL);
 
   s1._nextStateStep();
   t.is(s1.state, READY);
@@ -535,6 +518,89 @@ test.serial(`Ожидание в статусе WAITING_OTHER_SERVICES_TO_START 
   t.is(s1.state, READY);
   t.is(s.state, READY);
 
+});
+
+// TODO: Check failed init, and kill whole app if some service had failed
+// TODO: Додумать и реализовать как должны стартовать сервисы, у которых сервисы от которых они зависят, не запустились и сразу перешли в состояние FAILED
+test.serial.skip(`Ожидание в статусе WAITING_OTHER_SERVICES_TO_START_OR_FAIL пока сервис от которого есть зависимость перейдет в FAILED при запуске.  И этот сервис переходит в STOPPED`, async t => {
+
+  const name = 's';
+  const failingToStartSvcDecl = {
+    name: 'failingService',
+    default: (services) => {
+      return new (require('./index').Service(services)(class DummyService {
+        _serviceStart() {
+          return new Promise(function (resolve,  reject) {
+            setTimeout(() => reject(new Error(`some error`), 100));
+          });
+        }
+      }))(name, {dependsOn: []})
+    },
+  };
+
+  const svcS = {
+    name,
+    default: (services) => {
+      return new (require('./index').Service(services)(class DummyService {
+        _serviceInit() {
+          return Promise.delay(100);
+        }
+        _serviceStart() {
+          return Promise.delay(100);
+        }
+      }))(name, {dependsOn: [services.failingService, services.s1]})
+    },
+  };
+
+  const testConsole = new TestConsole();
+  const services = {console: testConsole, testMode: true};
+  services.bus = new (require('../events').Bus(services))();
+
+  const nodeManager = new (require('./index').NodeManager(services))({
+    name: 'node1',
+    services: [failingToStartSvcDecl, t.context.s1, svcS],
+  });
+
+  const failingService = nodeManager.services.failingService._service;
+  const s1 = nodeManager.services.s1._service;
+  const s = nodeManager.services.s._service;
+
+  t.is(failingService.state, NOT_INITIALIZED);
+  t.is(s1.state, NOT_INITIALIZED);
+  t.is(s.state, NOT_INITIALIZED);
+
+  t.false(s._isAllDependsAreReady);
+  s._nextStateStep();
+  t.is(failingService.state, NOT_INITIALIZED);
+  t.is(s1.state, NOT_INITIALIZED);
+  t.is(s.state, WAITING_OTHER_SERVICES_TO_START_OR_FAIL); // ждем сервис s1
+
+  s1._nextStateStep();
+  failingService._nextStateStep();
+  t.is(s1.state, STOPPED);
+  t.is(failingService.state, STOPPED);
+  t.is(s.state, WAITING_OTHER_SERVICES_TO_START_OR_FAIL);
+
+  s1._nextStateStep();
+  t.is(s1.state, READY);
+  t.is(s.state, WAITING_OTHER_SERVICES_TO_START_OR_FAIL);
+
+  failingService._nextStateStep();
+  t.is(failingService.state, STARTING);
+  t.is(s.state, WAITING_OTHER_SERVICES_TO_START_OR_FAIL);
+
+  t.context.clock.tick(200);
+  try {
+    await failingService._testWaitPromise;
+    t.fail(`failingService._serviceStart должен вернуть ошибку`)
+  } catch (err) { }
+  failingService._nextStateStep();
+  t.is(failingService.state, FAILED);
+
+  s._nextStateStep();
+  t.is(s.state, STOPPED);
+
+  failingService._nextStateStep();
 });
 
 test.serial(`dispose NodeManager, с ожиданием когда все сервисы выполнят dispose, или наступит timeout`, async t => {
