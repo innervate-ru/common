@@ -1,4 +1,6 @@
 import {missingArgument, invalidArgument} from '../validation'
+import defineProps from '../utils/defineProps'
+
 const hasOwnProperty = Object.prototype.hasOwnProperty;
 const schema = require(`./TypeBuilder.schema`);
 
@@ -33,6 +35,14 @@ export default class TypeBuilder {
       }\n}`;
   }
 }
+
+defineProps(TypeBuilder, {
+  name: {
+    get() {
+      return this._name;
+    },
+  },
+});
 
 function formatArgs(args) {
   if (typeof args === 'string') return `\n${args}`; // перенос на случай если в начале строки сразу идет комментарий

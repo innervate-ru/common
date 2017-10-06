@@ -66,7 +66,7 @@ export default class SchemaBuilder extends LevelBuilder {
   }
 
   async build(options = missingArgument('options')) {
-    schema.build_options(options)
+    schema.build_options(options);
 
     const {typeDefs, resolvers} = options;
 

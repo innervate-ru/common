@@ -38,7 +38,7 @@ export default function addServiceStateValidation(prototypeOrInstance = missingA
           if (service.state !== READY) throw service._buildInvalidStateError();
           return method.apply(this, arguments);
         } catch (error) {
-          if (service.state !== READY)  error = service._buildInvalidStateError(error);
+          if (service.state !== READY)  error = service._buildInvalidStateError(error); // TODO: Remove duble InvalidState
           if (addContextToError(args, newArgs, error, {svc: this._name, method: methodName})) this._reportError(error);
           throw error;
         }

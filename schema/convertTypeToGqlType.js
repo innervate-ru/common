@@ -7,7 +7,7 @@ import {missingArgument} from '../validation'
  * @param method - описание метода (схема).
  * @param type - тип в текстовом виде, как он пишется в схеме
  */
-export function convertTypeToGqlType({
+export default function convertTypeToGqlType({
   methodName = missingArgument('methodName'),
   method = missingArgument('method'),
   type,
@@ -28,8 +28,6 @@ export function convertTypeToGqlType({
     case 'date':
       return 'String'; // TODO: Поправить когда будет кастом тип Date
     default:
-
-      console.error(`Method '${method.name}': ${param ? `Parameter '${param.name}'` : `Field ${field.name}`}: Unknown type: '${type}'`);
-      throw new InvalidSchemaException();
+      throw new Error(`Unknown type '${type}'`);
   }
 }
