@@ -93,21 +93,19 @@ export default class MsSql extends Service {
     url = throwIfMissing('url'),
     user = throwIfMissing('user'),
     password = throwIfMissing('password'),
-    options: {
-      port = throwIfMissing('port'),
-      database = throwIfMissing('database'),
-    },
-    poolConfig = throwIfMissing('poolConfig'),
+    options = throwIfMissing('options'),
     schema = throwIfMissing('schema'),
   }) {
+    const {
+      port = throwIfMissing('port'),
+      database = throwIfMissing('database'),
+    } = options;
+
     this._msSqlConfig = {
       server: url,
       userName: user,
       password,
-      options: {
-        port,
-        database,
-      },
+      options,
     };
     this._poolConfig = poolConfig;
     this._schema = schema;
