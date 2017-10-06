@@ -95,6 +95,7 @@ export default class MsSql extends Service {
     password = throwIfMissing('password'),
     options = throwIfMissing('options'),
     schema = throwIfMissing('schema'),
+    poolConfig = throwIfMissing('poolConfig'),
   }) {
     const {
       port = throwIfMissing('port'),
