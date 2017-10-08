@@ -12,8 +12,7 @@ export const ctor_settings = validate.service.finished({
   // TODO: Посмотреть в код pg, выписать все опции
 });
 
-// TODO: Impl
-// export const connectionMethodOptions = validateAndCopyOptionsFactory({
-//   cancel: {type: VType.Promise()}, // promise, который если становится resolved, то прерывает выполнение запроса
-// });
-
+export const exec_args = validate.method.this('args', {
+  statement: {required: true, type: VType.String().notEmpty()},
+  // TODO: Прописать какие еще аргументы можно передавать из https://node-postgres.com/features/queries ...и заменить this на finished
+});

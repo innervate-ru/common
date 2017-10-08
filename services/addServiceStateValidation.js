@@ -34,12 +34,16 @@ export default function addServiceStateValidation(prototypeOrInstance = missingA
         const newArgs = addContextToArgs(args);
         const service = getService.call(this);
         service.touch();
+        if (service.state !== READY) { // проверяем состояние перед операции
+          const error = service._buildInvalidStateError();
+          if (addContextToError(args, newArgs, error, {svc: this._name, method: methodName})) service._reportError(error);
+          throw error;
+        }
         try {
-          if (service.state !== READY) throw service._buildInvalidStateError();
           return method.apply(this, arguments);
         } catch (error) {
-          if (service.state !== READY)  error = service._buildInvalidStateError(error); // TODO: Remove duble InvalidState
-          if (addContextToError(args, newArgs, error, {svc: this._name, method: methodName})) this._reportError(error);
+          if (service.state !== READY)  error = service._buildInvalidStateError(error); // Проверяем состояние сервиса после операции, если ошибка.  Когда сервис не в рабочем состоянии, то не стоит анализировать ошибку
+          if (addContextToError(args, newArgs, error, {svc: this._name, method: methodName})) service._reportError(error);
           throw error;
         }
       }

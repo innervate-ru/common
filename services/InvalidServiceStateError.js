@@ -8,7 +8,7 @@ export default class InvalidServiceStateError extends Error {
    */
   constructor({service = throwIfMissing('service'), state = throwIfMissing('state'), err}) {
     super(`'${service}': invalid state: '${state}'`);
-    this.serice = service;
+    this.service = service;
     this.state = state;
     if (err) this.err = err;
   }

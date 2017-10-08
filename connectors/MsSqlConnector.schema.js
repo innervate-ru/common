@@ -2,7 +2,7 @@ import {VType, validate} from '../validation'
 
 const hasOwnProperty = Object.prototype.hasOwnProperty;
 
-export const ctor_options = validate.ctor.finished({
+export const ctor_settings = validate.service.finished({
   description: {type: VType.String()},
   url: {type: VType.String().notEmpty(), required: true},
   user: {type: VType.String().notEmpty(), required: true},
@@ -27,11 +27,12 @@ export const ctor_options = validate.ctor.finished({
   },
 });
 
-export const connection_options = validate.method.finished('options', {
+export const connection_args = validate.method.this('args', {
   cancel: {type: VType.Promise()}, // promise, который если становится resolved, то прерывает выполнение запроса
 });
 
-export const query_options = validate.method.finished('options', {
+export const exec_args = validate.method.finished('options', {
+  _extends: connection_args,
   query: {type: VType.String()}, // SQL запрос, который должен быть выполнен
   procedure: {type: VType.String()}, // хранимая процедура, которую надо вызвать
   paramDef: {null: true, type: VType.Object()},

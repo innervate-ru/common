@@ -129,7 +129,7 @@ export default class LevelBuilder {
 
   async _runBuilders(options) {
 
-    if (this._builders.length === 0) throw new Error('List of builders is empty');
+    if (this._builders.length === 0) return;
 
     const {typeDefs, resolvers, builderContext} = options;
 

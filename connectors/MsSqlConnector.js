@@ -32,17 +32,16 @@ export default oncePerServices(function (services) {
 
     _pool = null;
 
-    constructor(options) {
+    constructor(settings) {
 
-      schema.ctor_options(this, options);
+      schema.ctor_settings(this, settings);
 
-      const {url, user, password, options: connectionOptions, poolConfig} = options;
+      const {url, user, password, options, poolConfig} = settings;
       const {port, database} = options;
 
-      this._options = options;
+      this._settings = settings;
 
-      this._msSqlConfig = {server: url, userName: user, password, options: connectionOptions};
-      if (connectionOptions) this._msSqlConfig.options = connectionOptions;
+      this._msSqlConfig = {server: url, userName: user, password, options};
 
       this._poolConfig = poolConfig;
     }
@@ -54,19 +53,20 @@ export default oncePerServices(function (services) {
     };
 
     async _serviceStart() {
-      const optsWithoutPassword = {...this._options};
-      delete optsWithoutPassword.password;
-      fixDependsOn(optsWithoutPassword);
+      const settingsWithoutPassword = {...this._settings};
+      delete settingsWithoutPassword.password;
+      fixDependsOn(settingsWithoutPassword);
       bus.info({
         time: new Date().getTime(),
         type: 'service.settings',
         source: this._service.get('name'),
         serviceType: SERVICE_TYPE,
-        settings: optsWithoutPassword,
+        settings: settingsWithoutPassword,
       });
       this._pool = new ConnectionPool(this._poolConfig, this._msSqlConfig);
       this._pool.on('error', this._poolError);
-      return this._query('select getdate();', { // вызываем private метод, чтоб не сработала защита что состояние не READY
+      return this._exec({ // вызываем private метод, чтоб не сработала защита что состояние не READY
+        query: 'select getdate();',
         cancel: new Promise((resolve, reject) => {
           this._cancelStart = resolve;
         })
@@ -82,16 +82,16 @@ export default oncePerServices(function (services) {
       });
     }
 
-    async connection(options) {
-      schema.connection_options(options);
+    async connection(args) {
+      schema.connection_args(args);
       let res = new Promise((resolve, reject) => {
         this._pool.acquire((error, connection) => {
           if (error) this._rejectWithError(reject, error);
           else resolve(new Connection(this, connection));
         });
       });
-      if (options) {
-        const {cancel} = options;
+      if (args) {
+        const {cancel} = args;
         if (cancel) { // если есть cancel promise, то когда соединение создается вешаем правило
           res = res.then(function (connection) {
             cancel.then(function () {
@@ -105,75 +105,21 @@ export default oncePerServices(function (services) {
     }
 
     /**
-     * Выполняет SQL запрос к БД.
+     * Выполняет запрос к БД.  Это может быть SQL запрос или вызов хранимой процедуры.
      *
-     * Опции:
-     *    - params - Функция, которой передается как аргумен tedious.Request, чтобы она через requies.addParameter могла заполнить параметры
-     *    - offset - строка, начиная с которой загружаются строки
-     *    - limit - строка, до которой включительно загружаются строки
-     *    - context - shortid контектса
-     *    - cancel - promise, который если становится resolved, то прерывает выполнение запроса
-     *
-     * @param statement SQL запрос в строчном виде
-     * @param options
-     * @returns {Promise} {rows - полученные данные; hasNext - есть ли дальше строки, при указании limit}
-     */
-    // TODO: Obsolete
-    async query(statement = missingArgument('statement'), options) {
-      let connection = await this._connection(options); // TODO: Обработать ошибки
-      try {
-        return await connection._query(statement, options);
-      }
-      finally {
-        connection._end();
-      }
-    }
-
-    /**
-     * Выполняет запрос к хранимой процедуре в БД.
-     *
-     * Опции:
-     *    - params - Функция, которой передается как аргумен tedious.Request, чтобы она через requies.addParameter могла заполнить параметры
-     *    - offset - строка, начиная с которой загружаются строки
-     *    - limit - строка, до которой включительно загружаются строки
-     *    - context - shortid контектса
-     *    - cancel - promise, который если становится resolved, то прерывает выполнение запроса
-     *
-     * @param storedProcName Название хранимой процедуры
-     * @param options
-     * @returns {Promise} {rows - полученные данные; hasNext - есть ли дальше строки, при указании limit}
-     */
-    // TODO: Obsolete
-    async callProcedure(storedProcName = missingArgument('storedProcName'), options) {
-      let connection = await this._connection(options);
-      try {
-        return await connection._callProcedure(storedProcName, options);
-      }
-      finally {
-        connection._end();
-      }
-    }
-
-    /**
-     * Выполняет запрос к хранимой процедуре в БД.
-     *
-     * Опции:
+     * Аргументы:
      *    - query - SQL запрос (Важно: Обязательно должен быть указан один из параметров query или procedure)
      *    - procedure - имя хранимой процедуры
      *    - params - Функция, которой передается как аргумен tedious.Request, чтобы она через requies.addParameter могла заполнить параметры
      *    - offset - строка, начиная с которой загружаются строки
      *    - limit - строка, до которой включительно загружаются строки
-     *    - context - shortid контекста, в котором выполняется запрос
+     *    - callContext - shortid контекста, в котором выполняется запрос
      *    - cancel - promise, который если становится resolved, то прерывает выполнение запроса
-     *
-     * @param storedProcName Название хранимой процедуры
-     * @param options
-     * @returns {Promise} {rows - полученные данные; hasNext - есть ли дальше строки, при указании limit}
      */
-    async exec(options) {
-      let connection = await this._connection(options);
+    async exec(args) {
+      let connection = await this._connection(args);
       try {
-        return await connection._exec(options);
+        return await connection._exec(args);
       }
       finally {
         connection._end();
@@ -220,47 +166,7 @@ export default oncePerServices(function (services) {
     }
 
     /**
-     * Выполняет SQL запрос к БД.
-     *
-     * Опции:
-     *    - params - Функция, которой передается как аргумен tedious.Request, чтобы она через requies.addParameter могла заполнить параметры
-     *    - offset - строка, начиная с которой загружаются строки
-     *    - limit - строка, до которой включительно загружаются строки
-     *    - context - shortid контектса
-     *    - cancel - promise, который если становится resolved, то прерывает выполнение запроса
-     *
-     * @param statement SQL запрос в строчном виде
-     * @param options
-     * @returns {Promise} {rows - полученные данные; hasNext - есть ли дальше строки, при указании limit}
-     */
-    // TODO: Obsolete
-    query(statement = missingArgument('statement'), options) {
-      if (!(typeof statement === 'string' && statement.length > 0)) invalidArgument('statement', statement);
-      return this._innerExec({...options, query: statement});
-    }
-
-    /**
-     * Выполняет запрос к хранимой процедуре в БД.
-     *
-     * Опции:
-     *    - params - Функция, которой передается как аргумен tedious.Request, чтобы она через requies.addParameter могла заполнить параметры
-     *    - offset - строка, начиная с которой загружаются строки
-     *    - limit - строка, до которой включительно загружаются строки
-     *    - context - shortid контектса
-     *    - cancel - promise, который если становится resolved, то прерывает выполнение запроса
-     *
-     * @param storedProcName Название хранимой процедуры
-     * @param options
-     * @returns {Promise} {rows - полученные данные; hasNext - есть ли дальше строки, при указании limit}
-     */
-    // TODO: Obsolete
-    callProcedure(storedProcName = missingArgument('storedProcName'), options) {
-      if (!(typeof storedProcName === 'string' && storedProcName.length > 0)) invalidArgument('storedProcName', storedProcName);
-      return this._innerExec({...options, procedure: storedProcName});
-    }
-
-    /**
-     * Выполняет запрос к хранимой процедуре в БД.
+     * Выполняет запрос к БД.  Это может быть SQL запрос или вызов хранимой процедуры.
      *
      * Опции:
      *    - query - SQL запрос (Важно: Обязательно должен быть указан один из параметров query или procedure)
@@ -268,22 +174,20 @@ export default oncePerServices(function (services) {
      *    - params - Функция, которой передается как аргумен tedious.Request, чтобы она через requies.addParameter могла заполнить параметры
      *    - offset - строка, начиная с которой загружаются строки
      *    - limit - строка, до которой включительно загружаются строки
-     *    - context - shortid контекста, в котором выполняется запрос
+     *    - callContext - shortid контекста, в котором выполняется запрос
      *    - cancel - promise, который если становится resolved, то прерывает выполнение запроса
-     *
-     * @param options
-     * @returns {Promise} {rows - полученные данные; hasNext - есть ли дальше строки, при указании limit; columns - методанные возвращаенных колонок}
+     * @returns {Promise} {rows - полученные данные; hasNext - есть ли дальше строки, при указании limit}
      */
-    exec(options) {
-      return this._innerExec(options);
+    exec(args) {
+      return this._innerExec(args);
     }
 
-    async _innerExec(options) {
+    async _innerExec(args) {
 
-      schema.query_options(options);
-      this._options = options;
+      schema.exec_args(args);
+      this._args = args;
 
-      let {query, procedure, paramsDef, params, offset, limit, context} = options || {};
+      let {query, procedure, paramsDef, params, offset, limit, callContext} = args || {};
       if (typeof offset !== 'number') offset = 0;
       if (typeof limit !== 'number') limit = Number.MAX_SAFE_INTEGER;
       const lastRow = Math.min(offset + limit, Number.MAX_SAFE_INTEGER);
@@ -296,7 +200,6 @@ export default oncePerServices(function (services) {
 
         let request = new Request(query || procedure, (error, rowCount) => {
           if (error && error.code != 'ECANCEL') {
-            error.callOptions = this._options;
             this._connector._rejectWithError(reject, error);
           } else {
             resolve({rows: res, hasNext, columns});

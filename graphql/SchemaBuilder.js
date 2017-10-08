@@ -20,7 +20,7 @@ function assembleSublevel(parentLevelBuilder, parentContext, branch) {
       parentLevelBuilder.addBuilder(levelBuilder);
       assembleSublevel(levelBuilder, builderContext, branch[name]);
     }
-  }
+  } else if (branch === null) {}
   else throw new Error(`Branch '${parentContext()}' has invalid value: ${prettyPrint(branch)}`);
 }
 
@@ -38,6 +38,7 @@ export default class SchemaBuilder extends LevelBuilder {
       const builderContext = () => name;
       for(name of Object.getOwnPropertyNames(schemaTree)) {
         const levelBuilder = new LevelBuilder({name});
+        if (!levelBuilder) continue; // может быть null
         this.addBuilder(levelBuilder);
         assembleSublevel(levelBuilder, builderContext, schemaTree[name]);
       }
