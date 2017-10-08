@@ -1,9 +1,6 @@
-import {
-  validateAndCopyOptionsFactory,
-  VType,
-} from '../validation'
+import {VType, validate} from '../validation'
 
-export const config = validateAndCopyOptionsFactory({
+export const ctor_settings = validate.service.finished({
   description: {type: VType.String()},
   url: {type: VType.String().notEmpty(), required: true},
   port: {type: VType.Int()},

@@ -31,7 +31,7 @@ export default oncePerServices(function (services) {
 
   class Service {
 
-    constructor(name, serviceImpl, SERVICE_TYPE, options) { // SERVICE_TYPE может быть undefined, или это значение свойства SERVICE_TYPE конструктора сервиса
+    constructor(name, serviceImpl, SERVICE_TYPE, settings) { // SERVICE_TYPE может быть undefined, или это значение свойства SERVICE_TYPE конструктора сервиса
 
       this._serviceType = SERVICE_TYPE;
 
@@ -50,7 +50,7 @@ export default oncePerServices(function (services) {
        */
       this._name = `${services.manager.get('name')}:${name}`;
 
-      require('./Service.schema').ServiceClassOptions(options, {copyTo: this, argument: 'options', name: this._name});
+      require('./Service.schema').ctor_settings(settings, {copyTo: this, argument: 'settings', name: this._name});
 
       /**
        * Состояние в котором находится сервис.
@@ -65,7 +65,7 @@ export default oncePerServices(function (services) {
       /**
        * Период в миллисекундах, через который сервис пробует перезапуститься после фатальной ошибки, приведшей к переходу в состояние FAIL.
        */
-      this._failRecoveryInterval = (options && options.failRecoveryInterval) || DEFAULT_FAIL_RECOVERY_INTERVAL;
+      this._failRecoveryInterval = (settings && settings.failRecoveryInterval) || DEFAULT_FAIL_RECOVERY_INTERVAL;
 
       /**
        * Причина остановки сервис.  Объект типа Error.
@@ -115,8 +115,8 @@ export default oncePerServices(function (services) {
        */
       this._dependsOn = null;
 
-      if (options && options.dependsOn) {
-        const dependsOn = uniq(flattenDeep(options.dependsOn)); // зависимости могут состоять из массивов зависимостей, и элементы могут повторяться
+      if (settings && settings.dependsOn) {
+        const dependsOn = uniq(flattenDeep(settings.dependsOn)); // зависимости могут состоять из массивов зависимостей, и элементы могут повторяться
         if (dependsOn.length > 0) {
           const dependsOnTotal = dependsOn.length;
           const dependsOnMap = this._dependsOn = {};
@@ -410,9 +410,9 @@ export default oncePerServices(function (services) {
 
     // Делаем класс наследник, который добавляем в объект свойство _service
     class ServiceImpl extends serviceClass {
-      constructor(name, options) {
-        super(options);
-        this._service = new Service(name, this, serviceClass.SERVICE_TYPE, options);
+      constructor(name, settings) {
+        super(settings);
+        this._service = new Service(name, this, serviceClass.SERVICE_TYPE, settings);
         if (!testMode) this._service._nextStateStep();
       }
     }

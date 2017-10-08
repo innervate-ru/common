@@ -1,10 +1,9 @@
 import pg from 'pg';
 import {missingArgument, invalidArgument} from '../utils/arguments'
-import oncePerServices from '../services/oncePerServices'
+import {oncePerServices, fixDependsOn} from '../services'
 import addServiceStateValidation from '../services/addServiceStateValidation'
 
 const SERVICE_TYPE = require('./PGConnector.serviceType').SERVICE_TYPE;
-const VALIDATE_OPTIONS = {argument: 'options'};
 const schema = require('./PGConnector.schema');
 
 export default oncePerServices(function (services) {
@@ -14,19 +13,20 @@ export default oncePerServices(function (services) {
   class PGConnector {
 
     constructor(options) {
-      schema.config(options, VALIDATE_OPTIONS);
+      schema.ctor_settings(this, options);
       this._options = options;
     }
 
     async _serviceStart() {
-      const optsWithoutPassword = {...this._options};
-      delete optsWithoutPassword.password;
+      const settingsWithoutPassword = {...this._options};
+      delete settingsWithoutPassword.password;
+      fixDependsOn(settingsWithoutPassword);
       bus.info({
         time: new Date().getTime(),
-        type: 'service.options',
+        type: 'service.settings',
         source: this._service.get('name'),
         serviceType: SERVICE_TYPE,
-        options: optsWithoutPassword,
+        settings: settingsWithoutPassword,
       });
       this._pool = new pg.Pool(this._options);
       this._pool.on('error', (error, client) => {

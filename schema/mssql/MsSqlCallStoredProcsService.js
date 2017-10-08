@@ -27,10 +27,10 @@ export default oncePerServices(function (services) {
    */
   class MsSqlCallStoredProcsService {
 
-    constructor(options) {
-      schema.ctor_options(this, options);
-      if (!(hasOwnProperty.call(services, options.connector))) missingService(options.connector);
-      this._connector = services[options.connector];
+    constructor(settings) {
+      schema.ctor_settings(this, settings);
+      if (!(hasOwnProperty.call(services, settings.connector))) missingService(settings.connector);
+      this._connector = services[settings.connector];
     }
 
     _addMethods(schema = missingArgument('schema')) {

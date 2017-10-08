@@ -12,7 +12,7 @@ export default oncePerServices(function defineEvents({bus = missingService('bus'
     'service.state': ev => ev.serviceType !== SERVICE_TYPE && ev.state === STARTING ? undefined : false,
 
     // выводим параметры запуска сервиса, с учётом специфики конфигурации это типа сервиса (serviceType)
-    'service.options': ev => ev.serviceType !== SERVICE_TYPE ? false :
+    'service.settings': ev => ev.serviceType !== SERVICE_TYPE ? false :
       `${ev.source}: сonnecting to ${ev.options.uri} as '${ev.options.login}'`,
 
   });

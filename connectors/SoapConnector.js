@@ -1,9 +1,7 @@
 import fs from 'fs'
 import path from 'path'
-import oncePerServices from '../services/oncePerServices'
+import {oncePerServices,  fixDependsOn, READY} from '../services'
 import ensureDir from 'ensure-dir'
-import {READY} from '../services/Service.states'
-import InvalidServiceStateError from '../services/InvalidServiceStateError'
 
 import urlApi from 'url'
 import soap from 'soap'
@@ -63,7 +61,7 @@ export default oncePerServices(function (services) {
               else resolve(result);
             })
           }).catch((error) => {
-            if (services.state !== READY) return Promise.rejected(new InvalidServiceStateError(error));
+            if (services.state !== READY) return Promise.rejected(this._service._buildInvalidStateError(error));
             return Promise.rejected(error);
           })
         }
@@ -76,12 +74,13 @@ export default oncePerServices(function (services) {
     async _serviceStart() {
       const optsWithoutPassword = {...this._options};
       delete optsWithoutPassword.password;
+      fixDependsOn(optsWithoutPassword);
       bus.info({
         time: new Date().getTime(),
-        type: 'service.options',
+        type: 'service.settings',
         source: this._service.get('name'),
         serviceType: SERVICE_TYPE,
-        options: optsWithoutPassword,
+        settings: optsWithoutPassword,
       });
       return new Promise((resolve, reject) => {
         let urlObject = urlApi.parse(this._url);

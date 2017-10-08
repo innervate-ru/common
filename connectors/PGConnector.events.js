@@ -11,7 +11,7 @@ export default oncePerServices(function defineEvents({bus = missingService('bus'
     // не выводим сообщение о STARTING, так как выводим OPTIONS.  иначе, не меняем стандартный вывод
     'service.state': ev => ev.serviceType !== SERVICE_TYPE && ev.state === STARTING ? undefined : false,
 
-    'service.options': ev => ev.serviceType !== SERVICE_TYPE ? false :
-      `${ev.source}: сonnecting to ${ev.options.url}:${ev.options.port} as '${ev.options.user}'. database is '${ev.options.database}'`,
+    'service.settings': ev => ev.serviceType !== SERVICE_TYPE ? false :
+      `${ev.source}: сonnecting to ${ev.settings.url}:${ev.settings.port} as '${ev.settings.user}'. database is '${ev.settings.database}'`,
   });
 })

@@ -661,25 +661,42 @@ export const validateStructureFactory = validateObjectFactory({
  * опции добавленные в этом классе, и не проверяет опции класса предка и не сообщает если есть опции про которые он не
  * знает - они могут быть опциями класса наследника
  */
-export const validateThisClassCtorOptions = function (schema = missingArgument('schema')) {
+export const validateThisClassCtorArgs = function (schema = missingArgument('schema')) {
   const validate = validateAndCopyOptionsFactory(schema);
-  const res = function (obj, options) { return validate(options, {argument: 'options', copyTo: obj}); };
+  const res = function (obj, options) { return validate(options, {argument: 'args', copyTo: obj}); };
+  Object.setPrototypeOf(res, validate); // чтобы были доступны данные схемы, необходимые для _extends
+  return res;
+};
+
+export const validateThisServiceSettings = function (schema = missingArgument('schema')) {
+  const validate = validateAndCopyOptionsFactory(schema);
+  const res = function (obj, options) { return validate(options, {argument: 'settings', copyTo: obj}); };
   Object.setPrototypeOf(res, validate); // чтобы были доступны данные схемы, необходимые для _extends
   return res;
 };
 
 /**
  * Helper для создания метода проверки опций конструктора класса.  Этот вариант (см. FinishedClass в названии) проверяет только опции
- * добавленные в этом классе, но в отличии от validateThisClassCtorOptions, так же проверят что опции содержат не ожидаемые поля для
+ * добавленные в этом классе, но в отличии от validateThisClassCtorArgs, так же проверят что опции содержат не ожидаемые поля для
  * этого класса и классов предков.  Поэтому, этот метод можно использовать только в конструкторая классов, от которые не будет выполняться
  * наследование.
  */
-export const validateFinishedClassCtorOptions = function (schema = missingArgument('schema')){
+export const validateFinishedClassCtorArgs = function (schema = missingArgument('schema')){
   const validate = validateFullAndCopyOptionsFactory(schema);
   const res = function (obj, options) {
     if (!(arguments.length === 2))  throw new Error(`Invalid number of arguments: Must be two: 1. this; 2. options)`);
-    validate(options, {argument: 'options', copyTo: obj});
-  }
+    validate(options, {argument: 'args', copyTo: obj});
+  };
+  Object.setPrototypeOf(res, validate); // чтобы были доступны данные схемы, необходимые для _extends
+  return res;
+};
+
+export const validateFinishedServiceSettings = function (schema = missingArgument('schema')){
+  const validate = validateFullAndCopyOptionsFactory(schema);
+  const res = function (obj, options) {
+    if (!(arguments.length === 2))  throw new Error(`Invalid number of arguments: Must be two: 1. this; 2. options)`);
+    validate(options, {argument: 'settings', copyTo: obj});
+  };
   Object.setPrototypeOf(res, validate); // чтобы были доступны данные схемы, необходимые для _extends
   return res;
 };
@@ -725,8 +742,12 @@ export const validateFinishedMethodArgs = function (argumentName = missingArgume
  */
 export const validate = {
   ctor: {
-    this: validateThisClassCtorOptions,
-    finished: validateFinishedClassCtorOptions,
+    this: validateThisClassCtorArgs,
+    finished: validateFinishedClassCtorArgs,
+  },
+  service: {
+    this: validateThisServiceSettings,
+    finished: validateFinishedServiceSettings,
   },
   method: {
     this: validateThisClassMethodArgs,

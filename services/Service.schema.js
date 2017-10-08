@@ -1,4 +1,4 @@
-import {VType, validateAndCopyOptionsFactory} from '../validation'
+import {VType, validate} from '../validation'
 
 const rootContext = () => ``;
 
@@ -21,7 +21,7 @@ function everyIsAService(context, list, indecies) {
   return indecies;
 }
 
-export const ServiceClassOptions = validateAndCopyOptionsFactory({
+export const ctor_settings = validate.ctor.this({
   dependsOn: {
     type: VType.Array(),
     validator: (dependsOn) => {

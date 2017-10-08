@@ -40,16 +40,16 @@ export default oncePerServices(function defineEvents({bus = missingService('bus'
           testMode ? `${ev.source}: error: '${ev.message}'` : // для testMode специальное сообщение, которое легко проверять и оно не содержит stack
             `${ev.source}: ${ev.stack}`,
       },
-      // service.options
+      // service.settings
       {
         kind: 'info',
-        type: 'service.options',
+        type: 'service.settings',
         validate: validateEventFactory({
           _extends: BaseEvent,
           serviceType: {type: VType.String().notEmpty()},
-          options: {type: VType.Object()},
+          settings: {type: VType.Object()}, // TODO: Check that all values are serializable to JSON
         }),
-        toString: ev => `${ev.source}: options: '${prettyPrint(ev.options)}'`,
+        toString: ev => `${ev.source}: settings: '${prettyPrint(ev.settings)}'`,
       },
     ]
   );

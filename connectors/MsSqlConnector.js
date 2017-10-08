@@ -1,12 +1,10 @@
 import {missingArgument, invalidArgument} from '../validation'
 import prettyPrint from '../utils/prettyPrint'
-import addServiceStateValidation from '../services/addServiceStateValidation'
+import {oncePerServices, addServiceStateValidation, fixDependsOn, READY} from '../services'
 import defineProps from '../utils/defineProps'
-import oncePerServices from '../services/oncePerServices'
 import ConnectionPool from 'tedious-connection-pool'
 import {Request, ConnectionError} from 'tedious'
 import {stringToTediousTypeMap, tediouseTypeByValue} from './MsSqlConnector.types'
-import {READY} from '../services'
 import addPrefixToErrorMessage from '../utils/addPrefixToErrorMessage'
 
 const hasOwnProperty = Object.prototype.hasOwnProperty;
@@ -58,12 +56,13 @@ export default oncePerServices(function (services) {
     async _serviceStart() {
       const optsWithoutPassword = {...this._options};
       delete optsWithoutPassword.password;
+      fixDependsOn(optsWithoutPassword);
       bus.info({
         time: new Date().getTime(),
-        type: 'service.options',
+        type: 'service.settings',
         source: this._service.get('name'),
         serviceType: SERVICE_TYPE,
-        options: optsWithoutPassword,
+        settings: optsWithoutPassword,
       });
       this._pool = new ConnectionPool(this._poolConfig, this._msSqlConfig);
       this._pool.on('error', this._poolError);

@@ -37,8 +37,8 @@ export default class CachedResponsesService {
     (new Date()).getTime();
   };
 
-  constructor(options) {
-    validateOptions(options, {argument: 'options', copyTo: this});
+  constructor(settings) {
+    validateOptions(settings, {argument: 'settings', copyTo: this});
   }
 
   /**
