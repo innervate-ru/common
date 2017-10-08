@@ -14,11 +14,11 @@ function assembleSublevel(parentLevelBuilder, parentContext, branch) {
     parentLevelBuilder.addBuilder(branch);
   } else if (typeof branch === 'object' && branch != null && !Array.isArray(branch)) {
     let name;
-    const context = () => `${parentContext()}.${name}`;
+    const builderContext = () => `${parentContext()}.${name}`;
     for (name of Object.getOwnPropertyNames(branch)) {
       const levelBuilder = new LevelBuilder({name});
       parentLevelBuilder.addBuilder(levelBuilder);
-      assembleSublevel(levelBuilder, context, branch[name]);
+      assembleSublevel(levelBuilder, builderContext, branch[name]);
     }
   }
   else throw new Error(`Branch '${parentContext()}' has invalid value: ${prettyPrint(branch)}`);
@@ -35,11 +35,11 @@ export default class SchemaBuilder extends LevelBuilder {
     if (schemaTree) {
       if (!(typeof schemaTree === 'object' && schemaTree != null && !Array.isArray(schemaTree))) invalidArgument('schemaTree', schemaTree);
       let name;
-      const context = () => name;
+      const builderContext = () => name;
       for(name of Object.getOwnPropertyNames(schemaTree)) {
         const levelBuilder = new LevelBuilder({name});
         this.addBuilder(levelBuilder);
-        assembleSublevel(levelBuilder, context, schemaTree[name]);
+        assembleSublevel(levelBuilder, builderContext, schemaTree[name]);
       }
     }
   }
@@ -76,7 +76,7 @@ export default class SchemaBuilder extends LevelBuilder {
     this._typeDefs = typeDefs;
     this._resolvers = resolvers;
 
-    await this._runBuilders({...options, context: Object.create(null)});
+    await this._runBuilders({...options, builderContext: Object.create(null)});
 
     const hasQueries = (this._queries.length > 0);
     const hasMutations = (this._mutations.length > 0);

@@ -1,7 +1,7 @@
 import missingService from '../services/missingService'
 import {missingArgument, invalidArgument} from '../utils/arguments'
 
-import * as fs from 'fs'
+import fs from 'fs'
 import path from 'path'
 
 const debug = require('debug')('load_events');

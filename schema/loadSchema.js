@@ -1,6 +1,6 @@
 import throwIfMissing from 'throw-if-missing'
 
-import * as fs from 'fs'
+import fs from 'fs'
 import path from 'path'
 
 const hasOwnProperty = Object.prototype.hasOwnProperty;

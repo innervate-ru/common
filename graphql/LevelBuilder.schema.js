@@ -16,5 +16,5 @@ export const addMutation_mutation = validateFieldBuilder('mutation');
 export const build_options = validate.method.finished('options', {
   _extends: require('./SchemaBuilder.schema').build_options,
   parentLevelBuilder: {type: VType.Object(), required: true},
-  context: {type: VType.Object()}, // объект, через который могут обмениваться билдеры собирающие единую схему, в процессе их рабтать
+  builderContext: {type: VType.Object()}, // объект, через который могут обмениваться билдеры собирающие единую схему, в процессе их рабтать
 });

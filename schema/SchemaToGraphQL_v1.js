@@ -29,6 +29,11 @@ function cursorToOffset(cursor) {
 function offsetToCursor(offset) {
   return new Buffer(ARRAY_PREFIX + offset, 'utf8').toString('base64');
 }
+
+function toGlobalId(type, id) {
+  return new Buffer([type, id].join(':'), 'utf8').toString('base64');
+}
+
 /////////////
 
 export default class SchemaToGraphQL {
@@ -37,8 +42,7 @@ export default class SchemaToGraphQL {
 
     require('./SchemaToGraphQL.schema').build_args(args);
 
-    // TODO: context -> buildContext
-    const {parentLevelBuilder, typeDefs, context, PREFIX, serviceName, connector} = args;
+    const {parentLevelBuilder, typeDefs, builderContext, PREFIX, serviceName, connector} = args;
     let {method} = args;
 
     parentLevelBuilder.setDescription(`Методы сервиса ${serviceName}`);
@@ -55,6 +59,7 @@ export default class SchemaToGraphQL {
 
       const gqlParams = {}, gqlFields = {}; // элементы graphQL схемы
       const {paramProcessors, resultProcessors, filterRows} = this._processMethod({
+        ...args,
         methodName,
         method,
         methodOriginal,
@@ -64,6 +69,7 @@ export default class SchemaToGraphQL {
 
       for (const param of method.params) {
         const paramProcessor = this._processParam({
+          ...args,
           methodName,
           method,
           param,
@@ -75,6 +81,7 @@ export default class SchemaToGraphQL {
       if (method.result)
         for (const field of method.result) {
           const resultProcessor = this._processResult({
+            ...args,
             methodName,
             method,
             field,
@@ -83,14 +90,10 @@ export default class SchemaToGraphQL {
           if (typeof resultProcessor == 'function') resultProcessors.push(resultProcessor);
         }
 
-
-      // switch (this._type) {
-      //
-      //   case 'query': {
-      //
       // это повторение иерархии типов из relay-graphql connection
-      if (!context.PageInfo) { // from node_modules/graphql-relay/lib/connection/connection.js (112)
-        context.PageInfo = true;
+      const pageInfoType = `${PREFIX}PageInfo`
+      if (!builderContext[pageInfoType]) { // from node_modules/graphql-relay/lib/connection/connection.js (112)
+        builderContext[pageInfoType] = true;
         const connectionPageInfo = new TypeBuilder({
           name: `PageInfo`,
           description: `Information about pagination in a connection.`
@@ -118,17 +121,17 @@ export default class SchemaToGraphQL {
         typeDefs.push(connectionPageInfo.build());
       }
 
-      const nodeType = new TypeBuilder({name: `${METHOD_PREFIX}Node`});
+      const rowType = new TypeBuilder({name: `${METHOD_PREFIX}Row`});
       for (const fieldName in gqlFields) {
         const field = gqlFields[fieldName];
-        nodeType.addField({name: fieldName, ...field});
+        rowType.addField({name: fieldName, ...field});
       }
-      typeDefs.push(nodeType.build());
+      typeDefs.push(rowType.build());
 
       const edgeType = new TypeBuilder({name: `${METHOD_PREFIX}Edge`, description: `An edge in a connection.`});
       edgeType.addField({
         name: `node`,
-        type: nodeType.name,
+        type: rowType.name,
         description: `The item at the end of the edge`
       });
       edgeType.addField({name: `cursor`, type: `String!`, description: `A cursor for use in pagination`});
@@ -146,8 +149,8 @@ export default class SchemaToGraphQL {
       connectionType.addField({name: `edges`, type: `[${edgeType.name}]`, description: `A list of edges.`});
       typeDefs.push(connectionType.build());
 
-      const rowsType = new TypeBuilder({name: `${METHOD_PREFIX}Rows`});
-      rowsType.addField({
+      const listType = new TypeBuilder({name: `${METHOD_PREFIX}List`});
+      listType.addField({
         name: 'rows',
         args: [
           {name: 'after', type: 'String'},
@@ -157,7 +160,7 @@ export default class SchemaToGraphQL {
         ],
         type: connectionType.name,
       });
-      typeDefs.push(rowsType.build());
+      typeDefs.push(listType.build());
 
       const checkRights = (typeof this._checkRights == 'function') ? this._checkRights({
         methodName,
@@ -187,7 +190,7 @@ export default class SchemaToGraphQL {
         if (paramsPromises.length > 0) await Promise.all(paramsPromises);
 
         return {
-          rows: wrapResolver(async function (obj, {before, after, first, last}) {
+          rows: wrapResolver(async function ({before, after, first, last}) {
 
             let startOffset = getOffsetWithDefault(after, -1) + 1;
             let endOffset = getOffsetWithDefault(before, Number.MAX_SAFE_INTEGER) - 1;
@@ -259,11 +262,11 @@ export default class SchemaToGraphQL {
         methodArgs.push({name: paramName, ...param});
       }
 
-      parentLevelBuilder.addQuery({
+      parentLevelBuilder[method.gqlType === 'mutation' ? 'addMutation' : 'addQuery']({
         description: method.description,
         name: methodName,
         args: methodArgs,
-        type: rowsType.name,
+        type: listType.name,
         resolver,
       });
 

@@ -25,7 +25,7 @@ export default class LevelBuilder {
 
   _parentLevelBuilder; // билдер, в который этот объект добавляет свой query и свой mutation, при условии что они получились не пустыми
   _typeDefs; // общий список типов, который потом отдается в схему apollo graphql
-  _resolvers; // корневой объект resolvers, который можно добавлять резолверы типа: _resolvers[<typeName>][<queryName>] = (obj, args, context) => {}
+  _resolvers; // корневой объект resolvers, который можно добавлять резолверы типа: _resolvers[<typeName>][<queryName>] = (obj, args, builderContext) => {}
 
   _levelQueryResolver; // объект с query резолверами, для этого уровня
   _levelMutationResolver; // объект с mutation резолверами, для этого уровня
@@ -131,14 +131,14 @@ export default class LevelBuilder {
 
     if (this._builders.length === 0) throw new Error('List of builders is empty');
 
-    const {typeDefs, resolvers, context} = options;
+    const {typeDefs, resolvers, builderContext} = options;
 
     const donePromise = new Promise((resolve, reject) => {
       this._done = resolve;
       this._reject = reject;
     });
 
-    const builderArgs = this._builderArgs = {parentLevelBuilder: this, typeDefs, resolvers, context};
+    const builderArgs = this._builderArgs = {parentLevelBuilder: this, typeDefs, resolvers, builderContext};
     this._builders.forEach(builder => (builder instanceof LevelBuilder ? builder.build(builderArgs) : builder(builderArgs)).then(this._builderFinished));
 
     return donePromise; // ждем когда все билдеры сработают

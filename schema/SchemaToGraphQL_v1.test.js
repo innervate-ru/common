@@ -43,7 +43,7 @@ const method = {
 
 const PREFIX = 'pref_';
 
-test(`сборка простой схемы`, async t => {
+test.skip(`сборка простой схемы`, async t => {
 
   const testMethodBuilder = async (args) => {
     console.info(49);

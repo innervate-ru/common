@@ -1,4 +1,4 @@
-import * as fs from 'fs'
+import fs from 'fs'
 
 import throwIfMissing from 'throw-if-missing'
 import promisify from './promisify'
