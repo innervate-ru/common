@@ -57,6 +57,7 @@ export default class SchemaToGraphQL {
 
       const methodName = method.name;
 
+      // вносим в схему отличия между методом в MS SQL и методом в GraphQL
       const gqlParams = {}, gqlFields = {}; // элементы graphQL схемы
       const {paramProcessors, resultProcessors, filterRows} = this._processMethod({
         ...args,
@@ -67,6 +68,7 @@ export default class SchemaToGraphQL {
         gqlFields
       });
 
+      // параметры
       for (const param of method.params) {
         const paramProcessor = this._processParam({
           ...args,
@@ -78,6 +80,13 @@ export default class SchemaToGraphQL {
         if (typeof paramProcessor == 'function') paramProcessors.push(paramProcessor);
       }
 
+      const methodArgs = [];
+      for (const paramName in gqlParams) {
+        const param = gqlParams[paramName];
+        methodArgs.push({name: paramName, ...param});
+      }
+
+      // результат
       if (method.result)
         for (const field of method.result) {
           const resultProcessor = this._processResult({
@@ -90,37 +99,6 @@ export default class SchemaToGraphQL {
           if (typeof resultProcessor == 'function') resultProcessors.push(resultProcessor);
         }
 
-      // это повторение иерархии типов из relay-graphql connection
-      const pageInfoType = `${PREFIX}PageInfo`
-      if (!builderContext[pageInfoType]) { // from node_modules/graphql-relay/lib/connection/connection.js (112)
-        builderContext[pageInfoType] = true;
-        const connectionPageInfo = new TypeBuilder({
-          name: `PageInfo`,
-          description: `Information about pagination in a connection.`
-        });
-        connectionPageInfo.addField({
-          name: `hasNextPage`,
-          type: `Boolean!`,
-          description: `When paginating forwards, are there more items?`
-        });
-        connectionPageInfo.addField({
-          name: `hasPreviousPage`,
-          type: `Boolean!`,
-          description: `When paginating backwards, are there more items?`
-        });
-        connectionPageInfo.addField({
-          name: `startCursor`,
-          type: `String`,
-          description: `When paginating backwards, the cursor to continue.`
-        });
-        connectionPageInfo.addField({
-          name: `endCursor`,
-          type: `String`,
-          description: `When paginating forwards, the cursor to continue.`
-        });
-        typeDefs.push(connectionPageInfo.build());
-      }
-
       const rowType = new TypeBuilder({name: `${METHOD_PREFIX}Row`});
       for (const fieldName in gqlFields) {
         const field = gqlFields[fieldName];
@@ -128,37 +106,16 @@ export default class SchemaToGraphQL {
       }
       typeDefs.push(rowType.build());
 
-      const edgeType = new TypeBuilder({name: `${METHOD_PREFIX}Edge`, description: `An edge in a connection.`});
-      edgeType.addField({
-        name: `node`,
-        type: rowType.name,
-        description: `The item at the end of the edge`
-      });
-      edgeType.addField({name: `cursor`, type: `String!`, description: `A cursor for use in pagination`});
-      typeDefs.push(edgeType.build());
-
-      const connectionType = new TypeBuilder({
-        name: `${METHOD_PREFIX}Connection`,
-        description: `A connection to a list of items.`
-      });
-      connectionType.addField({
-        name: `pageInfo`,
-        type: `PageInfo!`,
-        description: `Information to aid in pagination.`
-      });
-      connectionType.addField({name: `edges`, type: `[${edgeType.name}]`, description: `A list of edges.`});
-      typeDefs.push(connectionType.build());
-
       const listType = new TypeBuilder({name: `${METHOD_PREFIX}List`});
       listType.addField({
+        description: `true, когда указан параметр _limit и есть продолжение данных после того, что в rows`,
+        name: 'hasNext',
+        type: 'Boolean!',
+      });
+      listType.addField({
+        description: `Данные возвращаемые методом ${method.name}`,
         name: 'rows',
-        args: [
-          {name: 'after', type: 'String'},
-          {name: 'first', type: 'Int'},
-          {name: 'before', type: 'String'},
-          {name: 'last', type: 'Int'},
-        ],
-        type: connectionType.name,
+        type: `[${rowType.name}!]!` ,
       });
       typeDefs.push(listType.build());
 
@@ -168,9 +125,14 @@ export default class SchemaToGraphQL {
         serviceName,
       }) : null;
 
+      // резолвер
       const resolver = async function (obj, args, gqlContext) {
 
         const {request, callContext} = gqlContext;
+
+        const {_offset, _limit, _callContext} = args;
+        if (!(_offset == null || _offset >= 0)) throw new Error(`Argument '_offset': Must be positive or zero: ${_offset}`);
+        if (!(_limit == null || _limit >= 0)) throw new Error(`Argument '_limit': Must be positive or zero: ${_limit}`);
 
         debug('method %s(%o)', methodName, args);
 
@@ -189,78 +151,31 @@ export default class SchemaToGraphQL {
 
         if (paramsPromises.length > 0) await Promise.all(paramsPromises);
 
+        debug(`call service method %s(%O)`, methodName, methodParams);
+
+        let {rows, hasNext} = await connector[methodName]({
+          ...methodParams,
+          _offset: _offset,
+          _limit: _limit,
+          _callContext: _callContext,
+        });
+
+        debug(`rows.length: %d, hasNext: %s`, rows.length, hasNext);
+
+        if (filterRows) rows = filterRows.call(methodContext, rows);
+
+        for (let rp of resultProcessors) {
+          let promise = rp.call(methodContext, rows, request);
+          if (typeof promise != 'undefined') resultPromises.push(promise);
+        }
+
+        if (resultPromises.length > 0) await Promise.all(resultPromises);
+
         return {
-          rows: wrapResolver(async function ({before, after, first, last}) {
-
-            let startOffset = getOffsetWithDefault(after, -1) + 1;
-            let endOffset = getOffsetWithDefault(before, Number.MAX_SAFE_INTEGER) - 1;
-
-            debug(`w/o first and last: startOffset: %d, endOffset: %d`, startOffset, endOffset);
-
-            if (typeof first === 'number') {
-              if (first < 0) {
-                throw new Error('Argument "first" must be a non-negative integer');
-              }
-              endOffset = Math.min(endOffset, startOffset + first - 1);
-            }
-            if (typeof last === 'number') {
-              if (last < 0) {
-                throw new Error('Argument "last" must be a non-negative integer');
-              }
-              startOffset = Math.max(startOffset, endOffset - last + 1);
-            }
-
-            debug(`with first and last: startOffset: %d, endOffset: %d`, startOffset, endOffset);
-
-            if (endOffset >= startOffset) {
-
-              debug(`call service method %s(%O)`, methodName, methodParams);
-
-              let {rows, hasNext} = await connector[methodName]({
-                ...methodParams,
-                _offset: startOffset,
-                _limit: endOffset - startOffset + 1,
-                // _callContext: callContext,
-              });
-
-              debug(`rows.length: %d, hasNext: %s`, rows.length, hasNext);
-
-              if (filterRows) rows = filterRows.call(methodContext, rows);
-
-              for (let rp of resultProcessors) {
-                let promise = rp.call(methodContext, rows, request);
-                if (typeof promise != 'undefined') resultPromises.push(promise);
-              }
-
-              if (resultPromises.length > 0) await Promise.all(resultPromises);
-
-              let index = startOffset;
-              let edges = [];
-              for (let row of rows)
-                edges.push({
-                  cursor: offsetToCursor(startOffset + index++),
-                  node: row,
-                })
-
-              return {
-                pageInfo: {
-                  hasNextPage: hasNext,
-                  hasPreviousPage: startOffset > 0,
-                  startCursor: offsetToCursor(startOffset),
-                  endCursor: offsetToCursor(endOffset),
-                },
-                edges
-              };
-            }
-          }),
+          hasNext,
+          rows,
         };
       };
-
-      const methodArgs = [];
-      for (const paramName in gqlParams) {
-        const param = gqlParams[paramName];
-        methodArgs.push({name: paramName, ...param});
-      }
 
       parentLevelBuilder[method.gqlType === 'mutation' ? 'addMutation' : 'addQuery']({
         description: method.description,
@@ -336,6 +251,16 @@ export default class SchemaToGraphQL {
           type: 'String',
         }
       });
+
+    // добавляем поля _offset и _limit, пока во все методы, так как других вариантов, как возврат данных списком у нас пока нет
+    gqlParams[`_offset`] = {
+      description: `C какой строчки возвращать записи из результата запроса.  По умолчанию: 1`,
+      type: `Int`,
+    };
+    gqlParams[`_limit`] = {
+      description: `Сколько строк результата возвращать`,
+      type: `Int`,
+    };
 
     return {paramProcessors, resultProcessors};
   }

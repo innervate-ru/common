@@ -187,7 +187,7 @@ export default oncePerServices(function (services) {
       schema.exec_args(args);
       this._args = args;
 
-      let {query, procedure, paramsDef, params, offset, limit, callContext} = args || {};
+      let {query, procedure, paramsDef, params, offset, limit, callContext} = args || {}; // TODO: Use call context in mssql call reports
       if (typeof offset !== 'number') offset = 0;
       if (typeof limit !== 'number') limit = Number.MAX_SAFE_INTEGER;
       const lastRow = Math.min(offset + limit, Number.MAX_SAFE_INTEGER);

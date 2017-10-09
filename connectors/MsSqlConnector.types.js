@@ -1,4 +1,5 @@
 import tedious from 'tedious'
+import prettyPrint from '../utils/prettyPrint'
 
 const TYPES = tedious.TYPES; // http://tediousjs.github.io/tedious/api-datatypes.html
 
