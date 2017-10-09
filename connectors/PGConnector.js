@@ -57,7 +57,7 @@ export default oncePerServices(function (services) {
       schema.exec_args(args);
       const connection = await this._innerConnection();
       try {
-        connection._innerExec(args);
+        return connection._innerExec(args);
       } finally {
         connection._end();
       }
@@ -81,7 +81,7 @@ export default oncePerServices(function (services) {
 
     async _innerExec(args) {
       return new Promise((resolve, reject) => {
-        this._client.query(args.statement, args, function (err, results) {
+        this._client.query(args.statement, args.params, function (err, results) {
           if (err) reject(err);
           else resolve(results);
         });
@@ -94,9 +94,7 @@ export default oncePerServices(function (services) {
     }
   }
 
-  addServiceStateValidation(Connection.prototype, function () {
-    console.info(98, this._connector._service._reportError);
-    return this._connector._service; });
+  addServiceStateValidation(Connection.prototype, function () { return this._connector._service; });
 
   PGConnector.SERVICE_TYPE = SERVICE_TYPE;
 

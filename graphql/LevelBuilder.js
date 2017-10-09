@@ -45,6 +45,7 @@ export default class LevelBuilder {
       if (this._done.isFulfilled) throw new Error(`Invalid state: this.build() is already completed, and it's too later to add a new builder`);
       builder.build(this._builderArgs).then(_builderFinished);
     }
+    return this;
   }
 
   /**
@@ -60,6 +61,7 @@ export default class LevelBuilder {
     if (typeDef) this._typeDefs.push(typeDef);
     this._queries.push(query);
     if (resolver) this._getQueryResolver()[name] = wrapResolver(resolver);
+    return this;
   }
 
   /**
@@ -75,13 +77,16 @@ export default class LevelBuilder {
     if (typeDef) this._typeDefs.push(typeDef);
     this._mutations.push(mutation);
     if (resolver) this._getMutationResolver()[name] = wrapResolver(resolver);
+    return this;
   }
 
   /**
    * Добавляет описание уровня.
    */
-  setDescription(description) {
+  setDescription(description = missingArgument('description')) {
+    if (!(typeof description === 'string' && description.length > 0)) invalidArgument('description', description);
     this._description = description;
+    return this;
   }
 
   /**

@@ -12,7 +12,7 @@ export const ctor_settings = validate.service.finished({
   // TODO: Посмотреть в код pg, выписать все опции
 });
 
-export const exec_args = validate.method.this('args', {
+export const exec_args = validate.method.finished('args', {
   statement: {required: true, type: VType.String().notEmpty()},
-  // TODO: Прописать какие еще аргументы можно передавать из https://node-postgres.com/features/queries ...и заменить this на finished
+  params: {type: VType.Array()},
 });

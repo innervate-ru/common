@@ -13,7 +13,7 @@ export const validateFieldBuilder = validate.builder.method.finished({
 export const addQuery_query = validateFieldBuilder('query');
 export const addMutation_mutation = validateFieldBuilder('mutation');
 
-export const build_options = validate.method.finished('options', {
+export const build_options = validate.method.finished('args', { // TODO: options -> args
   _extends: require('./SchemaBuilder.schema').build_options,
   parentLevelBuilder: {type: VType.Object(), required: true},
   builderContext: {type: VType.Object()}, // объект, через который могут обмениваться билдеры собирающие единую схему, в процессе их рабтать

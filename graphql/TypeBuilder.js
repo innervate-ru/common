@@ -19,11 +19,13 @@ export default class TypeBuilder {
   addField(field = missingArgument('field')) {
     schema.addField_field(field);
     this._fields.push(field);
+    return this;
   }
 
   setDescription(description = missingArgument('description')) {
     if (!(typeof description === 'string' && description.length > 0)) invalidArgument('description', description);
     this._description = description;
+    return this;
   }
 
   build() {
