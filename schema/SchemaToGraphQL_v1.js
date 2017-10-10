@@ -3,6 +3,7 @@ import TypeBuilder from '../graphql/TypeBuilder'
 import wrapResolver from '../graphql/wrapResolver'
 import addPrefixToErrorMessage from '../utils/addPrefixToErrorMessage'
 import convertTypeToGqlType from './convertTypeToGqlType'
+import parseXml from '../utils/parseXml'
 
 const hasOwnProperty = Object.prototype.hasOwnProperty;
 
@@ -78,7 +79,7 @@ export default class SchemaToGraphQL {
         if (typeof paramProcessor == 'function') paramProcessors.push(paramProcessor);
       }
 
-      if (method.result)
+      if (method.result) {
         for (const field of method.result) {
           const resultProcessor = this._processResult({
             ...args,
@@ -89,9 +90,10 @@ export default class SchemaToGraphQL {
           });
           if (typeof resultProcessor == 'function') resultProcessors.push(resultProcessor);
         }
+      }
 
       // это повторение иерархии типов из relay-graphql connection
-      const pageInfoType = `${PREFIX}PageInfo`
+      const pageInfoType = `${PREFIX}PageInfo`;
       if (!builderContext[pageInfoType]) { // from node_modules/graphql-relay/lib/connection/connection.js (112)
         builderContext[pageInfoType] = true;
         const connectionPageInfo = new TypeBuilder({

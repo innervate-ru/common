@@ -3,6 +3,7 @@ import TypeBuilder from '../graphql/TypeBuilder'
 import wrapResolver from '../graphql/wrapResolver'
 import addPrefixToErrorMessage from '../utils/addPrefixToErrorMessage'
 import convertTypeToGqlType from './convertTypeToGqlType'
+import parseXml from '../utils/parseXml'
 
 const hasOwnProperty = Object.prototype.hasOwnProperty;
 

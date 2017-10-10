@@ -7,8 +7,6 @@ import addPrefixToErrorMessage from '../../utils/addPrefixToErrorMessage'
 import tedious from 'tedious'
 import {stringToTediousTypeMap} from '../../connectors/MsSqlConnector.types'
 
-const TYPES = tedious.TYPES; // http://tediousjs.github.io/tedious/api-datatypes.html
-
 const hasOwnProperty = Object.prototype.hasOwnProperty;
 const schema = require('./MsSqlCallStoredProcsService.schema');
 
@@ -36,7 +34,9 @@ export default oncePerServices(function (services) {
     _addMethods(schema = missingArgument('schema')) {
       if (!(Array.isArray(schema))) invalidArgument('schema', schema);
       processSchema.call(this, schema);
-      addServiceStateValidation(this, function() { return this._service; });
+      addServiceStateValidation(this, function () {
+        return this._service;
+      });
     }
   }
 
@@ -59,28 +59,47 @@ function addMethod(model) {
   const params = model.params;
   if (params) {
     paramsDef = Object.create(null);
-    for (const paramName in params) {
-      if (hasOwnProperty.call(params, paramName)) {
-        const parameterModel = params[paramName];
-        if (parameterModel.mssqlType) {
-          if (!hasOwnProperty.call(stringToTediousTypeMap, parameterModel.mssqlType)) throw new Error(`Unknown MsSqlConnector type: ${prettyPrint(parameterModel.mssqlType)}`);
-          paramsDef[paramName] = parameterModel.mssqlType;
-        } else if (parameterModel.type) {
-          if (!hasOwnProperty.call(stringToTediousTypeMap, parameterModel.type)) throw new Error(`Unknown MsSqlConnector type: ${prettyPrint(parameterModel.type)}`);
-          paramsDef[paramName] = parameterModel.type;
-        } else {
-          throw new Error(`Missing 'type' or 'mssqlType' attribute`);
-        }
+    for (const parameterModel of params) {
+      const paramName = parameterModel.name;
+      if (parameterModel.mssqlType) {
+        if (!hasOwnProperty.call(stringToTediousTypeMap, parameterModel.mssqlType)) throw new Error(`Unknown MsSqlConnector type: ${prettyPrint(parameterModel.mssqlType)}`);
+        paramsDef[paramName] = parameterModel.mssqlType;
+      } else if (parameterModel.type) {
+        if (!hasOwnProperty.call(stringToTediousTypeMap, parameterModel.type)) throw new Error(`Unknown MsSqlConnector type: ${prettyPrint(parameterModel.type)}`);
+        paramsDef[paramName] = parameterModel.type;
+      } else {
+        throw new Error(`Missing 'type' or 'mssqlType' attribute`);
       }
     }
   }
 
   const storedProcName = model.name;
 
-  this[storedProcName] = /*async*/ function (args = {}) {
+  // apollo-сервер возвращает ошибки, если полей нет, или их значение undefined и при этом нет метода для такого поля в resolver'е интерфейса в коллеции resolvers.
+  const fields = model.result.map(v => v.name);
+  function undefinedToNull(rows) {
+    rows.forEach(function (row) {
+      fields.forEach(function (f) {
+        if (row[f] === undefined) row[f] = null;
+      });
+    });
+  }
+
+  this[storedProcName] = async function (args = {}) {
 
     const {_offset = 0, _limit = Number.MAX_SAFE_INTEGER, _callContext, ...params} = args;
 
-    return this._connector.exec({procedure: storedProcName, offset: _offset, limit: _limit, callContext: _callContext, paramsDef, params});
+    const res = await this._connector.exec({
+      procedure: storedProcName,
+      offset: _offset,
+      limit: _limit,
+      callContext: _callContext,
+      paramsDef,
+      params
+    });
+
+    undefinedToNull(res.rows);
+
+    return res;
   }
 }
