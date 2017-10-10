@@ -1,9 +1,8 @@
-// Важно: При изменении класса и тестов, обязательно по завершению работы выполнить npm run coverage и посмотреть покрытие кода!
-
 import test from 'ava'
 import path from 'path'
 
-import CachedResponsesService from './index'
+const services = {};
+const CachedResponsesService = require('./index').default(services);
 
 const _testFilename = path.join(path.relative(process.cwd(), __dirname), path.basename(__filename, '.js'));
 
