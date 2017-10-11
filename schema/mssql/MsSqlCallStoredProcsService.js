@@ -75,31 +75,10 @@ function addMethod(model) {
 
   const storedProcName = model.name;
 
-  // apollo-сервер возвращает ошибки, если полей нет, или их значение undefined и при этом нет метода для такого поля в resolver'е интерфейса в коллеции resolvers.
-  const fields = model.result.map(v => v.name);
-  function undefinedToNull(rows) {
-    rows.forEach(function (row) {
-      fields.forEach(function (f) {
-        if (row[f] === undefined) row[f] = null;
-      });
-    });
-  }
-
-  this[storedProcName] = async function (args = {}) {
+  this[storedProcName] = /*async*/ function (args = {}) {
 
     const {_offset = 0, _limit = Number.MAX_SAFE_INTEGER, _callContext, ...params} = args;
 
-    const res = await this._connector.exec({
-      procedure: storedProcName,
-      offset: _offset,
-      limit: _limit,
-      callContext: _callContext,
-      paramsDef,
-      params
-    });
-
-    undefinedToNull(res.rows);
-
-    return res;
-  }
+    return this._connector.exec({procedure: storedProcName, offset: _offset, limit: _limit, callContext: _callContext, paramsDef, params});
+  };
 }
