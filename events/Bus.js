@@ -1,7 +1,7 @@
-import {missingArgument, invalidArgument} from '../utils/arguments'
-
 import EventEmitter from 'events'
-
+import {missingArgument, invalidArgument} from '../utils/arguments'
+import configAPI from 'config'
+import graylog2 from 'graylog2' // TODO: Replace by https://www.npmjs.com/package/gelf-pro OR  https://github.com/robertkowalski/gelf-node
 import prettyPrint from '../utils/prettyPrint'
 import defineProps from '../utils/defineProps'
 import {validateOptionsFactory} from '../validation/validateObject'
@@ -104,6 +104,19 @@ export default function (services = {}) {
       this.setMaxListeners(0); // без ограничения
       this._config = Object.create(null);
       this._alterToString = Object.create(null);
+
+      const loggerConfig = configAPI.get('grayLog');
+      if (loggerConfig.enabled) {
+        this._logger = new graylog2.graylog(loggerConfig);
+      }
+    }
+
+    async dispose() {
+      if (this._logger) {
+        return new Promise((resolve, reject) => {
+          this._logger.close(() => resolve());
+        });
+      }
     }
 
     /**
@@ -182,7 +195,7 @@ export default function (services = {}) {
       const evConfig = checkEvent('event', ev, this._config);
       logEvent('info', ev, evConfig, this._alterToString);
       this.emit(ev.type, ev);
-      // TODO: Send to log
+      this._logger && this._logger.info(ev);
     }
 
     command(ev) {
@@ -190,7 +203,7 @@ export default function (services = {}) {
       const evConfig = checkEvent('command', ev, this._config);
       logEvent('info', ev, evConfig, this._alterToString);
       this.emit(ev.type, ev);
-      // TODO: Send to log
+      this._logger && this._logger.info(ev);
     }
 
     info(ev) {
@@ -198,26 +211,27 @@ export default function (services = {}) {
       const evConfig = checkEvent('info', ev, this._config);
       logEvent('info', ev, evConfig, this._alterToString);
       this.emit(ev.type, ev);
+      this._logger && this._logger.info(ev);
     }
 
     error(ev) {
       if (!(arguments.length === 1)) throw new Error(`Invalid number of arguments: ${prettyPrint(arguments)}`);
       const evConfig = checkEvent('error', ev, this._config);
       logEvent('error', ev, evConfig, this._alterToString);
-      // TODO: Send to log
+      this._logger && this._logger.error(ev);
     }
 
     warn(ev) {
       if (!(arguments.length === 1)) throw new Error(`Invalid number of arguments: ${prettyPrint(arguments)}`);
       const evConfig = checkEvent('warn', ev, this._config);
       logEvent('warn', ev, evConfig, this._alterToString);
+      this._logger && this._logger.warning(ev);
     }
 
     debug(ev) {
       if (!(arguments.length === 1)) throw new Error(`Invalid number of arguments: ${prettyPrint(arguments)}`);
       const evConfig = checkEvent('debug', ev, this._config);
-      // logEvent('info', ev, evConfig, this._alterToString);
-      // TODO: Send to log
+      this._logger && this._logger.debug(ev);
     }
   }
 

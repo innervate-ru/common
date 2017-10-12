@@ -90,7 +90,7 @@ export default oncePerServices(function (services) {
       }
     }
 
-    dispose() {
+    async dispose() {
       const services = this._services;
       const lst = [];
       for (const serviceName in services) {
@@ -98,13 +98,14 @@ export default oncePerServices(function (services) {
         if (typeof svc !== 'object' || !hasOwnProperty.call(svc, '_service')) continue; // пропускаем базовые серисы (console, bus, manager) и флаг 'testMode'
         lst.push(svc._service.dispose());
       }
-      return new Promise(function (resolve, reject) {
+      await new Promise(function (resolve, reject) {
         if (lst.length === 0) resolve();
         else Promise.all(lst).then(() => {
           resolve(); }); // все dispose всегда возвращаются успешно
         // TODO: Подумать, нужно ли добавить timeout для этой операции
         // TODO: Нужно ли выводить в bus сообытие что работа завершена
       });
+      await bus.dispose();
     }
   }
 
