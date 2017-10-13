@@ -23,7 +23,7 @@ export default oncePerServices(function (services) {
       schema.ctor_options(this, options);
 
       // выдаем событие nodemanager.started, когда все зарегистрированные сервисы
-      const startTime = new Date().getTime();
+      const startTime = Date.now();
       const startedServices = Object.create(null);
       const listener = (ev) => {
         if (ev.state === READY || ev.state == FAILED) {
@@ -39,12 +39,10 @@ export default oncePerServices(function (services) {
                   const state = service._service.get('state');
                   if (state === FAILED) failedServices.push(serviceName);
                 }
-                const time = new Date().getTime();
                 const ev = {
-                  time,
                   type: 'nodemanager.started',
                   source: this._name,
-                  startDuration: time - startTime,
+                  startDuration: Date.now() - startTime,
                 };
                 if (failedServices.length > 0) ev.failedServices = failedServices;
                 bus.info(ev);

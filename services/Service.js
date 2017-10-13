@@ -275,7 +275,6 @@ export default oncePerServices(function (services) {
       // console.info(`${prevState.toString()} -> ${this._state.toString()}${nextState ? `(${nextState.toString()})` : ''}; method: ${!!method}; reason: ${!!reason}`);
 
       const ev = {
-        time: new Date().getTime(),
         type: 'service.state',
         source: this._name,
         state: newState,
@@ -331,7 +330,7 @@ export default oncePerServices(function (services) {
     }
 
     touch() {
-      if (this._firstOpTime === null) this._firstOpTime = new Date().getTime();
+      if (this._firstOpTime === null) this._firstOpTime = Date.now();
     }
 
     /**
@@ -364,7 +363,6 @@ export default oncePerServices(function (services) {
     _reportError(error) {
       if (!(error instanceof Error)) error = new Error(`Invalid argument 'error': ${prettyPrint(err)}`);
       const errEvent = {
-        time: new Date().getTime(),
         type: 'service.error',
         source: this._name,
       };

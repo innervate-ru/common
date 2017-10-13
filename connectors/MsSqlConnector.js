@@ -57,7 +57,7 @@ export default oncePerServices(function (services) {
       delete settingsWithoutPassword.password;
       fixDependsOn(settingsWithoutPassword);
       bus.info({
-        time: new Date().getTime(),
+        time: Date.now(),
         type: 'service.settings',
         source: this._service.get('name'),
         serviceType: SERVICE_TYPE,
