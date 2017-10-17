@@ -23,7 +23,7 @@ export default oncePerServices(function (services) {
       schema.ctor_options(this, options);
 
       // выдаем событие nodemanager.started, когда все зарегистрированные сервисы
-      const startTime = new Date().getTime();
+      const startTime = Date.now();
       const startedServices = Object.create(null);
       const listener = (ev) => {
         if (ev.state === READY || ev.state == FAILED) {
@@ -39,12 +39,10 @@ export default oncePerServices(function (services) {
                   const state = service._service.get('state');
                   if (state === FAILED) failedServices.push(serviceName);
                 }
-                const time = new Date().getTime();
                 const ev = {
-                  time,
                   type: 'nodemanager.started',
                   source: this._name,
-                  startDuration: time - startTime,
+                  startDuration: Date.now() - startTime,
                 };
                 if (failedServices.length > 0) ev.failedServices = failedServices;
                 bus.info(ev);
@@ -90,7 +88,7 @@ export default oncePerServices(function (services) {
       }
     }
 
-    dispose() {
+    async dispose() {
       const services = this._services;
       const lst = [];
       for (const serviceName in services) {
@@ -98,13 +96,14 @@ export default oncePerServices(function (services) {
         if (typeof svc !== 'object' || !hasOwnProperty.call(svc, '_service')) continue; // пропускаем базовые серисы (console, bus, manager) и флаг 'testMode'
         lst.push(svc._service.dispose());
       }
-      return new Promise(function (resolve, reject) {
+      await new Promise(function (resolve, reject) {
         if (lst.length === 0) resolve();
         else Promise.all(lst).then(() => {
           resolve(); }); // все dispose всегда возвращаются успешно
         // TODO: Подумать, нужно ли добавить timeout для этой операции
         // TODO: Нужно ли выводить в bus сообытие что работа завершена
       });
+      await bus.dispose();
     }
   }
 

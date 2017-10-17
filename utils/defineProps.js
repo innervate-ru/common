@@ -1,4 +1,4 @@
-import throwIfMissing from 'throw-if-missing'
+import {missingArgument} from '../validation'
 import prettyPrint from './prettyPrint'
 const hasOwnProperty = Object.prototype.hasOwnProperty;
 
@@ -12,7 +12,7 @@ const hasOwnProperty = Object.prototype.hasOwnProperty;
  * 1. Поддержать работу со свойствами классами предками
  * 2. Разрулить, чтобы у метода не было других get и set методов
  */
-export default function defineProps(clazz = throwIfMissing('clazz'), props = throwIfMissing('props')) {
+export default function defineProps(clazz = missingArgument('clazz'), props = missingArgument('props')) {
   if (!(typeof clazz === 'function' && clazz !== null && !Array.isArray(clazz) && hasOwnProperty.call(clazz, 'prototype')))
     throw new Error(`Invalid argument 'clazz': ${prettyPrint(clazz)}`);
   if (!(typeof props === 'object' && props !== null && !Array.isArray(props)))

@@ -1,13 +1,86 @@
-import {missingArgument, invalidArgument} from '../utils/arguments'
-
+import os from 'os'
 import EventEmitter from 'events'
-
+import {missingArgument, invalidArgument} from '../utils/arguments'
+import configAPI from 'config'
 import prettyPrint from '../utils/prettyPrint'
 import defineProps from '../utils/defineProps'
 import {validateOptionsFactory} from '../validation/validateObject'
 
 const hasOwnProperty = Object.prototype.hasOwnProperty;
 const defaultConsole = console;
+
+let graylog = null, graylogCount = 0, graylogStopResolve;
+
+function graylogSendCB(err) {
+  if (--graylogCount === 0) graylogStopResolve && graylogStopResolve();
+}
+
+/* async */ function graylogStop() {
+  return new Promise(function (resolve, reject) {
+    if (!graylog) resolve();
+    else {
+      graylog = null; // прекращаем отправку сообщений
+      if (graylogCount === 0) resolve();
+      else graylogStopResolve = resolve;
+    }
+  });
+}
+
+function graylogSend(ev) {
+  if (graylog) {
+    if (!hasOwnProperty.call(ev, 'message')) {
+      ev = Object.assign(Object.create(null), ev);
+      const {host, timestamp, source, type, ...rest} = ev;
+      ev.message = `${ev.source}: ${ev.type}${Object.keys(rest).length > 0 ? ` ${prettyPrint(rest)}` : ''}`;
+    }
+    ++graylogCount;
+    graylog.send(JSON.stringify(ev), graylogSendCB);
+  }
+}
+
+const host = os.hostname();
+
+function wrapEvent(ev) {
+  const r = Object.create(null);
+  r.timestamp = Date.now() / 1000;
+  r.host = host;
+  Object.assign(r, ev);
+  return r;
+}
+
+function addMessageField(ev, evConfig, alterToStringMap) {
+
+  if (hasOwnProperty.call(ev, 'message')) return ev;
+
+  const alterToStringList = alterToStringMap[ev.type];
+  if (alterToStringList) {
+    for (const alterToString of alterToStringList) {
+      const str = alterToString(ev);
+      if (str === undefined) return; // не выводим ничего
+      if (typeof str !== 'string') continue; // все что не строка, считаем что надо продолжать искать вариант вывода в консоль
+      ev = Object.assign(Object.create(null), ev);
+      ev.message = str;
+      return ev;
+    }
+  }
+  if (evConfig) {
+    if (hasOwnProperty.call(evConfig, 'toString')) {
+      const str = evConfig.toString(ev);
+      if (str) {
+        ev = Object.assign(Object.create(null), ev);
+        ev.message = str;
+        return ev;
+      }
+    }
+  }
+}
+
+function addDefaultMessage(ev) {
+  if (hasOwnProperty.call(ev, 'message')) return;
+  const {host, timestamp, source, type, ...rest} = ev;
+  ev.message = `${ev.source}: ${ev.type}${Object.keys(rest).length > 0 ? ` ${prettyPrint(rest)}` : ''}`;
+  return ev;
+}
 
 export default function (services = {}) {
 
@@ -65,27 +138,6 @@ export default function (services = {}) {
     }
   }
 
-  function logEvent(method, ev, evConfig, alterToStringMap) {
-    const alterToStringList = alterToStringMap[ev.type];
-    if (alterToStringList) {
-      for (const alterToString of alterToStringList) {
-        const str = alterToString(ev);
-        if (str === undefined) return; // не выводим ничего
-        if (typeof str !== 'string') continue; // все что не строка, считаем что надо продолжать искать вариант вывода в консоль
-        console[method](str);
-        return;
-      }
-    }
-    if (evConfig) {
-      if (hasOwnProperty.call(evConfig, 'toString')) {
-        const str = evConfig.toString(ev);
-        if (str) console[method](str);
-        return;
-      }
-    }
-    console[method](prettyPrint(ev));
-  }
-
   /**
    * Локальная шина обмена сообщений, на основе ndejs emitter'а.  Для того чтобы слушать сообщения надо подписаться на шину
    * через .on метод event emitter'а.  Через Bus идет как обмен сооблщениями внутри javaScript процесса, так и обмен
@@ -104,6 +156,27 @@ export default function (services = {}) {
       this.setMaxListeners(0); // без ограничения
       this._config = Object.create(null);
       this._alterToString = Object.create(null);
+      this._index = 0;
+
+      if (configAPI.has('grayLog')) {
+        const graylogConfig = configAPI.get('grayLog');
+        if (graylogConfig && graylogConfig.enabled) {
+          console.info('graylogConfig.config', graylogConfig.config);
+          graylog = require('gelf-pro');
+          graylog.setConfig(graylogConfig.config);
+        }
+      }
+    }
+
+    async dispose() {
+      return graylogStop();
+    }
+
+    /**
+     * Возвращает значение, для того чтобы указать его в поле index события, чтобы можно было связанные события потом сортировать по index.
+     */
+    nextIndex() {
+      return this._index++;
     }
 
     /**
@@ -157,6 +230,7 @@ export default function (services = {}) {
     alterToString(alterMap = missingArgument('alterMap')) {
       if (!(typeof alterMap === 'object' && alterMap != null && !Array.isArray(alterMap))) invalidArgument('alterMap', alterMap);
       for (const eventType in alterMap) {
+        if (!hasOwnProperty.call(alterMap, eventType)) continue;
         const toString = alterMap[eventType];
         if (!(typeof toString === 'function')) throw new Error(`Argument '${altermap}': Invalid value for key '${eventType}': ${prettyPrint(toString)}`);
         (this._alterToString[eventType] || (this._alterToString[eventType] = [])).push(toString);
@@ -168,7 +242,6 @@ export default function (services = {}) {
       for (const eventType in this._alterToString)
         if (!(eventType in this._config)) (unmetAlterToStrings || (unmetAlterToStrings = [])).push(eventType);
       if (unmetAlterToStrings) this.warn({
-        time: new Date().getTime(),
         type: 'bus.unmetAlterToStrings',
         source: 'bus',
         unmetAlterToStrings
@@ -180,44 +253,59 @@ export default function (services = {}) {
     event(ev) {
       if (!(arguments.length === 1)) throw new Error(`Invalid number of arguments: ${prettyPrint(arguments)}`);
       const evConfig = checkEvent('event', ev, this._config);
-      logEvent('info', ev, evConfig, this._alterToString);
+      ev = wrapEvent(ev);
       this.emit(ev.type, ev);
-      // TODO: Send to log
+      const evm = addMessageField(ev, evConfig, this._alterToString);
+      if (evm) console.info(evm.message);
+      graylogSend(evm || ev);
     }
 
     command(ev) {
       if (!(arguments.length === 1)) throw new Error(`Invalid number of arguments: ${prettyPrint(arguments)}`);
       const evConfig = checkEvent('command', ev, this._config);
-      logEvent('info', ev, evConfig, this._alterToString);
+      ev = wrapEvent(ev);
       this.emit(ev.type, ev);
-      // TODO: Send to log
+      const evm = addMessageField(ev, evConfig, this._alterToString);
+      if (evm) console.info(evm.message);
+      graylogSend(evm || ev);
     }
 
     info(ev) {
       if (!(arguments.length === 1)) throw new Error(`Invalid number of arguments: ${prettyPrint(arguments)}`);
       const evConfig = checkEvent('info', ev, this._config);
-      logEvent('info', ev, evConfig, this._alterToString);
+      ev = wrapEvent(ev);
       this.emit(ev.type, ev);
+      const evm = addMessageField(ev, evConfig, this._alterToString);
+      if (evm) console.info(evm.message);
+      graylogSend(evm || ev);
     }
 
     error(ev) {
       if (!(arguments.length === 1)) throw new Error(`Invalid number of arguments: ${prettyPrint(arguments)}`);
       const evConfig = checkEvent('error', ev, this._config);
-      logEvent('error', ev, evConfig, this._alterToString);
-      // TODO: Send to log
+      ev = wrapEvent(ev);
+      this.emit(ev.type, ev);
+      const evm = addMessageField(ev, evConfig, this._alterToString);
+      if (evm) console.error(evm.message);
+      graylogSend(evm || ev);
     }
 
     warn(ev) {
       if (!(arguments.length === 1)) throw new Error(`Invalid number of arguments: ${prettyPrint(arguments)}`);
       const evConfig = checkEvent('warn', ev, this._config);
-      logEvent('warn', ev, evConfig, this._alterToString);
+      ev = wrapEvent(ev);
+      this.emit(ev.type, ev);
+      const evm = addMessageField(ev, evConfig, this._alterToString);
+      if (evm) console.warn(evm.message);
+      graylogSend(evm || ev);
     }
 
     debug(ev) {
       if (!(arguments.length === 1)) throw new Error(`Invalid number of arguments: ${prettyPrint(arguments)}`);
       const evConfig = checkEvent('debug', ev, this._config);
-      // logEvent('info', ev, evConfig, this._alterToString);
-      // TODO: Send to log
+      ev = wrapEvent(ev);
+      const evm = addMessageField(ev, evConfig, this._alterToString);
+      graylogSend(evm || ev);
     }
   }
 
