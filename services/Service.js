@@ -116,6 +116,9 @@ export default oncePerServices(function (services) {
       this._dependsOn = null;
 
       if (settings && settings.dependsOn) {
+
+        console.info('120', settings.dependsOn.map(v => v._service._name)); // TODO: Remove
+
         const dependsOn = uniq(flattenDeep(settings.dependsOn)); // зависимости могут состоять из массивов зависимостей, и элементы могут повторяться
         if (dependsOn.length > 0) {
           const dependsOnTotal = dependsOn.length;
@@ -409,7 +412,8 @@ export default oncePerServices(function (services) {
     // Делаем класс наследник, который добавляем в объект свойство _service
     class ServiceImpl extends serviceClass {
       constructor(name, settings) {
-        super(settings);
+        const {dependsOn, ...settingsWithoutDependsOn} = settings;
+        super(settingsWithoutDependsOn); // не передаем dependsOn, так как это ломает сериализацию параметров при выводе в graylog
         this._service = new Service(name, this, serviceClass.SERVICE_TYPE, settings);
         if (!testMode) this._service._nextStateStep();
       }
