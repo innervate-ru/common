@@ -12,6 +12,6 @@ export default oncePerServices(function defineEvents({bus = missingService('bus'
     'service.state': ev => ev.serviceType !== SERVICE_TYPE && ev.state === STARTING ? undefined : false,
 
     'service.settings': ev => ev.serviceType !== SERVICE_TYPE ? false :
-      `${ev.source}: сonnecting to ${ev.settings.url}:${ev.settings.port} as '${ev.settings.user}'. database is '${ev.settings.database}'`,
+      `${ev.source}: сonnecting to ${ev.settings.host}:${ev.settings.port} as '${ev.settings.user}'. database is '${ev.settings.database}'`,
   });
 })

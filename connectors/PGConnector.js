@@ -39,7 +39,7 @@ export default oncePerServices(function (services) {
     }
 
     async connection() { // TODO: Добавить прерывание запроса, при помощий cancel: Proise, как в MsSqlConnector
-      return _innerConnection();
+      return this._innerConnection();
     }
 
     async _innerConnection() { // TODO: Добавить прерывание запроса, при помощий cancel: Proise, как в MsSqlConnector
@@ -79,6 +79,7 @@ export default oncePerServices(function (services) {
     }
 
     async _innerExec(args) {
+      // TODO: pg 7+ supports Promise as result itself - remove extra wrappers
       return new Promise((resolve, reject) => {
         this._client.query(args.statement, args.params, function (err, results) {
           if (err) reject(err);
