@@ -248,13 +248,15 @@ export default function (services = {}) {
       });
     }
 
-    // TODO: Подумать о добавлении вида событий stat, для хранения статистики работы приложения.  Так как я решил, что info не будет писаться в log - оно для передачи данных между компонентами
+    emitEvent(ev) {
+      process.nextTick(() => this.emit(ev.type, ev));
+    }
 
     event(ev) {
       if (!(arguments.length === 1)) throw new Error(`Invalid number of arguments: ${prettyPrint(arguments)}`);
       const evConfig = checkEvent('event', ev, this._config);
       ev = wrapEvent(ev);
-      this.emit(ev.type, ev);
+      this.emitEvent(ev);
       const evm = addMessageField(ev, evConfig, this._alterToString);
       if (evm) console.info(evm.message);
       graylogSend(evm || ev);
@@ -264,7 +266,7 @@ export default function (services = {}) {
       if (!(arguments.length === 1)) throw new Error(`Invalid number of arguments: ${prettyPrint(arguments)}`);
       const evConfig = checkEvent('command', ev, this._config);
       ev = wrapEvent(ev);
-      this.emit(ev.type, ev);
+      this.emitEvent(ev);
       const evm = addMessageField(ev, evConfig, this._alterToString);
       if (evm) console.info(evm.message);
       graylogSend(evm || ev);
@@ -274,7 +276,7 @@ export default function (services = {}) {
       if (!(arguments.length === 1)) throw new Error(`Invalid number of arguments: ${prettyPrint(arguments)}`);
       const evConfig = checkEvent('info', ev, this._config);
       ev = wrapEvent(ev);
-      this.emit(ev.type, ev);
+      this.emitEvent(ev);
       const evm = addMessageField(ev, evConfig, this._alterToString);
       if (evm) console.info(evm.message);
       graylogSend(evm || ev);
@@ -284,7 +286,7 @@ export default function (services = {}) {
       if (!(arguments.length === 1)) throw new Error(`Invalid number of arguments: ${prettyPrint(arguments)}`);
       const evConfig = checkEvent('error', ev, this._config);
       ev = wrapEvent(ev);
-      this.emit(ev.type, ev);
+      this.emitEvent(ev);
       const evm = addMessageField(ev, evConfig, this._alterToString);
       if (evm) console.error(evm.message);
       graylogSend(evm || ev);
@@ -294,7 +296,7 @@ export default function (services = {}) {
       if (!(arguments.length === 1)) throw new Error(`Invalid number of arguments: ${prettyPrint(arguments)}`);
       const evConfig = checkEvent('warn', ev, this._config);
       ev = wrapEvent(ev);
-      this.emit(ev.type, ev);
+      this.emitEvent(ev);
       const evm = addMessageField(ev, evConfig, this._alterToString);
       if (evm) console.warn(evm.message);
       graylogSend(evm || ev);

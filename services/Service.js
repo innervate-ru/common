@@ -117,8 +117,6 @@ export default oncePerServices(function (services) {
 
       if (settings && settings.dependsOn) {
 
-        console.info('120', settings.dependsOn.map(v => v._service._name)); // TODO: Remove
-
         const dependsOn = uniq(flattenDeep(settings.dependsOn)); // зависимости могут состоять из массивов зависимостей, и элементы могут повторяться
         if (dependsOn.length > 0) {
           const dependsOnTotal = dependsOn.length;
@@ -127,6 +125,7 @@ export default oncePerServices(function (services) {
           dependsOn.forEach(v => {
             if (dependsOnMap[v._service.name] = (v._service.state === READY || v._service.state === FAILED)) dependsOnCount++;
           });
+
           this._isAllDependsAreReady = (dependsOnCount === dependsOnTotal);
           bus.on('service.state', ev => {
             if (hasOwnProperty.call(dependsOnMap, ev.source)) {
