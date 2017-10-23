@@ -57,11 +57,11 @@ export default oncePerServices(function (services) {
           if (service.state !== READY) throw this._service._buildInvalidStateError(); // та же логика, как то что добавляет services/addServiceStateValidation
           return new Promise(function (resolve, reject) {
             client[methodName](args, function (err, result) {
-              if (err) reject(new SoapErrorException({url, action: methodName, err}));
+              if (err) reject(new SoapErrorException({url, method: methodName, err}));
               else resolve(result);
             })
           }).catch((error) => {
-            if (services.state !== READY) return Promise.rejected(this._service._buildInvalidStateError(error));
+            if (service.state !== READY) return Promise.rejected(this._service._buildInvalidStateError(error));
             return Promise.rejected(error);
           })
         }
@@ -100,7 +100,9 @@ export default oncePerServices(function (services) {
     }
 
     async _serviceStop() {
-      soap.reset();
+      if (soap.reset) {
+        soap.reset();
+      }
     }
 
     async saveDescription(filename = throwIfMissing('filename')) {
