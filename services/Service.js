@@ -4,6 +4,7 @@ import prettyPrint from '../utils/prettyPrint'
 import InvalidServiceStateError from './InvalidServiceStateError'
 import flattenDeep from 'lodash/flattenDeep'
 import uniq from 'lodash/uniq'
+import omit from 'lodash/omit';
 import addServiceStateValidation from './addServiceStateValidation'
 import errorDataToEvent from '../errors/errorDataToEvent'
 import shortid from 'shortid'
@@ -411,8 +412,7 @@ export default oncePerServices(function (services) {
     // Делаем класс наследник, который добавляем в объект свойство _service
     class ServiceImpl extends serviceClass {
       constructor(name, settings) {
-        const {dependsOn, ...settingsWithoutDependsOn} = settings;
-        super(settingsWithoutDependsOn); // не передаем dependsOn, так как это ломает сериализацию параметров при выводе в graylog
+        super(omit(settings, ['dependsOn'])); // не передаем dependsOn, так как это ломает сериализацию параметров при выводе в graylog
         this._service = new Service(name, this, serviceClass.SERVICE_TYPE, settings);
         if (!testMode) this._service._nextStateStep();
       }
