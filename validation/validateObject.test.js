@@ -345,6 +345,7 @@ test(`'validateEventFactory' работает для всей иерархии �
 test(`выдавать unexpected поля в validateEventFactory`, t => {
   // Прим.: Такоей проверки нет в validateAndCopyOptionsFactory, так как при наследовании классов нет возможности в классах предках знать опции, которые нужны классам наследникам
   const validate = validateEventFactory({
+    _final: true,
     name: {type: 'string', required: true},
     val: {type: 'int'},
   }, {throwException: true}); // используем опцию throwException, чтобы не париться с перехватом и анализом вывода ошибок в console
@@ -409,10 +410,12 @@ test(`validate для поля, вызывается только если type,
 
 test(`Атрибут 'fields' вместо 'type'`, t => {
   const validate = validateObject({
+    _final: true,
     a: {type: 'int'},
     b: {
       null: true,
       fields: {
+        _final: false,
         c: {type: 'int'},
         d: {type: 'int', required: true},
       }
@@ -421,7 +424,13 @@ test(`Атрибут 'fields' вместо 'type'`, t => {
       required: true, fields: {
         f: {type: 'int', required: true},
       }
-    }
+    },
+    g: {
+      fields: {
+        _final: true,
+        h: {type: 'int'},
+      }
+    },
   });
 
   t.is(validate({
@@ -463,11 +472,14 @@ test(`Атрибут 'fields' вместо 'type'`, t => {
     a: 12,
     b: {c: 1, d: 2, unexp: 'a'},
     e: {f: 3, anotherUnexp: false},
+    g: {h: 12, unexp: 'test'},
     oneMoreUnexp: {v: 12},
   }), [
-    `Unexpected 'b.unexp': 'a'`,
-    `Unexpected 'e.anotherUnexp': false`,
-    `Unexpected 'oneMoreUnexp': {v: 12}`]);
+    // `Unexpected 'b.unexp': 'a'`, // эти ошибка не возникают, так как _final для этой структуры false
+    // `Unexpected 'e.anotherUnexp': false`, // _final false по умолчанию
+    `Unexpected 'g.unexp': 'test'`,
+    `Unexpected 'oneMoreUnexp': {v: 12}`,
+    ]);
 
   const validate2 = validateObject({
     a: {
@@ -587,11 +599,13 @@ test(`даже когда параметр validateExtends = false, но ест�
   const {VType} = typesExport;
 
   const validateParent = validateObject({
+    _final: true,
     v1: {required: true, type: VType.String()},
   });
 
   const validate = validateObject({
     _extends: validateParent,
+    _final: true, // TODO: Исправить название теста, после перехода на _final атрибут
     v2: {required: true, type: VType.String()},
   });
   t.is(validate({v1: 'str', v2: 'str'}), undefined);

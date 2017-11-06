@@ -16,7 +16,7 @@ const hasOwnProperty = Object.prototype.hasOwnProperty;
  */
 export function validateObjectFactory({
   missingField = missingArgument('missingField'),
-  unexpectedField = null,
+  unexpectedField = missingArgument('unexpectedField'),
   invalidFieldValue = missingArgument('invalidFieldValue'),
   resultWrapper = null,
   copyFields = false,
@@ -67,6 +67,13 @@ export function validateObjectFactory({
         throw new Error(`Invalid value of _validate: ${prettyPrint(_validate)}`);
     }
 
+    let _final = false;
+    if (hasOwnProperty.call(schema, '_final')) {
+      _final = schema._final;
+      if (!(typeof _final === 'boolean'))
+        throw new Error(`Invalid value of _final: ${prettyPrint(_final)}`);
+    }
+
     if (!(factoryOptions === undefined || factoryOptions === null || (typeof factoryOptions == 'object' && !Array.isArray(factoryOptions))))
       throw new Error(`Invalid argument 'factoryOptions': ${prettyPrint(factoryOptions)}`);
 
@@ -91,6 +98,7 @@ export function validateObjectFactory({
       if (fieldName.startsWith('_')) {
         switch (fieldName) {
           case '_extends':
+          case '_final':
           case '_validate':
             continue;
           default:
@@ -174,7 +182,7 @@ export function validateObjectFactory({
 
     const validateFuncBeforeWrapper = validateFunc;
 
-    if (unexpectedField) {
+    if (unexpectedField && _final) {
       const innerValidateFunc = validateFunc;
       validateFunc = function (value, validateOptions) {
         let message = innerValidateFunc(value, validateOptions);
@@ -254,10 +262,17 @@ export function validateObjectFactory({
     if (!(typeof fields === 'object' && fields != null && !Array.isArray(fields)))
       throw new Error(`Field '${parentContext()}': Invalid attribute 'fields' value: ${prettyPrint(fields)}`);
 
+    let _final = false;
+
     let subfieldName;
     const context = () => `${parentContext()}.${subfieldName}`;
     for (subfieldName in fields) {
       if (!hasOwnProperty.call(fields, subfieldName)) continue;
+      if (subfieldName === '_final') {
+        _final = fields[subfieldName];
+        if (!(typeof _final === 'boolean')) throw new Error(`Field '${parentContext()}': Invalid value of attribute '_final': ${prettyPrint(_final)}`);
+        continue;
+      }
       if (subfieldName.startsWith('_')) throw new Error(`Field '${parentContext()}': Invalid subfield name: '${subfieldName}'`);
       fieldsMap[subfieldName] = true;
       const fieldDef = fields[subfieldName];
@@ -272,7 +287,7 @@ export function validateObjectFactory({
       return message;
     };
 
-    if (unexpectedField) {
+    if (unexpectedField && _final) {
       const innerValidateSubfields = validateSubfields;
       validateSubfields = function (parentContext, value, message, validateOptions) { // если включена опция unexpectedField, то проверяем что нет полей не объявденных в схеме
         message = innerValidateSubfields(parentContext, value, message, validateOptions) || message;
@@ -540,6 +555,7 @@ export const messageInvalidFieldValue = (context, value, reason) => `Invalid fie
  */
 export const validateAndCopyOptionsFactory = validateObjectFactory({
   missingField: messageMissingField,
+  unexpectedField: messageUnexpectedField,
   invalidFieldValue: messageInvalidFieldValue,
   copyFields: true,
   // notPureData: true,
@@ -558,7 +574,7 @@ export const validateAndCopyOptionsFactory = validateObjectFactory({
  */
 export const validateFullAndCopyOptionsFactory = validateObjectFactory({
   missingField: messageMissingField,
-  unexpectedField: messageUnexpectedField, // выдаем сообщения о полях, которые не ожидаем
+  unexpectedField: messageUnexpectedField,
   invalidFieldValue: messageInvalidFieldValue,
   copyFields: true,
   // notPureData: true,
@@ -576,6 +592,7 @@ export const validateFullAndCopyOptionsFactory = validateObjectFactory({
  */
 export const validateOptionsFactory = validateObjectFactory({
   missingField: messageMissingField,
+  unexpectedField: messageUnexpectedField,
   invalidFieldValue: messageInvalidFieldValue,
   // notPureData: true,
   resultWrapper: (validateFunc) => function (value, validateOptions) {
