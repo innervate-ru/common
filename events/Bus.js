@@ -91,7 +91,7 @@ export default function (services = {}) {
     console = realConsole,
   } = services;
 
-  const validateArgumentEvOptions = {argument: 'ev', console};
+  const validateArgumentEvOptions = {argument: 'ev'};
 
   const validateRegisterEventEv = validateOptionsFactory({
     type: {type: 'string', required: true},

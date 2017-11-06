@@ -12,7 +12,7 @@ export default oncePerServices(function defineEvents({bus = missingService('bus'
       type: 'nodemanager.started',
       validate: validateEventFactory({
         _extends: BaseEvent,
-        startDuration: {type: VType.Int().positive()},
+        startDuration: {type: VType.Int().positive().zero()}, // значение ноль может быть во время тестирования с fake timer'ом
         failedServices: {type: VType.Array().onlyStrings()},
       }),
       toString: (ev) => `${ev.source}: node started in ${moment.duration(ev.startDuration).format('h:mm:ss', 3)}${ev.failedServices ? `; failed: ${ev.failedServices.join()}` : ``}`,
