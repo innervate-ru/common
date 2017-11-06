@@ -10,6 +10,8 @@ export const ctor_settings = validate.service.finished({
   max: {type: VType.Int().positive()},
   idleTimeoutMillis: {type: VType.Int().positive()},
   // TODO: Посмотреть в код pg, выписать все опции
+
+  debugWithFakeTimer: {type: VType.Boolean()},
 });
 
 export const exec_args = validate.method.finished('args', {

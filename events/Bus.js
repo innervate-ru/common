@@ -7,7 +7,7 @@ import defineProps from '../utils/defineProps'
 import {validateOptionsFactory} from '../validation/validateObject'
 
 const hasOwnProperty = Object.prototype.hasOwnProperty;
-const defaultConsole = console;
+const realConsole = console;
 
 let graylog = null, graylogCount = 0, graylogStopResolve;
 
@@ -88,7 +88,7 @@ export default function (services = {}) {
 
   const {
     testMode,
-    console = defaultConsole,
+    console = realConsole,
   } = services;
 
   const validateArgumentEvOptions = {argument: 'ev', console};
@@ -128,12 +128,12 @@ export default function (services = {}) {
     if (!hasOwnProperty.call(ev, 'type')) throw new Error(`Missing option 'type'`);
     const type = ev.type;
     if (!hasOwnProperty.call(config, type))
-      console.warn(`Not registered event type '${type}': ${prettyPrint(ev)}`);
+      realConsole.warn(`Not registered event type '${type}': ${prettyPrint(ev)}`);
     else {
       const evConfig = config[type];
       if (hasOwnProperty.call(evConfig, 'validate'))
         evConfig.validate(ev, validateArgumentEvOptions);
-      if (evConfig.kind !== method) console.warn(`Event of kind '${evConfig.kind}' reported thru '${method}': ${prettyPrint(ev)}`);
+      if (evConfig.kind !== method) realConsole.warn(`Event of kind '${evConfig.kind}' reported thru '${method}': ${prettyPrint(ev)}`);
       return evConfig;
     }
   }
@@ -161,7 +161,6 @@ export default function (services = {}) {
       if (configAPI.has('grayLog')) {
         const graylogConfig = configAPI.get('grayLog');
         if (graylogConfig && graylogConfig.enabled) {
-          console.info('graylogConfig.config', graylogConfig.config);
           graylog = require('gelf-pro');
           graylog.setConfig(graylogConfig.config);
         }
@@ -192,10 +191,10 @@ export default function (services = {}) {
 
     on(evType, cb) {
       if (testMode) {
-        if (!hasOwnProperty.call(this._config, evType)) console.warn(`event of type '${evType}' is not registered`);
+        if (!hasOwnProperty.call(this._config, evType)) realConsole.warn(`event of type '${evType}' is not registered`);
       } else {
         if (!hasOwnProperty.call(this._config, evType)) {
-          console.warn((new Error(`event of type '${evType}' is not registered`)).stack);
+          realConsole.warn((new Error(`event of type '${evType}' is not registered`)).stack);
         }
       }
       super.on(evType, cb);

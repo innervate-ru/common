@@ -1,7 +1,7 @@
 import pg from 'pg';
-import {missingArgument, invalidArgument} from '../utils/arguments'
 import {oncePerServices, fixDependsOn} from '../services'
 import addServiceStateValidation from '../services/addServiceStateValidation'
+import pgTestTime from '../utils/pgTestTime'
 
 const SERVICE_TYPE = require('./PGConnector.serviceType').SERVICE_TYPE;
 const schema = require('./PGConnector.schema');
@@ -14,7 +14,9 @@ export default oncePerServices(function (services) {
 
     constructor(options) {
       schema.ctor_settings(this, options);
-      this._options = options;
+      const {debugWithFakeTimer, ...rest} = options;
+      this._testTimer = pgTestTime(debugWithFakeTimer);
+      this._options = rest;
     }
 
     async _serviceStart() {
@@ -31,7 +33,7 @@ export default oncePerServices(function (services) {
       this._pool.on('error', (error, client) => {
         this._service.criticalFailure(error);
       });
-      return this._exec({statement: `select now();`});
+      return this._exec({statement: `select now()::timestamp;`}); // тип нужен в режиме debugWithFakeTimer, когда now() заменяется на $1
     }
 
     async _serviceStop() {
@@ -69,6 +71,7 @@ export default oncePerServices(function (services) {
 
     constructor(connector, client, done) {
       this._connector = connector;
+      this._testTimer = connector._testTimer;
       this._client = client;
       this._done = done;
     }
@@ -79,6 +82,7 @@ export default oncePerServices(function (services) {
     }
 
     async _innerExec(args) {
+      args = this._testTimer(args);
       // TODO: pg 7+ supports Promise as result itself - remove extra wrappers
       return new Promise((resolve, reject) => {
         this._client.query(args.statement, args.params, function (err, results) {
