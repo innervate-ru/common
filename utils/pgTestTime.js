@@ -7,7 +7,9 @@ import identity from 'lodash/identity'
  */
 export default function (testMode) {
   if (!testMode) return identity;
-  return function ({statement, params, ...rest}) {
+  return function (args) {
+    if (!/now\(\)/gi.test(args.statement)) return args;
+    const {statement, params, ...rest} = args;
     const nowParam = params ?  `\$${params.length + 1}` : '$1';
     return {
       statement: statement.replace(/now\(\)/gi, nowParam),
