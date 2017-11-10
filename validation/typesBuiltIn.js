@@ -1,4 +1,5 @@
 import {missingArgument, invalidArgument} from './arguments'
+import iso8601Validator from 'iso8601-validator'
 
 export default function (typesExport) {
 
@@ -102,6 +103,7 @@ export default function (typesExport) {
 
   addSubvalidator(VType.String(), 'notEmpty', v => v.length > 0 ? true : 'empty string');
   addSubvalidator(VType.String(), 'noSpaces', v => /^\S*$/.test(v) ? true : 'contains spaces');
+  addSubvalidator(VType.String(), 'iso8601', v => iso8601Validator(v) ? true : 'not ISO8601 date/time');
 
   addSubvalidator(VType.Int(), 'zero', v => v === 0 ? true : 'not zero');
   addSubvalidator(VType.Int(), 'positive', v => v > 0 ? true : 'not positive');
