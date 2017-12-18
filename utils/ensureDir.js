@@ -1,12 +1,12 @@
 import fs from 'fs'
 
-import throwIfMissing from 'throw-if-missing'
+import {missingArgument} from './arguments'
 import promisify from './promisify'
 
 const fsStat = promisify(fs.stat);
 const fsMkdir = promisify(fs.mkdir);
 
-export default async function (dir = throwIfMissing('dir')) {
+export default async function (dir = missingArgument('dir')) {
   try {
     let dirState = await fsStat(dir);
     if (!dirState.isDirectory())

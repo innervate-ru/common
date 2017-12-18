@@ -102,15 +102,15 @@ function _module() {
 
       } else { // тип с or-проверками
 
-        const normolizedSubvalidatorsList = uniq(this._subvalidators).sort();
+        const normalizedSubvalidatorsList = uniq(this._subvalidators).sort();
 
-          key = `${typeName}_${normolizedSubvalidatorsList.join('_')}`;
+          key = `${typeName}_${normalizedSubvalidatorsList.join('_')}`;
           if (reusableValidator && hasOwnProperty.call(cachedValidators, key)) return cachedValidators[key];
 
         const typeSubvalidators = subvalidators[typeName];
-        const normolizedSubvalidators = normolizedSubvalidatorsList.map(v => typeSubvalidators[v]);
+        const normalizedSubvalidators = normalizedSubvalidatorsList.map(v => typeSubvalidators[v]);
 
-        if (normolizedSubvalidators.length > 1) {
+        if (normalizedSubvalidators.length > 1) {
           typeValidateFactory = function (context, fieldDef) {
             const typeValidator = validateType.call(this, context, fieldDef);
             const invalidFieldValue = this.invalidFieldValue;
@@ -124,7 +124,7 @@ function _module() {
                 return msg;
               }
               let reason;
-              for (const sv of normolizedSubvalidators) {
+              for (const sv of normalizedSubvalidators) {
                 const resOrReason = sv(value, validateOptions);
                 if (typeof resOrReason === 'string') {
                   (reason || (reason = [])).push(resOrReason);
@@ -140,7 +140,7 @@ function _module() {
           };
         } else {
           // вариант результата оптимизированный под одну or-проверку
-          const singleSubvalidator = normolizedSubvalidators[0];
+          const singleSubvalidator = normalizedSubvalidators[0];
           typeValidateFactory = function (context, fieldDef) {
             const typeValidator = validateType.call(this, context, fieldDef);
             const invalidFieldValue = this.invalidFieldValue;

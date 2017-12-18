@@ -1,7 +1,8 @@
 import fs from 'fs'
 import path from 'path'
-import {oncePerServices,  fixDependsOn, READY} from '../services'
-import ensureDir from 'ensure-dir'
+import {missingArgument} from '../validation'
+import {oncePerServices, missingService, fixDependsOn, READY} from '../services'
+import ensureDir from '../utils/ensureDir'
 
 import urlApi from 'url'
 import soap from 'soap'
@@ -14,7 +15,7 @@ const schema = require('./SoapConnector.schema');
 
 export default oncePerServices(function (services) {
 
-  const {bus = throwIfMissing('bus')} = services;
+  const {bus = missingService('bus')} = services;
 
   class Soap {
 
@@ -33,6 +34,8 @@ export default oncePerServices(function (services) {
 
       let desc = client.describe();
       let methods = null;
+
+      this._saveDescription(path.join(process.cwd(), './temp/soap'));
 
       for (const serviceName of Object.getOwnPropertyNames(desc)) { // обрабатываем только первое описание - пока примеров нескольких описаний не было
         debug('service name: %s', serviceName);
@@ -105,7 +108,7 @@ export default oncePerServices(function (services) {
       }
     }
 
-    async saveDescription(filename = throwIfMissing('filename')) {
+    async saveDescription(filename = missingArgument('filename')) {
       if (!this.hasOwnProperty('_client')) throw Error('Not initialized');
       let filenameNormolized = path.resolve(process.cwd(), filename);
       ensureDir(path.dirname(filenameNormolized));
