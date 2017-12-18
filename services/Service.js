@@ -47,6 +47,11 @@ export default oncePerServices(function (services) {
       this._quickRestartsCount = 0;
 
       /**
+       * Тип сервиса - имя не включающее в себя название node'ы.
+       */
+      this._pureName = name;
+
+      /**
        * Имя сервиса, состоящие из имени узла (node) и имени сервиса разделенных двоеточием.
        */
       this._name = `${services.manager.get('name')}:${name}`;
@@ -380,6 +385,11 @@ export default oncePerServices(function (services) {
   }
 
   defineProps(Service, {
+    pureName: {
+      get() {
+        return this._pureName;
+      },
+    },
     name: {
       get() {
         return this._name;
