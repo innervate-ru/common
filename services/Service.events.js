@@ -37,7 +37,7 @@ export default oncePerServices(function defineEvents({bus = missingService('bus'
           require('../errors/error.schema').errorSchema)
         ),
         toString: (ev) =>
-          testMode ? `${ev.source}: error: '${ev.errorMessage}'` : // для testMode специальное сообщение, которое легко проверять и оно не содержит stack
+          (testMode && testMode.service) ? `${ev.source}: error: '${ev.errorMessage}'` : // для testMode специальное сообщение, которое легко проверять и оно не содержит stack
             `${ev.source}: ${ev.errorStack}`,
       },
       // service.settings

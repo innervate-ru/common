@@ -190,7 +190,7 @@ export default function (services = {}) {
     }
 
     on(evType, cb) {
-      if (testMode) {
+      if (testMode && testMode.bus) {
         if (!hasOwnProperty.call(this._config, evType)) realConsole.warn(`event of type '${evType}' is not registered`);
       } else {
         if (!hasOwnProperty.call(this._config, evType)) {

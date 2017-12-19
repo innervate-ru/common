@@ -28,7 +28,7 @@ import {
 
 export default oncePerServices(function (services) {
 
-  const {bus, testMode} = services; // testMode это hack для тестирования - это не сервис, а просто boolean значение ...но он тут никому не должно мешать
+  const {bus, testMode} = services;
 
   class Service {
 
@@ -259,7 +259,7 @@ export default oncePerServices(function (services) {
         });
         if (!('then' in promise)) throw new Error(`Method must return a promise: ${prettyPrint(method)}`);
 
-        if (testMode)
+        if (testMode && testMode.service)
           this._testWaitPromise = this._currentOpPromise; // в режиме тестирования this._nextStateStep не вызывается по завершению асинхронного метода - нужно явно вызвать nextStateStep в коде
         else {
           this._currentOpPromise.then(this._callNextStateStep).catch(this._callNextStateStep);
@@ -298,7 +298,7 @@ export default oncePerServices(function (services) {
       // этот вызов должен идти после отправки события о смене состояния в bus
       if (newState === DISPOSED) this._dispose(); // это resolve для Pormise который верул метод dispose()
 
-      if (!testMode) this._nextStateStep();
+      if (!(testMode && testMode.service)) this._nextStateStep();
     }
 
     /**
@@ -424,7 +424,7 @@ export default oncePerServices(function (services) {
       constructor(name, settings) {
         super(omit(settings, ['dependsOn'])); // не передаем dependsOn, так как это ломает сериализацию параметров при выводе в graylog
         this._service = new Service(name, this, serviceClass.SERVICE_TYPE, settings);
-        if (!testMode) this._service._nextStateStep();
+        if (!(testMode && testMode.service)) this._service._nextStateStep();
       }
     }
 

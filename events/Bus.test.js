@@ -131,7 +131,7 @@ kinds.forEach(({kind, console: consoleMethod}, i) => {
 
 test(`через on подписываемся на необъявленный тип сообщений`, t => {
   const testConsole = new TestConsole();
-  const Bus = require('./bus').default({console: testConsole, testMode: true});
+  const Bus = require('./bus').default({console: testConsole, testMode: {bus: true}});
   const bus = new Bus();
 
   bus.registerEvent({

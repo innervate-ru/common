@@ -8,14 +8,14 @@ const schema = require('./PGConnector.schema');
 
 export default oncePerServices(function (services) {
 
-  const {bus = throwIfMissing('bus')} = services;
+  const {bus = throwIfMissing('bus'), testMode} = services;
 
   class PGConnector {
 
     constructor(options) {
       schema.ctor_settings(this, options);
       const {debugWithFakeTimer, ...rest} = options;
-      this._testTimer = pgTestTime(debugWithFakeTimer);
+      this._testTimer = pgTestTime(testMode && testMode.postgres);
       this._options = rest;
     }
 
@@ -33,7 +33,7 @@ export default oncePerServices(function (services) {
       this._pool.on('error', (error, client) => {
         this._service.criticalFailure(error);
       });
-      return this._exec({statement: `select now()::timestamp;`}); // тип нужен в режиме debugWithFakeTimer, когда now() заменяется на $1
+      return this._exec({statement: `select now()::timestamp;`});
     }
 
     async _serviceStop() {

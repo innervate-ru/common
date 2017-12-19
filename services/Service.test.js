@@ -46,7 +46,7 @@ test.beforeEach(t => {
 });
 
 test.serial(`Запуск без dependsOn`, t => {
-  const services = {console: new TestConsole(), testMode: true};
+  const services = {console: new TestConsole(), testMode: {bus: true, service: true}};
   services.bus = new (require('../events').Bus(services))();
   const nodeManager = new (require('./index').NodeManager(services))({
     name: 'node1',
@@ -69,7 +69,7 @@ test.serial(`Запуск без dependsOn`, t => {
 test.serial(`Запуск с dependsOn`, t => {
   try {
     const testConsole = new TestConsole();
-    const services = {console: testConsole, testMode: true};
+    const services = {console: testConsole, testMode: {bus: true, service: true}};
     services.bus = new (require('../events').Bus(services))();
     const nodeManager = new (require('./index').NodeManager(services))({
       name: 'node1',
@@ -136,7 +136,7 @@ test.serial(`Запуск с dependsOn`, t => {
 
 test.serial(`Фатальная ошибка при работе сервиса, требуещая остановки.  Перезапуск сервиса по времени`, t => {
   const testConsole = new TestConsole();
-  const services = {console: testConsole, testMode: true};
+  const services = {console: testConsole, testMode: {bus: true, service: true}};
   services.bus = new (require('../events').Bus(services))();
   require('./Service.events').default(services);
   const nodeManager = new (require('./index').NodeManager(services))({
@@ -204,7 +204,7 @@ test.serial(`Переходы сообщений с ожиданием испо�
     },
   };
   const testConsole = new TestConsole();
-  const services = {console: testConsole, testMode: true};
+  const services = {console: testConsole, testMode: {bus: true, service: true}};
   services.bus = new (require('../events').Bus(services))();
   const nodeManager = new (require('./index').NodeManager(services))({
     name: 'node1',
@@ -261,7 +261,7 @@ test.serial(`Ошибка в асинхронном методе - при ини
     },
   };
   const testConsole = new TestConsole();
-  const services = {console: testConsole, testMode: true};
+  const services = {console: testConsole, testMode: {bus: true, service: true}};
   services.bus = new (require('../events').Bus(services))();
   const nodeManager = new (require('./index').NodeManager(services))({
     name: 'node1',
@@ -312,7 +312,7 @@ test.serial(`Ошибка в асинхронном методе - при зап
     },
   };
   const testConsole = new TestConsole();
-  const services = {console: testConsole, testMode: true};
+  const services = {console: testConsole, testMode: {bus: true, service: true}};
   services.bus = new (require('../events').Bus(services))();
   const nodeManager = new (require('./index').NodeManager(services))({
     name: 'node1',
@@ -370,7 +370,7 @@ test.serial(`Ошибка в асинхронном методе - при ост
     },
   };
   const testConsole = new TestConsole();
-  const services = {console: testConsole, testMode: true};
+  const services = {console: testConsole, testMode: {bus: true, service: true}};
   services.bus = new (require('../events').Bus(services))();
   require('./Service.events').default(services);
   const nodeManager = new (require('./index').NodeManager(services))({
@@ -420,7 +420,7 @@ test.serial(`Ошибка в асинхронном методе - при дес
     },
   };
   const testConsole = new TestConsole();
-  const services = {console: testConsole, testMode: true};
+  const services = {console: testConsole, testMode: {bus: true, service: true}};
   services.bus = new (require('../events').Bus(services))();
   require('./Service.events').default(services);
   const nodeManager = new (require('./index').NodeManager(services))({
@@ -467,7 +467,7 @@ test.serial(`Ожидание в статусе WAITING_OTHER_SERVICES_TO_START_
     },
   };
   const testConsole = new TestConsole();
-  const services = {console: testConsole, testMode: true};
+  const services = {console: testConsole, testMode: {bus: true, service: true}};
   services.bus = new (require('../events').Bus(services))();
   const nodeManager = new (require('./index').NodeManager(services))({
     name: 'node1',
@@ -555,7 +555,7 @@ test.serial.skip(`Ожидание в статусе WAITING_OTHER_SERVICES_TO_S
   };
 
   const testConsole = new TestConsole();
-  const services = {console: testConsole, testMode: true};
+  const services = {console: testConsole, testMode: {bus: true, service: true}};
   services.bus = new (require('../events').Bus(services))();
 
   const nodeManager = new (require('./index').NodeManager(services))({
@@ -607,7 +607,7 @@ test.serial.skip(`Ожидание в статусе WAITING_OTHER_SERVICES_TO_S
 
 test.serial(`dispose NodeManager, с ожиданием когда все сервисы выполнят dispose, или наступит timeout`, async t => {
   const testConsole = new TestConsole();
-  const services = {console: testConsole, testMode: true};
+  const services = {console: testConsole, testMode: {bus: true, service: true}};
   services.bus = new (require('../events').Bus(services))();
   const nodeManager = new (require('./index').NodeManager(services))({
     name: 'node1',
@@ -651,7 +651,7 @@ test.serial(`dispose NodeManager, с ожиданием когда все сер
 
 test.serial(`вызов criticalFailure можно вызывать только  в состоянии READY`, async t => {
   const testConsole = new TestConsole();
-  const services = {console: testConsole, testMode: true};
+  const services = {console: testConsole, testMode: {bus: true, service: true}};
   services.bus = new (require('../events').Bus(services))();
   const nodeManager = new (require('./index').NodeManager(services))({
     name: 'node1',
