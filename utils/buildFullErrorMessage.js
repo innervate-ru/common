@@ -27,5 +27,5 @@ export default function buildFullErrorMessage(error = missingArgument('error')) 
 
   const name = (typeof error.name === 'string') ? error.name : 'Error';
   const message = (typeof error.message === 'string') ? error.message : undefined;
-  return `${name}${contextId ? ` (${contextId})` : ''}: ${message}${extra ? ` ${prettyPrint(extra)}` : ''}`;
+  return `${name}${contextId ? ` (${contextId})` : ''}: ${message}${extra ? ` ${prettyPrint(extra, 1000)}` : ''}`;
 }
