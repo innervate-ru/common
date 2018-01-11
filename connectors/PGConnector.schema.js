@@ -18,3 +18,11 @@ export const exec_args = validate.method.finished('args', {
   statement: {required: true, type: VType.String().notEmpty()},
   params: {type: VType.Array()},
 });
+
+export const sendEvent_args = validate.method.finished('args', {
+  event: {required: true, type: VType.Object()},
+});
+
+export const onNotification_args = validate.method.finished('args', {
+  handler: {required: true, type: VType.Function()},
+});
