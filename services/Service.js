@@ -250,6 +250,7 @@ export default oncePerServices(function (services) {
 
       const prevState = this._state;
 
+
       const methodImpl = this[method];
       if (methodImpl) {
         this._state = newState;
@@ -287,7 +288,7 @@ export default oncePerServices(function (services) {
       const ev = {
         type: 'service.state',
         source: this._name,
-        state: newState,
+        state: this._state,
         prevState,
       };
       if (this._failureReason) {
