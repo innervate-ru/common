@@ -7,6 +7,8 @@ const {READY} = require('../services/Service.states');
 const SERVICE_TYPE = require('./PGConnector.serviceType').SERVICE_TYPE;
 const schema = require('./PGConnector.schema');
 
+const hasOwnProperty = Object.prototype.hasOwnProperty;
+
 export default oncePerServices(function (services) {
 
   const {bus = throwIfMissing('bus'), testMode} = services;
@@ -18,6 +20,9 @@ export default oncePerServices(function (services) {
       const {debugWithFakeTimer, ...rest} = options;
       this._testTimer = pgTestTime(testMode && testMode.postgres);
       this._options = rest;
+      this._channels = Object.create(null);
+      this._channels._keepAlive = Object.create(null);
+      this._channels._keepAlive.name = `_keepAlive`;
     }
 
     async _serviceStart() {
@@ -31,17 +36,19 @@ export default oncePerServices(function (services) {
         settings: settingsWithoutPassword,
       });
       this._pool = new Pool(this._options);
-      this._pool.on('error', (error, client) => {
-        this._service.criticalFailure(error);
+      this._pool.on('error', (error) => { // сюда приходят только ошибки связанные с разрывом соединения
+        if (this._service.state === READY) this._service.criticalFailure(error);
       });
-      if (!(await this._checkListen(true) === true)) // если _checkListen вернет true, значит он успешно подключился к БД, и другая проверка не нужна
+      let connected;
+      if (this._channels) connected = (await Promise.all(Object.values(this._channels).map(channel => this._fixChannel(channel, true)))).some(v => v === true);
+      if (connected !== true) // если _fixChannel вернет true, значит он успешно подключился к БД, и другая проверка не нужна
         await this._exec({statement: `select now()::timestamp;`});
     }
 
     async _serviceStop() {
-      return Promise.all([
+      await Promise.all([
         this._pool.end(),
-        this._checkListen(),
+        ...Object.values(this._channels).map(channel => this._fixChannel(channel, false)),
       ]);
     }
 
@@ -59,32 +66,6 @@ export default oncePerServices(function (services) {
       })
     }
 
-    async _checkListen(isStarting) {
-
-      const doListen =
-        (isStarting || this._service.state === READY) &&
-        this._notificationHandlers;
-
-      if (doListen) {
-        if (!this._notificationClient) {
-          const client = this._notificationClient = new Client(this._options);
-          await client.connect();
-          client.on(`notification`, (msg) => {
-            const handlers = this._notificationHandlers;
-            handlers && handlers.forEach(h => h(msg));
-          });
-          await client.query('listen events;')
-          return true;
-        }
-      } else {
-        if (this._notificationClient) {
-          const client = this._notificationClient;
-          delete this._notificationClient;
-          return client.end();
-        }
-      }
-    }
-
     async exec(args) {
       const connection = await this._innerConnection();
       try {
@@ -94,10 +75,10 @@ export default oncePerServices(function (services) {
       }
     }
 
-    async sendEvent(args) {
+    async sendMessage(args) {
       const connection = await this._innerConnection();
       try {
-        return connection._sendEvent(args);
+        return connection._sendMessage(args);
       } finally {
         connection._end();
       }
@@ -107,10 +88,22 @@ export default oncePerServices(function (services) {
 
       schema.onNotification_args(args);
 
-      const {handler} = args;
+      const {channel: channelName, handler, parseJSON} = args;
 
-      (this._notificationHandlers || (this._notificationHandlers = [])).push(handler);
-      await this._checkListen();
+      const channelsMap = (this._channels || (this._channels = Object.create(null)));
+
+      let channel = channelsMap[channelName];
+      if (!channel) {
+        channelsMap[channelName] = channel = Object.create(null);
+        channel.name = channelName;
+      }
+
+      (channel.handlers || (channel.handlers = [])).push(parseJSON ? (message => {
+        message.payload = JSON.parse(message.payload);
+        return handler(message);
+      }) : handler);
+
+      await this._fixChannel(channel, this._service.state === READY);
 
       let subscribed = true;
       return async() => {
@@ -118,14 +111,48 @@ export default oncePerServices(function (services) {
         if (!subscribed) return;
         subscribed = false;
 
-        if (this._notificationHandlers.length === 1) {
-          delete this._notificationHandlers;
-          await this._checkListen();
+        if (channel.handlers.length === 1) {
+          delete channel.handlers;
+          await this._fixChannel(channel, this._service.state === READY);
         } else {
-          this._notificationHandlers.splice(this._notificationHandlers.indexOf(handler), 1);
+          channel.handlers.splice(channel.handlers.indexOf(handler), 1);
         }
       }
     }
+
+    /**
+     * Открывает или закрывает канал получение notification от postgres.  Канал открывается, если есть handlers и сервис
+     * находится в запущенном состоянии.  Иначе, канал, если открыт, будет закрыт.
+     */
+    async _fixChannel(channel, isReady) {
+
+      const doListen =
+        isReady &&
+        (channel.name === '_keepAlive' || channel.handlers);
+
+      if (doListen) {
+        if (!channel.client) {
+          const client = channel.client = new Client(this._options);
+          client.on('error', (error) => { // сюда приходят только ошибки связанные с разрывом соединения
+            if (this._service.state === READY) this._service.criticalFailure(error);
+          });
+          await client.connect();
+          client.on(`notification`, (message) => {
+            const handlers = channel.handlers;
+            handlers && handlers.forEach(h => h(message));
+          });
+          await client.query(`listen ${channel.name};`);
+          return true;
+        }
+      } else {
+        if (channel.client) {
+          const client = channel.client;
+          delete channel.client;
+          return client.end();
+        }
+      }
+    }
+
   }
 
   addServiceStateValidation(PGConnector.prototype, function () {
@@ -157,15 +184,17 @@ export default oncePerServices(function (services) {
       });
     }
 
-    async sendEvent(args) {
+    async sendMessage(args) {
 
-      schema.sendEvent_args(args);
+      schema.sendMessage_args(args);
 
-      const {event} = args;
+      let {channel, message} = args;
 
-      return this._exec({
-        statement: `select pg_notify('events', $1);`,
-        params: [event],
+      if (typeof message === 'object') message = JSON.stringify(message);
+
+      await this._exec({
+        statement: `select pg_notify($1, $2);`,
+        params: [channel, message],
       });
     }
 

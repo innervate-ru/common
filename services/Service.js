@@ -291,10 +291,7 @@ export default oncePerServices(function (services) {
         state: this._state,
         prevState,
       };
-      if (this._failureReason) {
-        const reason = ev.reason = Object.create(null);
-        errorDataToEvent(this._failureReason, reason);
-      }
+      if (this._failureReason) errorDataToEvent(this._failureReason, ev, 'reason');
       if (this._serviceType) ev.serviceType = this._serviceType;
       bus.event(ev);
 
