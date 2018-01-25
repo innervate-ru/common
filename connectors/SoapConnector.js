@@ -35,7 +35,7 @@ export default oncePerServices(function (services) {
       let desc = client.describe();
       let methods = null;
 
-      this._saveDescription(path.join(process.cwd(), './temp/soap'));
+      // this._saveDescription(path.join(process.cwd(), './temp/soap')); // todo: fix crash at startup
 
       for (const serviceName of Object.getOwnPropertyNames(desc)) { // обрабатываем только первое описание - пока примеров нескольких описаний не было
         debug('service name: %s', serviceName);
