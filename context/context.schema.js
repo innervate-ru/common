@@ -1,5 +1,6 @@
 import {VType} from '../validation'
 
+// это схема для event'ов.  в аргументах context передается просто как строка
 export const contextSchema = {
   type: VType.Fields({
     id: {required: true, type: VType.String().notEmpty()},

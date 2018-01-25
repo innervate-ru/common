@@ -1,4 +1,4 @@
-export const NOT_INITIALIZED = 'not initialied';
+export const NOT_INITIALIZED = 'not initialized';
 export const WAITING_OTHER_SERVICES_TO_START_OR_FAIL = 'waiting other services to start';
 export const INITIALIZING = 'initializing';
 export const INITIALIZE_FAILED = 'initialize failed';

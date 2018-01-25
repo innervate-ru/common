@@ -16,8 +16,7 @@ test(`добавление и получение типа простого ти�
   t.throws(() => addType('string'), `Missing argument 'typePureValidator'`); // нет второго аргумента
   t.throws(() => addType('string', v => typeof v === 'string'), `Invalid argument 'typeName': 'string'`); // имя типа должно начинаться с большой буквы
   t.throws(() => addType('String', 12), `Invalid argument 'typePureValidator': 12`); // второй аргумент не метод
-  t.throws(() => addType('String', () => {
-  }), `Invalid argument 'typePureValidator': 'function () {}'`); // у метода проверки, должен быть аргумент
+  t.throws(() => addType('String', () => {}), `Invalid argument 'typePureValidator': 'function () {}'`); // у метода проверки, должен быть аргумент
 
   t.is(typeof VType.String, 'function');
   t.is(typeof VType.String(), 'object');
@@ -126,4 +125,46 @@ test(`Можно добавлять сложные типы, такие как F
   const runtimeValidator = buildTimeValidator.call(t.context.ctx, undefined, 'aField', {});
   t.is(runtimeValidator(() => 'aField', 12), undefined);
   t.deepEqual(runtimeValidator(() => 'aField', 'xyz'), [`Invalid 'aField': 'xyz'`]);
+});
+
+
+test.only(`VType._build возвращает билдер валидатора со свойством _key, который подсказывает что можно использовать повторно для одного и того же контекста`, t => {
+
+  const {VType, addType, addSubvalidator} = require('./types')._module();
+
+  addType('String', v => typeof v === 'string');
+  addSubvalidator(VType.String(), 'itsABC', v => v === 'abc');
+  addSubvalidator(VType.String(), 'itsDEF', v => v === 'def');
+
+  t.is(VType.String()._vtype, 'String');
+  t.is(VType.String()._key, undefined);
+  t.is(VType.String()._build()(() => ``, {})._key, 'String');
+  t.is(VType.String(v => v.length > 0)._vtype, 'String');
+  t.is(VType.String(v => v.length > 0)._key, 'String(1)');
+
+  t.is(VType.String(v => v.length > 0)._build()(() => ``, {})._key, 'String(2)');
+
+  t.is(VType.String(v => v.length > 1)._key, 'String(3)');
+  t.is(VType.String(v => v.length > 1)._build()(() => ``, {})._key, 'String(4)');
+
+  // при этом, если функция одна и так же, то повторно используется ранее созданный контекст
+  const f = v => v != 'x';
+  t.is(VType.String(f)._key, 'String(5)');
+  t.is(VType.String(f)._build()(() => ``, {})._key, 'String(5)');
+  t.is(VType.String(f)._key, 'String(5)');
+  t.is(VType.String(f)._build()(() => ``, {})._key, 'String(5)');
+
+  // сабвалидаторы добавляются в _vtype
+  t.is(VType.String().itsABC()._vtype, 'String');
+  t.is(VType.String().itsABC()._build()(() => ``, {})._key, 'String.itsABC');
+  t.is(VType.String(f).itsABC()._key, 'String(5)');
+  t.is(VType.String(f).itsABC()._build()(() => ``, {})._key, 'String(5).itsABC');
+
+  // сабвалидаторы добавляются отсортированными по алфавиту, с удалением дублей
+  t.is(VType.String(f).itsABC().itsDEF()._build()(() => ``, {})._key, 'String(5).itsABC.itsDEF');
+  t.is(VType.String(f).itsDEF().itsABC().itsABC()._build()(() => ``, {})._key, 'String(5).itsABC.itsDEF');
+
+  // билдер методы тоже кешируются
+  t.is(VType.String(f).itsABC().itsDEF()._build(), VType.String(f).itsDEF().itsABC().itsABC()._build());
+
 });

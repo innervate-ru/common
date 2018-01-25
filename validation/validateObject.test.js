@@ -576,7 +576,7 @@ test(`Можно передать дополнительный валидато�
   t.deepEqual(validate({a: false}), [`Invalid 'a': false`]); // не объект
 });
 
-test(`возможность указывать кастомный валидатор в VType.Function`, t => {
+test.only(`возможность указывать кастомный валидатор в VType.Function`, t => {
   const typesExport = require('./types')._module();
   require('./typesBuiltIn').default(typesExport);
   const {VType} = typesExport;

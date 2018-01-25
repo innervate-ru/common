@@ -21,7 +21,8 @@ export default function buildFullErrorMessage(error = missingArgument('error')) 
     switch (fieldName) {
       case 'name': case 'message': case 'stack': case 'context': continue;
     }
-    (extra || (extra = Object.create(null)))[fieldName] = error[fieldName];
+    const v = error[fieldName];
+    if (v !== undefined) (extra || (extra = Object.create(null)))[fieldName] = v;
   }
   if (!contextId && !extra) return error.toString();
 

@@ -248,10 +248,16 @@ export default oncePerServices(function (services) {
 
       this._failureReason = failureReason || null;
 
+      const prevState = this._state;
+
+
       const methodImpl = this[method];
       if (methodImpl) {
+        this._state = newState;
+
         const args = Object.create(null);
         args.context = shortid();
+
         const promise = this._currentOpPromise = methodImpl.call(this._serviceImpl, args).catch((error) => {
           addContextToError(args, args, error, {svc: this._name, method});
           this._reportError(error);
@@ -266,18 +272,15 @@ export default oncePerServices(function (services) {
         }
 
       } else {
+        this._state = nextState || newState;
         this._currentOpPromise = null;
         this._testWaitPromise = null;
-        newState = nextState || newState;
       }
 
-      if (newState === FAILED)
+      if (this._state === FAILED)
         this._restartTimer = setTimeout(() => {
           this._setState(STOPPED);
         }, this._failRecoveryInterval);
-
-      const prevState = this._state;
-      this._state = newState;
 
       // TODO: Think of making this a debug output
       // console.info(`${prevState.toString()} -> ${this._state.toString()}${nextState ? `(${nextState.toString()})` : ''}; method: ${!!method}; reason: ${!!reason}`);
@@ -285,13 +288,10 @@ export default oncePerServices(function (services) {
       const ev = {
         type: 'service.state',
         source: this._name,
-        state: newState,
+        state: this._state,
         prevState,
       };
-      if (this._failureReason) {
-        const reason = ev.reason = Object.create(null);
-        errorDataToEvent(this._failureReason, reason);
-      }
+      if (this._failureReason) errorDataToEvent(this._failureReason, ev, 'reason');
       if (this._serviceType) ev.serviceType = this._serviceType;
       bus.event(ev);
 

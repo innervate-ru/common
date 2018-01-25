@@ -15,11 +15,12 @@ export default oncePerServices(function defineEvents({bus = missingService('bus'
         type: 'service.state',
         validate: validateEventFactory({
           _extends: BaseEvent,
-          state: {type: VType.String().notEmpty(), required: true},
-          prevState: {type: VType.String().notEmpty(), required: true},
+          state: {required: true, type: VType.String().notEmpty()},
+          prevState: {required: true, type: VType.String().notEmpty()},
           serviceType: {type: VType.String().notEmpty()},
-          reason: {fields: require('../errors/error.schema').errorSchema}, // причина перехода в состояние FAILED - поле message из Error
+          reason: {fields: require('../errors/error.schema').eventErrorSchema}, // причина перехода в состояние FAILED - поле message из Error
         }),
+        // toString: (ev) => JSON.stringify(ev, null, 2),
         toString: (ev) => {
           // Чтобы не сбивать с толку, при начальном запуске не выводим сообщение что сервис перешел в состояние stopped
           if (ev.prevState === NOT_INITIALIZED || ev.prevState === WAITING_OTHER_SERVICES_TO_START_OR_FAIL || ev.prevState === INITIALIZING) return;
@@ -30,15 +31,14 @@ export default oncePerServices(function defineEvents({bus = missingService('bus'
       {
         kind: 'error',
         type: 'service.error',
-        validate: validateEventFactory(Object.assign({
+        validate: validateEventFactory({
             _extends: BaseEvent,
             serviceType: {type: VType.String().notEmpty()},
-          },
-          require('../errors/error.schema').errorSchema)
-        ),
+            error: {fields: require('../errors/error.schema').eventErrorSchema},
+          }),
         toString: (ev) =>
-          (testMode && testMode.service) ? `${ev.source}: error: '${ev.errorMessage}'` : // для testMode специальное сообщение, которое легко проверять и оно не содержит stack
-            `${ev.source}: ${ev.errorStack}`,
+          (testMode && testMode.service) ? `${ev.source}: error: '${ev.error.message}'` : // для testMode специальное сообщение, которое легко проверять и оно не содержит stack
+            `${ev.source}: ${ev.error.stack}`,
       },
       // service.settings
       {
