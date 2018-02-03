@@ -27,8 +27,8 @@ export default oncePerServices(function (services) {
       const startedServices = Object.create(null);
       const listener = (ev) => {
         if (ev.state === READY || ev.state == FAILED) {
-          if (!hasOwnProperty.call(startedServices, ev.source)) { // этот сервис ещё не проходил через READY или FAILED
-            startedServices[ev.source] = true;
+          if (!hasOwnProperty.call(startedServices, ev.service)) { // этот сервис ещё не проходил через READY или FAILED
+            startedServices[ev.service] = true;
             if (++this._serviceStarted === this._serviceCount) { // все зарегестрированные сервисы прошли через состояние READY или FAILED
               try {
                 bus.removeListener('service.state', listener); // перестаем слушать изменения состояний
@@ -41,7 +41,7 @@ export default oncePerServices(function (services) {
                 }
                 const ev = {
                   type: 'nodemanager.started',
-                  source: this._name,
+                  service: 'nodeManager',
                   startDuration: Date.now() - startTime,
                 };
                 if (failedServices.length > 0) ev.failedServices = failedServices;

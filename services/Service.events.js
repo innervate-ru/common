@@ -24,7 +24,7 @@ export default oncePerServices(function defineEvents({bus = missingService('bus'
         toString: (ev) => {
           // Чтобы не сбивать с толку, при начальном запуске не выводим сообщение что сервис перешел в состояние stopped
           if (ev.prevState === NOT_INITIALIZED || ev.prevState === WAITING_OTHER_SERVICES_TO_START_OR_FAIL || ev.prevState === INITIALIZING) return;
-          return `${ev.source}: state: '${ev.state}'${ev.reason ? ` (reason: '${ev.reason.message}')` : ``}`
+          return `${ev.service}: state: '${ev.state}'${ev.reason ? ` (reason: '${ev.reason.message}')` : ``}`
         },
       },
       // service.error
@@ -37,8 +37,8 @@ export default oncePerServices(function defineEvents({bus = missingService('bus'
             error: {fields: require('../errors/error.schema').eventErrorSchema},
           }),
         toString: (ev) =>
-          (testMode && testMode.service) ? `${ev.source}: error: '${ev.error.message}'` : // для testMode специальное сообщение, которое легко проверять и оно не содержит stack
-            `${ev.source}: ${ev.error.stack}`,
+          (testMode && testMode.service) ? `${ev.service}: error: '${ev.error.message}'` : // для testMode специальное сообщение, которое легко проверять и оно не содержит stack
+            `${ev.service}: ${ev.error.stack}`,
       },
       // service.settings
       {
@@ -49,7 +49,7 @@ export default oncePerServices(function defineEvents({bus = missingService('bus'
           serviceType: {type: VType.String().notEmpty()},
           settings: {type: VType.Object()}, // TODO: Check that all values are serializable to JSON
         }),
-        toString: ev => `${ev.source}: settings: '${prettyPrint(ev.settings)}'`,
+        toString: ev => `${ev.service}: settings: '${prettyPrint(ev.settings)}'`,
       },
     ]
   );

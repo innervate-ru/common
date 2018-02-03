@@ -41,6 +41,7 @@ export default function addServiceStateValidation(prototypeOrInstance = missingA
         }
         try {
           return method.apply(this, arguments);
+
         } catch (error) {
           if (service.state !== READY)  error = service._buildInvalidStateError(error); // Проверяем состояние сервиса после операции, если ошибка.  Когда сервис не в рабочем состоянии, то не стоит анализировать ошибку
           if (addContextToError(args, newArgs, error, {svc: this._name, method: methodName})) service._reportError(error);

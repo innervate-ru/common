@@ -10,8 +10,6 @@ import errorDataToEvent from '../errors/errorDataToEvent'
 import shortid from 'shortid'
 import addContextToError from '../context/addContextToError'
 
-export const DEFAULT_FAIL_RECOVERY_INTERVAL = 60000;
-
 import {
   NOT_INITIALIZED,
   WAITING_OTHER_SERVICES_TO_START_OR_FAIL,
@@ -25,6 +23,8 @@ import {
   DISPOSING,
   DISPOSED
 } from './Service.states'
+
+export const DEFAULT_FAIL_RECOVERY_INTERVAL = 60000;
 
 export default oncePerServices(function (services) {
 
@@ -47,14 +47,9 @@ export default oncePerServices(function (services) {
       this._quickRestartsCount = 0;
 
       /**
-       * Тип сервиса - имя не включающее в себя название node'ы.
-       */
-      this._pureName = name;
-
-      /**
        * Имя сервиса, состоящие из имени узла (node) и имени сервиса разделенных двоеточием.
        */
-      this._name = `${services.manager.get('name')}:${name}`;
+      this._name = name;
 
       require('./Service.schema').ctor_settings(settings, {copyTo: this, argument: 'settings', name: this._name});
 
@@ -134,11 +129,11 @@ export default oncePerServices(function (services) {
 
           this._isAllDependsAreReady = (dependsOnCount === dependsOnTotal);
           bus.on('service.state', ev => {
-            if (hasOwnProperty.call(dependsOnMap, ev.source)) {
-              const isReady = dependsOnMap[ev.source];
+            if (hasOwnProperty.call(dependsOnMap, ev.service)) {
+              const isReady = dependsOnMap[ev.service];
               if (isReady) {
                 if (ev.state !== READY) {
-                  dependsOnMap[ev.source] = false;
+                  dependsOnMap[ev.service] = false;
                   dependsOnCount--;
                   if (this._isAllDependsAreReady) {
                     this._isAllDependsAreReady = false;
@@ -147,7 +142,7 @@ export default oncePerServices(function (services) {
                 }
               } else {
                 if (ev.state === READY) {
-                  dependsOnMap[ev.source] = true;
+                  dependsOnMap[ev.service] = true;
                   dependsOnCount++;
                   if (this._isAllDependsAreReady = (dependsOnCount === dependsOnTotal))
                     this._nextStateStep();
@@ -287,7 +282,7 @@ export default oncePerServices(function (services) {
 
       const ev = {
         type: 'service.state',
-        source: this._name,
+        service: this._name,
         state: this._state,
         prevState,
       };
@@ -372,7 +367,7 @@ export default oncePerServices(function (services) {
       if (!(error instanceof Error)) error = new Error(`Invalid argument 'error': ${prettyPrint(err)}`);
       const errEvent = {
         type: 'service.error',
-        source: this._name,
+        service: this._name,
       };
       if (this._serviceType) errEvent.serviceType = this._serviceType;
       errorDataToEvent(error, errEvent);
@@ -385,11 +380,6 @@ export default oncePerServices(function (services) {
   }
 
   defineProps(Service, {
-    pureName: {
-      get() {
-        return this._pureName;
-      },
-    },
     name: {
       get() {
         return this._name;

@@ -31,7 +31,7 @@ function graylogSend(ev) {
     if (!hasOwnProperty.call(ev, 'message')) {
       ev = Object.assign(Object.create(null), ev);
       const {host, timestamp, source, type, ...rest} = ev;
-      ev.message = `${ev.source}: ${ev.type}${Object.keys(rest).length > 0 ? ` ${prettyPrint(rest)}` : ''}`;
+      ev.message = `${ev.service}: ${ev.type}${Object.keys(rest).length > 0 ? ` ${prettyPrint(rest)}` : ''}`;
     }
     ++graylogCount;
     graylog.send(JSON.stringify(ev), graylogSendCB);
@@ -44,6 +44,7 @@ function wrapEvent(ev) {
   const r = Object.create(null);
   r.timestamp = Date.now() / 1000;
   r.host = host;
+  if (this._node) r.node = this._node;
   Object.assign(r, ev);
   return r;
 }
@@ -78,7 +79,7 @@ function addMessageField(ev, evConfig, alterToStringMap) {
 function addDefaultMessage(ev) {
   if (hasOwnProperty.call(ev, 'message')) return;
   const {host, timestamp, source, type, ...rest} = ev;
-  ev.message = `${ev.source}: ${ev.type}${Object.keys(rest).length > 0 ? ` ${prettyPrint(rest)}` : ''}`;
+  ev.message = `${ev.service}: ${ev.type}${Object.keys(rest).length > 0 ? ` ${prettyPrint(rest)}` : ''}`;
   return ev;
 }
 
@@ -151,12 +152,13 @@ export default function (services = {}) {
    */
   class Bus extends EventEmitter {
 
-    constructor() {
+    constructor({nodeName}) {
       super();
       this.setMaxListeners(0); // без ограничения
       this._config = Object.create(null);
       this._alterToString = Object.create(null);
       this._index = 0;
+      if (nodeName) this._node = nodeName;
 
       if (configAPI.has('grayLog')) {
         const graylogConfig = configAPI.get('grayLog');
@@ -242,7 +244,7 @@ export default function (services = {}) {
         if (!(eventType in this._config)) (unmetAlterToStrings || (unmetAlterToStrings = [])).push(eventType);
       if (unmetAlterToStrings) this.warn({
         type: 'bus.unmetAlterToStrings',
-        source: 'bus',
+        service: 'bus',
         unmetAlterToStrings
       });
     }
@@ -251,60 +253,112 @@ export default function (services = {}) {
       process.nextTick(() => this.emit(ev.type, ev));
     }
 
-    event(ev) {
-      if (!(arguments.length === 1)) throw new Error(`Invalid number of arguments: ${prettyPrint(arguments)}`);
-      const evConfig = checkEvent('event', ev, this._config);
-      ev = wrapEvent(ev);
-      this.emitEvent(ev);
-      const evm = addMessageField(ev, evConfig, this._alterToString);
-      if (evm) console.info(evm.message);
-      graylogSend(evm || ev);
-    }
-
-    command(ev) {
-      if (!(arguments.length === 1)) throw new Error(`Invalid number of arguments: ${prettyPrint(arguments)}`);
-      const evConfig = checkEvent('command', ev, this._config);
-      ev = wrapEvent(ev);
-      this.emitEvent(ev);
-      const evm = addMessageField(ev, evConfig, this._alterToString);
-      if (evm) console.info(evm.message);
-      graylogSend(evm || ev);
-    }
-
-    info(ev) {
-      if (!(arguments.length === 1)) throw new Error(`Invalid number of arguments: ${prettyPrint(arguments)}`);
-      const evConfig = checkEvent('info', ev, this._config);
-      ev = wrapEvent(ev);
-      this.emitEvent(ev);
-      const evm = addMessageField(ev, evConfig, this._alterToString);
-      if (evm) console.info(evm.message);
-      graylogSend(evm || ev);
-    }
-
-    error(ev) {
+    /**
+     * Критическая ошибка, которая может привести к остановке системы.
+     */
+    criticalError(ev) {
       if (!(arguments.length === 1)) throw new Error(`Invalid number of arguments: ${prettyPrint(arguments)}`);
       const evConfig = checkEvent('error', ev, this._config);
-      ev = wrapEvent(ev);
+      ev = wrapEvent.call(this, ev);
+      ev.level = 0;
       this.emitEvent(ev);
       const evm = addMessageField(ev, evConfig, this._alterToString);
       if (evm) console.error(evm.message);
       graylogSend(evm || ev);
     }
 
+    /**
+     * Ошибка в работе кода.
+     */
+    error(ev) {
+      if (!(arguments.length === 1)) throw new Error(`Invalid number of arguments: ${prettyPrint(arguments)}`);
+      const evConfig = checkEvent('error', ev, this._config);
+      ev = wrapEvent.call(this, ev);
+      ev.level = 1;
+      this.emitEvent(ev);
+      const evm = addMessageField(ev, evConfig, this._alterToString);
+      if (evm) console.error(evm.message);
+      graylogSend(evm || ev);
+    }
+
+    /**
+     * Критическая информация, требующая действия.
+     */
     warn(ev) {
       if (!(arguments.length === 1)) throw new Error(`Invalid number of arguments: ${prettyPrint(arguments)}`);
       const evConfig = checkEvent('warn', ev, this._config);
-      ev = wrapEvent(ev);
+      ev = wrapEvent.call(this, ev);
       this.emitEvent(ev);
+      ev.level = 2;
       const evm = addMessageField(ev, evConfig, this._alterToString);
       if (evm) console.warn(evm.message);
       graylogSend(evm || ev);
     }
 
+    /**
+     * Информация о работе системы, для администратора.
+     */
+    info(ev) {
+      if (!(arguments.length === 1)) throw new Error(`Invalid number of arguments: ${prettyPrint(arguments)}`);
+      const evConfig = checkEvent('info', ev, this._config);
+      ev = wrapEvent.call(this, ev);
+      ev.level = 3;
+      this.emitEvent(ev);
+      const evm = addMessageField(ev, evConfig, this._alterToString);
+      if (evm) console.info(evm.message);
+      graylogSend(evm || ev);
+    }
+
+    /**
+     * Событие в системе, которое можно слушать через bus.on(...)
+     */
+    event(ev) {
+      if (!(arguments.length === 1)) throw new Error(`Invalid number of arguments: ${prettyPrint(arguments)}`);
+      const evConfig = checkEvent('event', ev, this._config);
+      ev = wrapEvent.call(this, ev);
+      ev.level = 4;
+      this.emitEvent(ev);
+      const evm = addMessageField(ev, evConfig, this._alterToString);
+      if (evm) console.info(evm.message);
+      graylogSend(evm || ev);
+    }
+
+    /**
+     * То же, что event, но если запущено несколько узлов в одной шине, то это событие передается другим узлам
+     */
+    command(ev) {
+      if (!(arguments.length === 1)) throw new Error(`Invalid number of arguments: ${prettyPrint(arguments)}`);
+      const evConfig = checkEvent('command', ev, this._config);
+      ev = wrapEvent.call(this, ev);
+      ev.level = 5;
+      this.emitEvent(ev);
+      const evm = addMessageField(ev, evConfig, this._alterToString);
+      if (evm) console.info(evm.message);
+      graylogSend(evm || ev);
+    }
+
+    /**
+     * Информация о вызове метода сервиса или graphql.
+     */
+    method(ev) {
+      if (!(arguments.length === 1)) throw new Error(`Invalid number of arguments: ${prettyPrint(arguments)}`);
+      const evConfig = checkEvent('method', ev, this._config);
+      ev = wrapEvent.call(this, ev);
+      ev.level = 6;
+      this.emitEvent(ev);
+      const evm = addMessageField(ev, evConfig, this._alterToString);
+      if (evm) console.info(evm.message);
+      graylogSend(evm || ev);
+    }
+
+    /**
+     * Отладочная информация.
+     */
     debug(ev) {
       if (!(arguments.length === 1)) throw new Error(`Invalid number of arguments: ${prettyPrint(arguments)}`);
-      const evConfig = checkEvent('debug', ev, this._config);
-      ev = wrapEvent(ev);
+      // const evConfig = checkEvent('debug', ev, this._config); При этом проверки структуры сообщения не производится - чтобы не утяжелять написание кода.
+      ev = wrapEvent.call(this, ev);
+      ev.level = 7;
       const evm = addMessageField(ev, evConfig, this._alterToString);
       graylogSend(evm || ev);
     }

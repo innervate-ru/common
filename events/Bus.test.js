@@ -19,12 +19,12 @@ test(`регистрация типов сообщений`, t => {
     toString: ev => `Message for console: ${prettyPrint(ev.val)}`,
   });
 
-  bus.event({time: 10, type: 'source.event', source: 'node1:svc1', val: 12});
+  bus.event({time: 10, type: 'source.event', service: 'node1:svc1', val: 12});
   t.is(testConsole.getLogAndClear(), `info: Message for console: 12`);
 
-  bus.event({time: 10,  type: 'source.event', source: 'node1:svc1', invalid: 321});
+  bus.event({time: 10,  type: 'source.event', service: 'node1:svc1', invalid: 321});
   t.is(testConsole.getLogAndClear(),
-    `warn: Event {time: 10, type: 'source.event', source: 'node1:svc1', invalid: 321}: Unexpected field 'invalid' with value: 321 | ` +
+    `warn: Event {time: 10, type: 'source.event', service: 'node1:svc1', invalid: 321}: Unexpected field 'invalid' with value: 321 | ` +
     `info: Message for console: undefined`);
 
   bus.event({time: 10, type: 'wrong.type', data: 123});
@@ -74,7 +74,7 @@ test(`сообщение без validate`, t => {
     toString: ev => `Message for console: ${prettyPrint(ev.val)}`,
   });
 
-  bus.event({time: 10,  type: 'source.event', source: 'node1:svc1', val: 12});
+  bus.event({time: 10,  type: 'source.event', service: 'node1:svc1', val: 12});
   t.is(testConsole.getLogAndClear(), `info: Message for console: 12`);
 });
 
@@ -92,9 +92,9 @@ test(`сообщение без toString`, t => {
     }),
   });
 
-  bus.event({time: 10,  type: 'source.event', source: 'node1:svc1', val: 12});
+  bus.event({time: 10,  type: 'source.event', service: 'node1:svc1', val: 12});
   t.is(testConsole.getLogAndClear(),
-    `info: {time: 10, type: 'source.event', source: 'node1:svc1', val: 12}`);
+    `info: {time: 10, type: 'source.event', service: 'node1:svc1', val: 12}`);
 });
 
 const kinds = [
@@ -121,10 +121,10 @@ kinds.forEach(({kind, console: consoleMethod}, i) => {
       }),
     });
 
-    bus[kind]({time: 10,  type: 'source.event', source: 'node1:svc1', val: 12});
+    bus[kind]({time: 10,  type: 'source.event', service: 'node1:svc1', val: 12});
     t.is(testConsole.getLogAndClear(),
-      `warn: Event of kind '${nextKind}' reported thru '${kind}': {time: 10, type: 'source.event', source: 'node1:svc1', val: 12}` +
-      (!consoleMethod ? '' : ` | ${consoleMethod}: {time: 10, type: 'source.event', source: 'node1:svc1', val: 12}`));
+      `warn: Event of kind '${nextKind}' reported thru '${kind}': {time: 10, type: 'source.event', service: 'node1:svc1', val: 12}` +
+      (!consoleMethod ? '' : ` | ${consoleMethod}: {time: 10, type: 'source.event', service: 'node1:svc1', val: 12}`));
 
   });
 });
