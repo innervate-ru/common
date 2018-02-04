@@ -17,8 +17,7 @@ export default function addContextToArgs(args) {
 
   if (!(typeof args === 'object' && !Array.isArray(args))) invalidArgument('args', args);
 
-
-  if (hasOwnProperty.call(args, 'context')) return args;
+  if (typeof args.context === 'string') return args;
 
   const newArgs = Object.assign(Object.create(null), args);
   newArgs.context = shortid();

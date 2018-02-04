@@ -49,7 +49,6 @@ export default function serviceMethodWrapper(prototypeOrInstance = missingArgume
             context: newArgs.context,
             args: args,
             duration: Date.now() - startTime,
-            failed: 0,
           });
           return r;
         } catch (error) {
@@ -62,7 +61,7 @@ export default function serviceMethodWrapper(prototypeOrInstance = missingArgume
             context: newArgs.context,
             args: args,
             duration: Date.now() - startTime,
-            qqq: 1,
+            failed: 1,
           });
           throw error;
         }

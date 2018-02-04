@@ -112,7 +112,6 @@ export default oncePerServices(function (services) {
      *    - params - Функция, которой передается как аргумен tedious.Request, чтобы она через requies.addParameter могла заполнить параметры
      *    - offset - строка, начиная с которой загружаются строки
      *    - limit - строка, до которой включительно загружаются строки
-     *    - callContext - shortid контекста, в котором выполняется запрос
      *    - cancel - promise, который если становится resolved, то прерывает выполнение запроса
      */
     async exec(args) {
@@ -173,7 +172,6 @@ export default oncePerServices(function (services) {
      *    - params - Функция, которой передается как аргумен tedious.Request, чтобы она через requies.addParameter могла заполнить параметры
      *    - offset - строка, начиная с которой загружаются строки
      *    - limit - строка, до которой включительно загружаются строки
-     *    - callContext - shortid контекста, в котором выполняется запрос
      *    - cancel - promise, который если становится resolved, то прерывает выполнение запроса
      * @returns {Promise} {rows - полученные данные; hasNext - есть ли дальше строки, при указании limit}
      */
@@ -186,7 +184,7 @@ export default oncePerServices(function (services) {
       schema.exec_args(args);
       this._args = args;
 
-      let {query, procedure, paramsDef, params, offset, limit, callContext} = args || {}; // TODO: Use call context in mssql call reports
+      let {query, procedure, paramsDef, params, offset, limit} = args || {}; // TODO: Use call context in mssql call reports
       if (typeof offset !== 'number') offset = 0;
       if (typeof limit !== 'number') limit = Number.MAX_SAFE_INTEGER;
       const lastRow = Math.min(offset + limit, Number.MAX_SAFE_INTEGER);
