@@ -23,10 +23,10 @@ export default function addContextToError(args, newArgs, error, details) {
   }
   if (hasOwnProperty.call(error, 'context')) { // контекст уже есть - так что просто добавляем к нему
     if (error.context.id !== context) {
-      error.context.stack.push(`Context being replaced to '${error.context.id}'`);
+      error.context.stack.unshift(`Context being replaced to '${error.context.id}'`);
       error.context.id = context;
     }
-    error.context.stack.push(newDetails);
+    error.context.stack.unshift(newDetails);
   } else { // добавляем свойство context: {id, stack} в error
     const errorContext = error.context = Object.create(null);
     errorContext.id = context;

@@ -5,7 +5,7 @@ import InvalidServiceStateError from './InvalidServiceStateError'
 import flattenDeep from 'lodash/flattenDeep'
 import uniq from 'lodash/uniq'
 import omit from 'lodash/omit';
-import addServiceStateValidation from './addServiceStateValidation'
+import serviceMethodWrapper from './serviceMethodWrapper'
 import errorDataToEvent from '../errors/errorDataToEvent'
 import shortid from 'shortid'
 import addContextToError from '../context/addContextToError'
@@ -254,7 +254,7 @@ export default oncePerServices(function (services) {
         args.context = shortid();
 
         const promise = this._currentOpPromise = methodImpl.call(this._serviceImpl, args).catch((error) => {
-          addContextToError(args, args, error, {svc: this._name, method});
+          addContextToError(args, args, error, {service: this._name, method});
           this._reportError(error);
           return Promise.rejected(error);
         });
@@ -418,7 +418,7 @@ export default oncePerServices(function (services) {
       }
     }
 
-    addServiceStateValidation(serviceClass.prototype, function () {
+    serviceMethodWrapper(serviceClass.prototype, bus, function () {
       return this._service;
     });
 

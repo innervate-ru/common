@@ -1,10 +1,9 @@
 import {missingArgument, invalidArgument} from '../../validation'
 import missingService from '../../services/missingService'
 import oncePerServices from '../../services/oncePerServices'
-import addServiceStateValidation from '../../services/addServiceStateValidation'
+import serviceMethodWrapper from '../../services/serviceMethodWrapper'
 import prettyPrint from '../../utils/prettyPrint'
 import addPrefixToErrorMessage from '../../utils/addPrefixToErrorMessage'
-import tedious from 'tedious'
 import {stringToTediousTypeMap} from '../../connectors/MsSqlConnector.types'
 
 const hasOwnProperty = Object.prototype.hasOwnProperty;
@@ -13,6 +12,8 @@ const schema = require('./MsSqlCallStoredProcsService.schema');
 const debug = require('debug')('mssql');
 
 export default oncePerServices(function (services) {
+
+  const {bus = missingArgument('bus')} = services;
 
   /**
    * Базовый класс для сервисов, которые позволяют обращаться к хранимым процедурам, как к методам JScript объектов.
@@ -34,7 +35,7 @@ export default oncePerServices(function (services) {
     _addMethods(schema = missingArgument('schema')) {
       if (!(Array.isArray(schema))) invalidArgument('schema', schema);
       processSchema.call(this, schema);
-      addServiceStateValidation(this, function () {
+      serviceMethodWrapper(this, bus, function () {
         return this._service;
       });
     }

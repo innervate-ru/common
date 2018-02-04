@@ -51,6 +51,19 @@ export default oncePerServices(function defineEvents({bus = missingService('bus'
         }),
         toString: ev => `${ev.service}: settings: '${prettyPrint(ev.settings)}'`,
       },
+      // service.method
+      {
+        kind: 'method',
+        type: 'service.method',
+        validate: validateEventFactory({
+          _extends: BaseEvent,
+          method: {type: VType.String().notEmpty()},
+          args: {type: VType.Object()},
+          duration: {type: VType.Int()},
+          failed: {type: VType.Boolean()},
+        }),
+        toString: ev => `${ev.service}: ${ev.method}(${prettyPrint(ev.args)}) ${ev.failed ? `failed` : `ok`} in ${ev.duration} ms'`,
+      },
     ]
   );
 })

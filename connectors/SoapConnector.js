@@ -57,7 +57,7 @@ export default oncePerServices(function (services) {
         this[methodName] = function (args) {
           debug('method: %s; args: %j', methodName, args);
           const service = this._service;
-          if (service.state !== READY) throw this._service._buildInvalidStateError(); // та же логика, как то что добавляет services/addServiceStateValidation
+          if (service.state !== READY) throw this._service._buildInvalidStateError(); // та же логика, как то что добавляет services/serviceMethodWrapper
           return new Promise(function (resolve, reject) {
             client[methodName](args, function (err, result) {
               if (err) reject(new SoapErrorException({url, method: methodName, err}));

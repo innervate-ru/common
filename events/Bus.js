@@ -310,11 +310,11 @@ export default function (services = {}) {
     }
 
     /**
-     * Событие в системе, которое можно слушать через bus.on(...)
+     * То же, что event, но если запущено несколько узлов в одной шине, то это событие передается другим узлам
      */
-    event(ev) {
+    command(ev) {
       if (!(arguments.length === 1)) throw new Error(`Invalid number of arguments: ${prettyPrint(arguments)}`);
-      const evConfig = checkEvent('event', ev, this._config);
+      const evConfig = checkEvent('command', ev, this._config);
       ev = wrapEvent.call(this, ev);
       ev.level = 4;
       this.emitEvent(ev);
@@ -324,11 +324,11 @@ export default function (services = {}) {
     }
 
     /**
-     * То же, что event, но если запущено несколько узлов в одной шине, то это событие передается другим узлам
+     * Событие в системе, которое можно слушать через bus.on(...)
      */
-    command(ev) {
+    event(ev) {
       if (!(arguments.length === 1)) throw new Error(`Invalid number of arguments: ${prettyPrint(arguments)}`);
-      const evConfig = checkEvent('command', ev, this._config);
+      const evConfig = checkEvent('event', ev, this._config);
       ev = wrapEvent.call(this, ev);
       ev.level = 5;
       this.emitEvent(ev);

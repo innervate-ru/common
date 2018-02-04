@@ -1,6 +1,6 @@
 import {missingArgument, invalidArgument} from '../validation'
 import prettyPrint from '../utils/prettyPrint'
-import {oncePerServices, addServiceStateValidation, fixDependsOn, READY} from '../services'
+import {oncePerServices, serviceMethodWrapper, fixDependsOn, READY} from '../services'
 import defineProps from '../utils/defineProps'
 import ConnectionPool from 'tedious-connection-pool'
 import {Request, ConnectionError} from 'tedious'
@@ -142,7 +142,7 @@ export default oncePerServices(function (services) {
     }
   }
 
-  addServiceStateValidation(MsSqlConnector.prototype, function() { return this._service; });
+  serviceMethodWrapper(MsSqlConnector.prototype, bus, function() { return this._service; });
 
   defineProps(MsSqlConnector, {
     msSqlConfig: {
@@ -265,7 +265,7 @@ export default oncePerServices(function (services) {
     }
   }
 
-  addServiceStateValidation(Connection.prototype, function() { return this._connector._service; });
+  serviceMethodWrapper(Connection.prototype, bus, function() { return this._connector._service; });
 
   MsSqlConnector.SERVICE_TYPE = SERVICE_TYPE;
 

@@ -71,15 +71,6 @@ export default oncePerServices(function (services) {
       for (const svc of newServices) {
         if (!(hasOwnProperty.call(svc, 'name') && typeof svc.name === 'string')) throw new Error(`Invalid argument 'service': ${prettyPrint(svc)}`);
         if (hasOwnProperty.call(services, svc.name)) throw new Error(`Duplicated service name: '${svc.name}'`);
-
-        // Zork: После того как схемы event'ов были перемещены в .events.js, стало не понятно что именно надо делать в
-        // config.  Поэтому отключаем эту возможность, пока не станет понятно зачем это надо
-
-        // if (svc.config !== undefined) {
-        //   if (!(typeof svc.config === 'function')) throw new Error(`Service '${svc.name}': Prop 'config' must be a function`);
-        //   svc.config(services);
-        // }
-
       }
       // Шаг 2: Создаем инстансы новых сервисов.  С этого момента сервис может стартовать
       for (const svc of newServices) {
