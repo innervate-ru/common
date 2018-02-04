@@ -10,5 +10,8 @@ export default function errorDataToEvent(error, event, field = `error`) {
     message,
     stack: reduceErrorStack(error, message),
   };
-  if (hasOwnProperty.call(error, 'context')) event.context = error.context;
+  if (hasOwnProperty.call(error, 'context')) {
+    event.context = error.context.id;
+    event.calls = error.context.stack;
+  }
 };

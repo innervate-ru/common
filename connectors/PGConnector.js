@@ -1,6 +1,6 @@
 import {Pool, Client} from 'pg';
 import {oncePerServices, fixDependsOn} from '../services'
-import addServiceStateValidation from '../services/addServiceStateValidation'
+import serviceMethodWrapper from '../services/serviceMethodWrapper'
 import pgTestTime from '../utils/pgTestTime'
 
 const {READY} = require('../services/Service.states');
@@ -155,7 +155,7 @@ export default oncePerServices(function (services) {
 
   }
 
-  addServiceStateValidation(PGConnector.prototype, function () {
+  serviceMethodWrapper(PGConnector.prototype, bus, function () {
     return this._service;
   });
 
@@ -204,7 +204,7 @@ export default oncePerServices(function (services) {
     }
   }
 
-  addServiceStateValidation(Connection.prototype, function () {
+  serviceMethodWrapper(Connection.prototype, bus, function () {
     return this._connector._service;
   });
 

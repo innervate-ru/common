@@ -16,11 +16,11 @@ test(`добавление контекста в ошибку полученну
   const context = 'contextA';
   try {
     const error = new Error('Some error');
-    error.context = {id: context, stack: [{svc: 'svc2', method: 'amethod'}]};
+    error.context = {id: context, stack: [{service: 'svc2', method: 'amethod'}]};
     throw error;
   } catch (error) {
     bindErrorToContext(error, context);
-    t.deepEqual(error.context, {id: context, stack: [{svc: 'svc2', method: 'amethod'}]});
+    t.deepEqual(error.context, {id: context, stack: [{service: 'svc2', method: 'amethod'}]});
   }
 });
 
@@ -28,12 +28,12 @@ test(`добавление контекста в ошибку полученну
   const context = 'contextA';
   try {
     const error = new Error('Some error');
-    error.context = {id: 'contextB', stack: [{svc: 'svc2', method: 'amethod'}]}; // contextB означает что при вызове метода не был передан contextA
+    error.context = {id: 'contextB', stack: [{service: 'svc2', method: 'amethod'}]}; // contextB означает что при вызове метода не был передан contextA
     throw error;
   } catch (error) {
     bindErrorToContext(error, context);
     t.deepEqual(error.context, {id: context, stack: [ // контекст заменен на правильный, и добавлено сообщение о проблеме в stack
-      {svc: 'svc2', method: 'amethod'},
+      {service: 'svc2', method: 'amethod'},
       `Context being replaced to 'contextB'`,
     ]});
   }
