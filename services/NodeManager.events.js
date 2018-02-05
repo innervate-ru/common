@@ -28,5 +28,14 @@ export default oncePerServices(function defineEvents({bus = missingService('bus'
       }),
       toString: (ev) => `${ev.service}: ${ev.error.stack}`,
     },
+    // service.error
+    {
+      kind: 'event',
+      type: 'nodemanager.health',
+      validate: validateEventFactory({
+        _extends: BaseEvent,
+        _final:false,
+      }),
+    },
   ]);
 })
