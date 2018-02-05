@@ -10,7 +10,7 @@ import addContextToError from '../context/addContextToError'
  *
  *
  */
-export default function serviceMethodWrapper(prototypeOrInstance = missingArgument('prototypeOrInstance'), bus = missingArgument('bus'), getService = missingArgument('getService')) {
+export default function addServiceStateValidation(prototypeOrInstance = missingArgument('prototypeOrInstance'), getService = missingArgument('getService')) {
   if (!(typeof prototypeOrInstance === 'object' && prototypeOrInstance != null && !Array.isArray(prototypeOrInstance))) invalidArgument('prototypeOrInstance', prototypeOrInstance);
   if (!(typeof getService === 'function')) invalidArgument('getService', getService);
   if ('__serviceStateValidationAdded' in prototypeOrInstance) return; // уже обработанный класс
@@ -30,42 +30,22 @@ export default function serviceMethodWrapper(prototypeOrInstance = missingArgume
       const method = prototypeOrInstance[methodName];
       prototypeOrInstance[privateMethodName] = method;
 
-      prototypeOrInstance[methodName] = async function (args) {
+      prototypeOrInstance[methodName] = function (args) {
         const newArgs = addContextToArgs(args);
         const service = getService.call(this);
         service.touch();
         if (service.state !== READY) { // проверяем состояние перед операции
           const error = service._buildInvalidStateError();
-          if (addContextToError(args, newArgs, error, {service: this._name, method: methodName})) service._reportError(error);
+          if (addContextToError(args, newArgs, error, {svc: this._name, method: methodName})) service._reportError(error);
           throw error;
         }
-        const startTime = Date.now();
         try {
-          const r = await Promise.resolve(method.call(this, newArgs));
-          bus.method({
-            type: 'service.method',
-            service: service._name,
-            method: methodName,
-            context: newArgs.context,
-            args: args,
-            duration: Date.now() - startTime,
-          });
-          return r;
+          return method.apply(this, arguments);
         } catch (error) {
           if (service.state !== READY)  error = service._buildInvalidStateError(error); // Проверяем состояние сервиса после операции, если ошибка.  Когда сервис не в рабочем состоянии, то не стоит анализировать ошибку
-          if (addContextToError(args, newArgs, error, {service: this._name, method: methodName})) service._reportError(error);
-          bus.method({
-            type: 'service.method',
-            service: service._name,
-            method: methodName,
-            context: newArgs.context,
-            args: args,
-            duration: Date.now() - startTime,
-            failed: 1,
-          });
+          if (addContextToError(args, newArgs, error, {svc: this._name, method: methodName})) service._reportError(error);
           throw error;
         }
-
       }
 
     }

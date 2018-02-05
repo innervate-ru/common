@@ -20,7 +20,6 @@ export default oncePerServices(function defineEvents({bus = missingService('bus'
           serviceType: {type: VType.String().notEmpty()},
           reason: {fields: require('../errors/error.schema').eventErrorSchema}, // причина перехода в состояние FAILED - поле message из Error
         }),
-        // toString: (ev) => JSON.stringify(ev, null, 2),
         toString: (ev) => {
           // Чтобы не сбивать с толку, при начальном запуске не выводим сообщение что сервис перешел в состояние stopped
           if (ev.prevState === NOT_INITIALIZED || ev.prevState === WAITING_OTHER_SERVICES_TO_START_OR_FAIL || ev.prevState === INITIALIZING) return;
