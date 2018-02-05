@@ -30,8 +30,8 @@ function graylogSend(ev) {
   if (graylog) {
     if (!hasOwnProperty.call(ev, 'message')) {
       ev = Object.assign(Object.create(null), ev);
-      const {host, timestamp, source, type, ...rest} = ev;
-      ev.message = `${ev.service}: ${ev.type}${Object.keys(rest).length > 0 ? ` ${prettyPrint(rest)}` : ''}`;
+      const {host, timestamp, service, type, ...rest} = ev;
+      ev.message = `${service}: ${type}${Object.keys(rest).length > 0 ? ` ${prettyPrint(rest)}` : ''}`;
     }
     ++graylogCount;
     graylog.send(JSON.stringify(ev), graylogSendCB);
@@ -78,8 +78,8 @@ function addMessageField(ev, evConfig, alterToStringMap) {
 
 function addDefaultMessage(ev) {
   if (hasOwnProperty.call(ev, 'message')) return;
-  const {host, timestamp, source, type, ...rest} = ev;
-  ev.message = `${ev.service}: ${ev.type}${Object.keys(rest).length > 0 ? ` ${prettyPrint(rest)}` : ''}`;
+  const {host, timestamp, service, type, ...rest} = ev;
+  ev.message = `${service}: ${type}${Object.keys(rest).length > 0 ? ` ${prettyPrint(rest)}` : ''}`;
   return ev;
 }
 
