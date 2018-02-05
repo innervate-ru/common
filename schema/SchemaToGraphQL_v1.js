@@ -172,7 +172,7 @@ export default class SchemaToGraphQL {
 
       const resolver = async function (obj, args, gqlContext) {
 
-        const {request, callContext} = gqlContext;
+        const {request, context} = gqlContext;
 
         debug('method %s(%o)', methodName, args);
 
@@ -219,10 +219,10 @@ export default class SchemaToGraphQL {
               debug(`call service method %s(%O)`, methodName, methodParams);
 
               let {rows, hasNext} = await connector[methodName]({
+                context,
                 ...methodParams,
                 _offset: startOffset,
                 _limit: endOffset - startOffset + 1,
-                // _callContext: callContext,
               });
 
               debug(`rows.length: %d, hasNext: %s`, rows.length, hasNext);

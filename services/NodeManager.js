@@ -7,6 +7,8 @@ import {READY, FAILED} from './Service.states'
 const hasOwnProperty = Object.prototype.hasOwnProperty;
 const schema = require('./NodeManager.schema');
 
+const REPORT_HEALTH_INTERVAL = 30000;
+
 export default oncePerServices(function (services) {
 
   const {bus = missingService('bus')} = services;
@@ -47,6 +49,7 @@ export default oncePerServices(function (services) {
                 if (failedServices.length > 0) ev.failedServices = failedServices;
                 bus.info(ev);
                 this._startedResolve();
+                this.reportHealth();
               } catch (err) {
                 console.error(err);
               }
@@ -79,6 +82,19 @@ export default oncePerServices(function (services) {
       }
     }
 
+    reportHealth() {
+      setTimeout(() => this.reportHealth(), REPORT_HEALTH_INTERVAL);
+      const ev = Object.create(null);
+      ev.type = 'nodemanager.health';
+      ev.service = 'nodeManager';
+      for (let serviceName in this._services) {
+        const s = this._services[serviceName];
+        // далем замену симвоволов в имене сервиса, так как иначе эти поля игнорирует graylog
+        if (hasOwnProperty.call(s, '_service')) ev [`svc_${serviceName.replace('/', '_')}`] = s._service._state === READY ? 1 : 0;
+      }
+      bus.event(ev);
+    }
+
     async dispose() {
       const services = this._services;
       const lst = [];
@@ -90,7 +106,8 @@ export default oncePerServices(function (services) {
       await new Promise(function (resolve, reject) {
         if (lst.length === 0) resolve();
         else Promise.all(lst).then(() => {
-          resolve(); }); // все dispose всегда возвращаются успешно
+          resolve();
+        }); // все dispose всегда возвращаются успешно
         // TODO: Подумать, нужно ли добавить timeout для этой операции
         // TODO: Нужно ли выводить в bus сообытие что работа завершена
       });

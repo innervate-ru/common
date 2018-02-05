@@ -159,7 +159,7 @@ export default function (services = {}) {
       this._alterToString = Object.create(null);
       this._index = 0;
       if (nodeName) this._node = nodeName;
-
+      this._clevel  = configAPI.has('consoleLevel') ? configAPI.get('consoleLevel') : 100;
       if (configAPI.has('grayLog')) {
         const graylogConfig = configAPI.get('grayLog');
         if (graylogConfig && graylogConfig.enabled) {
@@ -263,7 +263,7 @@ export default function (services = {}) {
       ev.level = 0;
       this.emitEvent(ev);
       const evm = addMessageField(ev, evConfig, this._alterToString);
-      if (evm) console.error(evm.message);
+      if (0 <= this._clevel && evm) console.error(evm.message);
       graylogSend(evm || ev);
     }
 
@@ -277,7 +277,7 @@ export default function (services = {}) {
       ev.level = 1;
       this.emitEvent(ev);
       const evm = addMessageField(ev, evConfig, this._alterToString);
-      if (evm) console.error(evm.message);
+      if (1 <= this._clevel && evm) console.error(evm.message);
       graylogSend(evm || ev);
     }
 
@@ -291,7 +291,7 @@ export default function (services = {}) {
       this.emitEvent(ev);
       ev.level = 2;
       const evm = addMessageField(ev, evConfig, this._alterToString);
-      if (evm) console.warn(evm.message);
+      if (2 <= this._clevel && evm) console.warn(evm.message);
       graylogSend(evm || ev);
     }
 
@@ -305,7 +305,7 @@ export default function (services = {}) {
       ev.level = 3;
       this.emitEvent(ev);
       const evm = addMessageField(ev, evConfig, this._alterToString);
-      if (evm) console.info(evm.message);
+      if (3 <= this._clevel && evm) console.info(evm.message);
       graylogSend(evm || ev);
     }
 
@@ -319,7 +319,7 @@ export default function (services = {}) {
       ev.level = 4;
       this.emitEvent(ev);
       const evm = addMessageField(ev, evConfig, this._alterToString);
-      if (evm) console.info(evm.message);
+      if (4 <= this._clevel && evm) console.info(evm.message);
       graylogSend(evm || ev);
     }
 
@@ -333,7 +333,7 @@ export default function (services = {}) {
       ev.level = 5;
       this.emitEvent(ev);
       const evm = addMessageField(ev, evConfig, this._alterToString);
-      if (evm) console.info(evm.message);
+      if (5 <= this._clevel && evm) console.info(evm.message);
       graylogSend(evm || ev);
     }
 
@@ -347,19 +347,19 @@ export default function (services = {}) {
       ev.level = 6;
       this.emitEvent(ev);
       const evm = addMessageField(ev, evConfig, this._alterToString);
-      if (evm) console.info(evm.message);
+      if (6 <= this._clevel && evm) console.info(evm.message);
       graylogSend(evm || ev);
     }
 
     /**
-     * Отладочная информация.
+     * Отладочная информация. Для нее не требуется описания события.
      */
     debug(ev) {
       if (!(arguments.length === 1)) throw new Error(`Invalid number of arguments: ${prettyPrint(arguments)}`);
-      // const evConfig = checkEvent('debug', ev, this._config); При этом проверки структуры сообщения не производится - чтобы не утяжелять написание кода.
       ev = wrapEvent.call(this, ev);
       ev.level = 7;
-      const evm = addMessageField(ev, evConfig, this._alterToString);
+      const evm = addMessageField(ev, undefined, this._alterToString);
+      if (7 <= this._clevel && evm) console.debug(evm.message);
       graylogSend(evm || ev);
     }
   }

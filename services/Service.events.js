@@ -60,7 +60,7 @@ export default oncePerServices(function defineEvents({bus = missingService('bus'
           method: {type: VType.String().notEmpty()},
           args: {type: VType.Object()},
           duration: {type: VType.Int()},
-          failed: {type: VType.Boolean()},
+          failed: {type: VType.Int(), validate: v => v === 1 ? true : 'only 1(one) as value is allowed'},
         }),
         toString: ev => `${ev.service}: ${ev.method}(${prettyPrint(ev.args)}) ${ev.failed ? `failed` : `ok`} in ${ev.duration} ms'`,
       },

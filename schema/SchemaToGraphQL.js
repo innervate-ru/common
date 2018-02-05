@@ -129,9 +129,9 @@ export default class SchemaToGraphQL {
       // резолвер
       const resolver = async function (obj, args, gqlContext) {
 
-        const {request, callContext} = gqlContext;
+        const {request, context} = gqlContext;
 
-        const {_offset, _limit, _callContext} = args;
+        const {_offset, _limit} = args;
         if (!(_offset == null || _offset >= 0)) throw new Error(`Argument '_offset': Must be positive or zero: ${_offset}`);
         if (!(_limit == null || _limit >= 0)) throw new Error(`Argument '_limit': Must be positive or zero: ${_limit}`);
 
@@ -155,10 +155,10 @@ export default class SchemaToGraphQL {
         debug(`call service method %s(%O)`, methodName, methodParams);
 
         let {rows, hasNext} = await connector[methodName]({
+          context,
           ...methodParams,
           _offset: _offset,
           _limit: _limit,
-          _callContext: _callContext,
         });
 
         debug(`rows.length: %d, hasNext: %s`, rows.length, hasNext);
