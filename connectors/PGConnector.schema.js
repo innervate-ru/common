@@ -6,7 +6,7 @@ const postgresChannelName = v => { return /^[a-z0-9_]+$/.test(v) ? true : 'inval
 export const ctor_settings = validate.service.finished({
   context: {type: VType.String()},
   description: {type: VType.String()},
-  url: {type: VType.String().notEmpty(), required: true},
+  host: {type: VType.String().notEmpty(), required: true},
   port: {type: VType.Int()},
   user: {type: VType.String().notEmpty(), required: true},
   password: {type: VType.String().notEmpty(), required: true},
