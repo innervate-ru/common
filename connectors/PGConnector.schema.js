@@ -1,7 +1,7 @@
 import {VType, validate} from '../validation'
 
 // TODO: не работает проверка правильности названия канала, надо разобраться
-const postgresChannelName = v => { return /^[a-z0-9_]+$/.test(v) ? true : 'invalid postgres channel name'; }; // Тут важно вернуть через return.  Если без return и скобок, то в ES6 возвращает всегда true
+const postgresChannelName = v => { return /^"?[a-z0-9_]+"?$/.test(v) ? true : 'invalid postgres channel name'; }; // Тут важно вернуть через return.  Если без return и скобок, то в ES6 возвращает всегда true
 
 export const ctor_settings = validate.service.finished({
   context: {type: VType.String()},
