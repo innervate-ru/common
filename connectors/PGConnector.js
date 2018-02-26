@@ -99,7 +99,7 @@ export default oncePerServices(function (services) {
       }
 
       (channel.handlers || (channel.handlers = [])).push(parseJSON ? (message => {
-        message.payload = JSON.parse(message.payload);
+        if (!message.json) message.json = JSON.parse(message.payload);
         return handler(message);
       }) : handler);
 
