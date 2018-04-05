@@ -36,7 +36,7 @@ export default function serviceMethodWrapper(prototypeOrInstance = missingArgume
         service.touch();
         if (service.state !== READY) { // проверяем состояние перед операции
           const error = service._buildInvalidStateError();
-          if (addContextToError(args, newArgs, error, {service: this._name, method: methodName})) service._reportError(error);
+          if (addContextToError(args, newArgs, error, {service: service._name, method: methodName})) service._reportError(error);
           throw error;
         }
         const startTime = Date.now();
@@ -53,7 +53,7 @@ export default function serviceMethodWrapper(prototypeOrInstance = missingArgume
           return r;
         } catch (error) {
           if (service.state !== READY)  error = service._buildInvalidStateError(error); // Проверяем состояние сервиса после операции, если ошибка.  Когда сервис не в рабочем состоянии, то не стоит анализировать ошибку
-          if (addContextToError(args, newArgs, error, {service: this._name, method: methodName})) service._reportError(error);
+          if (addContextToError(args, newArgs, error, {service: service._name, method: methodName})) service._reportError(error);
           bus.method({
             type: 'service.method',
             service: service._name,
