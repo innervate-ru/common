@@ -10,6 +10,7 @@ const hasOwnProperty = Object.prototype.hasOwnProperty;
 const realConsole = console;
 
 let graylog = null, graylogCount = 0, graylogStopResolve;
+let graylogBackup = null, graylogBackupCount = 0, graylogBackupStopResolve;
 
 function graylogSendCB(err) {
   if (--graylogCount === 0) graylogStopResolve && graylogStopResolve();
@@ -17,14 +18,29 @@ function graylogSendCB(err) {
 
 /* async */ function graylogStop() {
   return new Promise(function (resolve, reject) {
-    if (!graylog) resolve();
+    if (!graylog && !graylogBackup) resolve();
     else {
       graylog = null; // прекращаем отправку сообщений
-      if (graylogCount === 0) resolve();
-      else graylogStopResolve = resolve;
+      graylogBackup = null;
+      if (graylogCount === 0) {
+        resolve();
+      } else {
+        graylogStopResolve = resolve;
+      }
     }
   });
 }
+
+// function graylogStop() {
+//   return new Promise(function (resolve, reject) {
+//     if (!graylog) resolve();
+//     else {
+//       graylog = null; // прекращаем отправку сообщений
+//       if (graylogCount === 0) resolve();
+//       else graylogStopResolve = resolve;
+//     }
+//   });
+// }
 
 function graylogSend(ev) {
   if (graylog) {
@@ -35,6 +51,10 @@ function graylogSend(ev) {
     }
     ++graylogCount;
     graylog.send(JSON.stringify(ev), graylogSendCB);
+  
+    if(graylogBackup) {
+      graylogBackup.send(JSON.stringify(ev), () => {});
+    }
   }
 }
 
@@ -165,6 +185,14 @@ export default function (services = {}) {
         if (graylogConfig && graylogConfig.enabled) {
           graylog = require('gelf-pro');
           graylog.setConfig(graylogConfig.config);
+        }
+      }
+      //Делаем инстанс для второго канала
+      if (configAPI.has('grayLogBackup')) {
+        const graylogConfigBackup = configAPI.get('grayLogBackup');
+        if (graylogConfigBackup && graylogConfigBackup.enabled) {
+          graylogBackup = require('gelf-pro-innervate');
+          graylogBackup.setConfig(graylogConfigBackup.config);
         }
       }
     }
