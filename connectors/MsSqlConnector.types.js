@@ -21,6 +21,8 @@ export const stringToTediousTypeMap = (function() {
   map['datetime'] = TYPES.DateTime;
   map['date'] = TYPES.DateTime; // TODO: перепроверить соответствие
   map['time'] = TYPES.DateTime; // TODO: перепроверить соответствие
+  map['varbinary'] = TYPES.VarBinary; // TODO: перепроверить соответствие
+  
   for (const typeName in TYPES) map[typeName] = TYPES[typeName];
   return map;
 })();

@@ -75,11 +75,13 @@ function addMethod(model) {
   }
 
   const storedProcName = model.name;
-
+  
   this[storedProcName] = /*async*/ function (args = {}) {
 
     const {_offset = 0, _limit = Number.MAX_SAFE_INTEGER, context, ...params} = args;
 
-    return this._connector.exec({context, procedure: storedProcName, offset: _offset, limit: _limit, paramsDef, params});
+    const execName = model.execName ? model.execName : storedProcName;
+    
+    return this._connector.exec({context, procedure: execName, offset: _offset, limit: _limit, paramsDef, params});
   };
 }
