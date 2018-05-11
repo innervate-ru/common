@@ -42,6 +42,16 @@ export default function serviceMethodWrapper(prototypeOrInstance = missingArgume
         const startTime = Date.now();
         try {
           const r = await Promise.resolve(method.call(this, newArgs));
+
+          // Если прилетел буффер (файл), убираем его контент
+          if(args && args.params) {
+            Object.keys(args.params).map(paramKey => {
+              if(Buffer.isBuffer(args.params[paramKey])) {
+                args.params[paramKey] = `Buffer (length: ${Buffer.byteLength(args.params[paramKey])})`;
+              }
+            });
+          }
+          
           bus.method({
             type: 'service.method',
             service: service._name,
@@ -54,6 +64,15 @@ export default function serviceMethodWrapper(prototypeOrInstance = missingArgume
         } catch (error) {
           if (service.state !== READY)  error = service._buildInvalidStateError(error); // Проверяем состояние сервиса после операции, если ошибка.  Когда сервис не в рабочем состоянии, то не стоит анализировать ошибку
           if (addContextToError(args, newArgs, error, {service: service._name, method: methodName})) service._reportError(error);
+  
+          if(args && args.params) {
+            Object.keys(args.params).map(paramKey => {
+              if(Buffer.isBuffer(args.params[paramKey])) {
+                args.params[paramKey] = `Buffer (length: ${Buffer.byteLength(args.params[paramKey])})`;
+              }
+            });
+          }
+          
           bus.method({
             type: 'service.method',
             service: service._name,
