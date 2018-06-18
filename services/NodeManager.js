@@ -118,7 +118,7 @@ export default oncePerServices(function (services) {
   defineProps(NodeManager, {
     name: {
       get() {
-        return this._name;
+        return bus.node;
       }
     },
     services: {

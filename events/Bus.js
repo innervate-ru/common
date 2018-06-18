@@ -51,7 +51,7 @@ function graylogSend(ev) {
     }
     ++graylogCount;
     graylog.send(JSON.stringify(ev), graylogSendCB);
-  
+
     if(graylogBackup) {
       graylogBackup.send(JSON.stringify(ev), () => {});
     }
@@ -278,7 +278,10 @@ export default function (services = {}) {
     }
 
     emitEvent(ev) {
-      process.nextTick(() => this.emit(ev.type, ev));
+      if (testMode && testMode.bus)
+        this.emit(ev.type, ev); // в режиме отладки, надо работать без nextTick.  Альтернатива, переопределить nextTick в .test.js
+      else
+        process.nextTick(() => this.emit(ev.type, ev));
     }
 
     /**
@@ -393,6 +396,11 @@ export default function (services = {}) {
   }
 
   defineProps(Bus, {
+    node: {
+      get() {
+        return this._node;
+      }
+    },
     config: {
       get: function () {
         return this._config;

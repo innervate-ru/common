@@ -1,6 +1,7 @@
 import test from 'ava'
 import sinon from 'sinon'
 import TestConsole from '../utils/testConsole'
+import testPromise from '../utils/testPromise'
 import {DEFAULT_FAIL_RECOVERY_INTERVAL} from './Service'
 import {
   NOT_INITIALIZED,
@@ -47,9 +48,11 @@ test.beforeEach(t => {
 
 test.serial(`Запуск без dependsOn`, t => {
   const services = {console: new TestConsole(), testMode: {bus: true, service: true}};
-  services.bus = new (require('../events').Bus(services))();
+  services.bus = new (require('../events').Bus(services))('testNode');
+  require('./Service.events').default(services);
+  require('./NodeManager.events').default(services);
+
   const nodeManager = new (require('./index').NodeManager(services))({
-    name: 'node1',
     services: [t.context.s1],
   });
   const s1 = nodeManager.services.s1._service;
@@ -70,9 +73,11 @@ test.serial(`Запуск с dependsOn`, t => {
   try {
     const testConsole = new TestConsole();
     const services = {console: testConsole, testMode: {bus: true, service: true}};
-    services.bus = new (require('../events').Bus(services))();
+    services.bus = new (require('../events').Bus(services))('testNode');
+    require('./Service.events').default(services);
+    require('./NodeManager.events').default(services);
+
     const nodeManager = new (require('./index').NodeManager(services))({
-      name: 'node1',
       services: [t.context.s1, t.context.s2, t.context.s3],
     });
     const s1 = nodeManager.services.s1._service;
@@ -137,10 +142,11 @@ test.serial(`Запуск с dependsOn`, t => {
 test.serial(`Фатальная ошибка при работе сервиса, требуещая остановки.  Перезапуск сервиса по времени`, t => {
   const testConsole = new TestConsole();
   const services = {console: testConsole, testMode: {bus: true, service: true}};
-  services.bus = new (require('../events').Bus(services))();
+  services.bus = new (require('../events').Bus(services))('testNode');
   require('./Service.events').default(services);
+  require('./NodeManager.events').default(services);
+
   const nodeManager = new (require('./index').NodeManager(services))({
-    name: 'node1',
     services: [t.context.s1],
   });
   const s1 = nodeManager.services.s1._service;
@@ -159,8 +165,8 @@ test.serial(`Фатальная ошибка при работе сервиса,
 
   try {
     t.is(testConsole.getLogAndClear(),
-      `error: node1:s1: error: 'Error: some error' | ` +
-      `info: node1:s1: state: 'failed' (reason: 'Error: some error')`);
+      `error: s1: error: 'Error: some error' | ` +
+      `info: s1: state: 'failed' (reason: 'Error: some error')`);
   } catch (err) {
     console.error(err);
   }
@@ -205,9 +211,11 @@ test.serial(`Переходы сообщений с ожиданием испо�
   };
   const testConsole = new TestConsole();
   const services = {console: testConsole, testMode: {bus: true, service: true}};
-  services.bus = new (require('../events').Bus(services))();
+  services.bus = new (require('../events').Bus(services))('testNode');
+  require('./Service.events').default(services);
+  require('./NodeManager.events').default(services);
+
   const nodeManager = new (require('./index').NodeManager(services))({
-    name: 'node1',
     services: [svcS],
   });
   const s = nodeManager.services.s._service;
@@ -262,9 +270,11 @@ test.serial(`Ошибка в асинхронном методе - при ини
   };
   const testConsole = new TestConsole();
   const services = {console: testConsole, testMode: {bus: true, service: true}};
-  services.bus = new (require('../events').Bus(services))();
+  services.bus = new (require('../events').Bus(services))('testNode');
+  require('./Service.events').default(services);
+  require('./NodeManager.events').default(services);
+
   const nodeManager = new (require('./index').NodeManager(services))({
-    name: 'node1',
     services: [svcS],
   });
   const s = nodeManager.services.s._service;
@@ -313,9 +323,11 @@ test.serial(`Ошибка в асинхронном методе - при зап
   };
   const testConsole = new TestConsole();
   const services = {console: testConsole, testMode: {bus: true, service: true}};
-  services.bus = new (require('../events').Bus(services))();
+  services.bus = new (require('../events').Bus(services))('testNode');
+  require('./Service.events').default(services);
+  require('./NodeManager.events').default(services);
+
   const nodeManager = new (require('./index').NodeManager(services))({
-    name: 'node1',
     services: [svcS],
   });
   const s = nodeManager.services.s._service;
@@ -371,10 +383,11 @@ test.serial(`Ошибка в асинхронном методе - при ост
   };
   const testConsole = new TestConsole();
   const services = {console: testConsole, testMode: {bus: true, service: true}};
-  services.bus = new (require('../events').Bus(services))();
+  services.bus = new (require('../events').Bus(services))('testNode');
   require('./Service.events').default(services);
+  require('./NodeManager.events').default(services);
+
   const nodeManager = new (require('./index').NodeManager(services))({
-    name: 'node1',
     services: [svcS],
   });
   const s = nodeManager.services.s._service;
@@ -421,10 +434,11 @@ test.serial(`Ошибка в асинхронном методе - при дес
   };
   const testConsole = new TestConsole();
   const services = {console: testConsole, testMode: {bus: true, service: true}};
-  services.bus = new (require('../events').Bus(services))();
+  services.bus = new (require('../events').Bus(services))('testNode');
   require('./Service.events').default(services);
+  require('./NodeManager.events').default(services);
+
   const nodeManager = new (require('./index').NodeManager(services))({
-    name: 'node1',
     services: [svcS],
   });
   const s = nodeManager.services.s._service;
@@ -446,8 +460,8 @@ test.serial(`Ошибка в асинхронном методе - при дес
   t.true(disposePromise.isFulfilled());
   t.is(s.failureReason, null); // ошибки при остановке, не считаются критическими проблемами для сервиса
   t.is(testConsole.getLogAndClear(), // но ошибка ушла в bus
-    `error: node1:s: error: 'Error: some error' | ` +
-    `info: node1:s: state: 'disposed'`
+    `error: s: error: 'Error: some error' | ` +
+    `info: s: state: 'disposed'`
   );
 });
 
@@ -468,9 +482,11 @@ test.serial(`Ожидание в статусе WAITING_OTHER_SERVICES_TO_START_
   };
   const testConsole = new TestConsole();
   const services = {console: testConsole, testMode: {bus: true, service: true}};
-  services.bus = new (require('../events').Bus(services))();
+  services.bus = new (require('../events').Bus(services))('testNode');
+  require('./Service.events').default(services);
+  require('./NodeManager.events').default(services);
+
   const nodeManager = new (require('./index').NodeManager(services))({
-    name: 'node1',
     services: [t.context.s1, svcS],
   });
   const s1 = nodeManager.services.s1._service;
@@ -556,10 +572,11 @@ test.serial.skip(`Ожидание в статусе WAITING_OTHER_SERVICES_TO_S
 
   const testConsole = new TestConsole();
   const services = {console: testConsole, testMode: {bus: true, service: true}};
-  services.bus = new (require('../events').Bus(services))();
+  services.bus = new (require('../events').Bus(services))('testNode');
+  require('./Service.events').default(services);
+  require('./NodeManager.events').default(services);
 
   const nodeManager = new (require('./index').NodeManager(services))({
-    name: 'node1',
     services: [failingToStartSvcDecl, t.context.s1, svcS],
   });
 
@@ -608,9 +625,11 @@ test.serial.skip(`Ожидание в статусе WAITING_OTHER_SERVICES_TO_S
 test.serial(`dispose NodeManager, с ожиданием когда все сервисы выполнят dispose, или наступит timeout`, async t => {
   const testConsole = new TestConsole();
   const services = {console: testConsole, testMode: {bus: true, service: true}};
-  services.bus = new (require('../events').Bus(services))();
+  services.bus = new (require('../events').Bus(services))('testNode');
+  require('./Service.events').default(services);
+  require('./NodeManager.events').default(services);
+
   const nodeManager = new (require('./index').NodeManager(services))({
-    name: 'node1',
     services: [t.context.s1, t.context.s2, t.context.s3],
   });
   const s1 = nodeManager.services.s1._service;
@@ -652,9 +671,11 @@ test.serial(`dispose NodeManager, с ожиданием когда все сер
 test.serial(`вызов criticalFailure можно вызывать только  в состоянии READY`, async t => {
   const testConsole = new TestConsole();
   const services = {console: testConsole, testMode: {bus: true, service: true}};
-  services.bus = new (require('../events').Bus(services))();
+  services.bus = new (require('../events').Bus(services))('testNode');
+  require('./Service.events').default(services);
+  require('./NodeManager.events').default(services);
+
   const nodeManager = new (require('./index').NodeManager(services))({
-    name: 'node1',
     services: [t.context.s1],
   });
   const s1 = nodeManager.services.s1._service;
@@ -676,6 +697,49 @@ test.serial(`вызов criticalFailure можно вызывать только
   s1.dispose();
   t.is(s1.state, DISPOSED);
   t.throws(() => s1.criticalFailure(new Error(`some error`)), `Critical error thrown in wrong state '${DISPOSED}': '{name: 'Error', message: 'some error'}'`);
+});
+
+test.serial('метод _serviceRun вызывается, если он определен и сервис перешел в состояние READY', async t => {
+
+  const name = 's1';
+  const {promise, resolve} = testPromise();
+  const serviceWithServiceRun = {
+    name: 'serviceWithServiceRun',
+    default: (services) => {
+      return new (require('./index').Service(services)(class DummyService {
+        _serviceRun() {
+          resolve();
+        }
+      }))(name, {dependsOn: []})
+    },
+  };
+
+  const testConsole = new TestConsole();
+  const services = {console: testConsole, testMode: {bus: true, service: true}};
+  services.bus = new (require('../events').Bus(services))('testNode');
+  require('./Service.events').default(services);
+  require('./NodeManager.events').default(services);
+
+  const nodeManager = new (require('./index').NodeManager(services))({
+    services: [serviceWithServiceRun],
+  });
+
+  const svc = nodeManager.services.serviceWithServiceRun._service;
+
+  t.is(svc.state, NOT_INITIALIZED);
+
+  svc._callNextStateStep();
+
+  t.is(svc.state, STOPPED);
+
+  svc._callNextStateStep();
+
+  t.is(svc.state, READY);
+
+  await promise; // ждем запуска сервиса
+
+  t.is(svc.state, READY); // проверяем что сработало в состоянии READY
+
 });
 
 test.todo(`Сбор данных для монитора`);

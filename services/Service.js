@@ -87,7 +87,7 @@ export default oncePerServices(function (services) {
        * Объект-реализация сервиса, опционально может иметь методы реализующие инициализацию, запуск, остановку
        * и диструкцию сервиса.
        */
-      ['_serviceInit', '_serviceStart', '_serviceStop', '_serviceDispose'].forEach(m => {
+      ['_serviceInit', '_serviceStart', '_serviceRun', '_serviceStop', '_serviceDispose'].forEach(m => {
         if (m in serviceImpl) {
           const method = serviceImpl[m];
           if (!(typeof method === 'function'))
@@ -220,9 +220,11 @@ export default oncePerServices(function (services) {
         case DISPOSING:
           if (this._currentOpPromise.isFulfilled() || this._currentOpPromise.isRejected()) this._setState(DISPOSED);
           break;
-        // case DISPOSED:
-        //   // nothing
-        //   break;
+/*
+        case DISPOSED:
+          // nothing
+          break;
+*/
       }
     }
 
@@ -244,7 +246,6 @@ export default oncePerServices(function (services) {
       this._failureReason = failureReason || null;
 
       const prevState = this._state;
-
 
       const methodImpl = this[method];
       if (methodImpl) {
@@ -270,15 +271,10 @@ export default oncePerServices(function (services) {
         this._state = nextState || newState;
         this._currentOpPromise = null;
         this._testWaitPromise = null;
+        if (!(testMode && testMode.service)) {
+          process.nextTick(() => this._callNextStateStep());
+        }
       }
-
-      if (this._state === FAILED)
-        this._restartTimer = setTimeout(() => {
-          this._setState(STOPPED);
-        }, this._failRecoveryInterval);
-
-      // TODO: Think of making this a debug output
-      // console.info(`${prevState.toString()} -> ${this._state.toString()}${nextState ? `(${nextState.toString()})` : ''}; method: ${!!method}; reason: ${!!reason}`);
 
       const ev = {
         type: 'service.state',
@@ -290,8 +286,26 @@ export default oncePerServices(function (services) {
       if (this._serviceType) ev.serviceType = this._serviceType;
       bus.event(ev);
 
-      // этот вызов должен идти после отправки события о смене состояния в bus
-      if (newState === DISPOSED) this._dispose(); // это resolve для Pormise который верул метод dispose()
+      switch (this._state) {
+        case FAILED: {
+          this._restartTimer = setTimeout(() => {
+            this._setState(STOPPED);
+          }, this._failRecoveryInterval);
+          break;
+        }
+        case READY: {
+          const serviceRunImpl = this._serviceRun;
+          if (serviceRunImpl) serviceRunImpl.call(this._serviceImpl);
+          break;
+        }
+        case DISPOSED: {
+          if (this._dispose) {
+            this._dispose();
+            this._dispose = null;
+          }
+          break;
+        }
+      }
 
       if (!(testMode && testMode.service)) this._nextStateStep();
     }
@@ -370,6 +384,9 @@ export default oncePerServices(function (services) {
         service: this._name,
       };
       if (this._serviceType) errEvent.serviceType = this._serviceType;
+      if (testMode && testMode.service) {
+        delete error.context;
+      }
       errorDataToEvent(error, errEvent);
       bus.error(errEvent);
     }
