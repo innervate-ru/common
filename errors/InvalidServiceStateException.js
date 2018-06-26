@@ -1,7 +1,7 @@
-import throwIfMissing from 'throw-if-missing'
+import {missingArgument} from '../utils/arguments'
 
 export default class InvalidServiceStateException extends Error {
-  constructor({state = throwIfMissing('state')})
+  constructor({state = missingArgument('state')})
   {
     super(`Invalid service state: '${state.toString()}'`);
     this._state = state;

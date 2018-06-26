@@ -1,4 +1,4 @@
-import throwIfMissing from 'throw-if-missing'
+import {missingArgument} from '../utils/arguments'
 
 import fs from 'fs'
 import path from 'path'
@@ -16,7 +16,7 @@ let cache = Object.create(null);
  * @param schemaPath - Путь директории, из которой нужно загрузить схему.
  * @returns {[object]} Массив структур, загруженных из найденных файлов.
  */
-export function loadFiles(schemaPath = throwIfMissing('schemaPath')) {
+export function loadFiles(schemaPath = missingArgument('schemaPath')) {
   const dir = path.resolve(process.cwd(), schemaPath);
   if (hasOwnProperty.call(cache, dir)) return cache[dir];
   let files = fs.readdirSync(dir); // тут нет смысла использовать асинхроинный readdir, так как файлы всё равно грузятся синхронным методом require()
@@ -46,7 +46,7 @@ export function loadFiles(schemaPath = throwIfMissing('schemaPath')) {
  * @param schemaPath - Путь директории, из которой нужно загрузить схему.
  * @returns {[object]} Массив структур, загруженных из найденных файлов.
  */
-export default function loadSchema({schemaPath = throwIfMissing('schemaPath')}) {
+export default function loadSchema({schemaPath = missingArgument('schemaPath')}) {
   let files = loadFiles(schemaPath);
   let res = [];
   for (let file of files) res.push(file.default);

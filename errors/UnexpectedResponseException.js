@@ -1,11 +1,11 @@
-import throwIfMissing from 'throw-if-missing'
+import {missingArgument} from '../utils/arguments'
 
 export default class UnexpectedResponseException extends Error {
   constructor({
-    service = throwIfMissing('service'),
-    method = throwIfMissing('method'),
+    service = missingArgument('service'),
+    method = missingArgument('method'),
     args,
-    response = throwIfMissing('response'),
+    response = missingArgument('response'),
     exception})
   {
     super(`Unexpected response in service '${service}': ${method}(${JSON.stringify(args)})`);

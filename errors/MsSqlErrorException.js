@@ -1,4 +1,4 @@
-import throwIfMissing from 'throw-if-missing'
+import throwIfMissing from 'throw-if-missingArgument'
 
 export default class MsSqlErrorException extends Error {
   constructor({

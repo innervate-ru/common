@@ -1,6 +1,6 @@
-import throwIfMissing from 'throw-if-missing'
+import {missingArgument} from '../utils/arguments'
 
-export default function(queries = throwIfMissing('queries')) {
+export default function(queries = missingArgument('queries')) {
   let cnt = 0;
   for (let key1 in queries) {
     let level2 = queries[key1];
