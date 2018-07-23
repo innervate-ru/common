@@ -159,72 +159,76 @@ export default oncePerServices(function (services) {
     }
 
     _nextStateStep() {
-      switch (this._state) {
-        case NOT_INITIALIZED:
-          if (this._isAllDependsAreReady) this._setState(INITIALIZING, {method: '_serviceInit', nextState: STOPPED});
-          else this._setState(WAITING_OTHER_SERVICES_TO_START_OR_FAIL);
-          break;
-        case WAITING_OTHER_SERVICES_TO_START_OR_FAIL:
-          if (this._dispose) this._setState(DISPOSING, {method: '_serviceDispose', nextState: DISPOSED});
-          else if (this._isAllDependsAreReady) this._setState(INITIALIZING, {
-            method: '_serviceInit',
-            nextState: STOPPED
-          });
-          return;
-        case INITIALIZING:
-          if (this._currentOpPromise.isFulfilled()) this._setState(STOPPED);
-          else if (this._currentOpPromise.isRejected()) this._setState(INITIALIZE_FAILED, {failureReason: this._currentOpPromise.reason()});
-          break;
-        case STOPPED:
-          if (this._dispose) this._setState(DISPOSING, {method: '_serviceDispose', nextState: DISPOSED});
-          else if (this._isAllDependsAreReady && !this._stop) this._setState(STARTING, {
-            method: '_serviceStart',
-            nextState: READY
-          });
-          break;
-        case STARTING:
-          if (this._currentOpPromise.isFulfilled()) {
-            if (this._stop || !this._isAllDependsAreReady) this._setState(STOPPING, {
-              method: '_serviceStop',
+      try {
+        switch (this._state) {
+          case NOT_INITIALIZED:
+            if (this._isAllDependsAreReady) this._setState(INITIALIZING, {method: '_serviceInit', nextState: STOPPED});
+            else this._setState(WAITING_OTHER_SERVICES_TO_START_OR_FAIL);
+            break;
+          case WAITING_OTHER_SERVICES_TO_START_OR_FAIL:
+            if (this._dispose) this._setState(DISPOSING, {method: '_serviceDispose', nextState: DISPOSED});
+            else if (this._isAllDependsAreReady) this._setState(INITIALIZING, {
+              method: '_serviceInit',
               nextState: STOPPED
             });
-            else this._setState(READY);
-          }
-          else if (this._currentOpPromise.isRejected()) this._setState(STOPPING, {
-            method: '_serviceStop',
-            failureReason: this._currentOpPromise.reason(),
-            nextState: FAILED,
-          });
-          break;
-        case READY:
-          this._firstOpTime = null;
-          if (!this._isAllDependsAreReady || this._stop || this._failureReason || this._dispose) this._setState(STOPPING, {
-            method: '_serviceStop',
-            failureReason: this._failureReason,
-            nextState: this._failureReason ? FAILED : STOPPED,
-          });
-          break;
-        case STOPPING:
-          if (this._currentOpPromise.isFulfilled() || this._currentOpPromise.isRejected()) {
-            if (this._failureReason) this._setState(FAILED, {failureReason: this._failureReason}); // сохраняем ошибку из-за которой мы вышли или из состояния READY или из STARTING
-            else this._setState(STOPPED);
-          }
-          break;
-        case FAILED: // будет переведен в состояние STOPPED после restartInterval (см. setTimeout в setFailed() выше)
-          if (this._dispose) this._setState(DISPOSING, {method: '_serviceDispose', nextState: DISPOSED});
-          else if (this._stop) this._setState(STOPPED);
-          break;
-        case INITIALIZE_FAILED:
-          if (this._dispose) this._setState(DISPOSING, {method: '_serviceDispose', nextState: DISPOSED});
-          break;
-        case DISPOSING:
-          if (this._currentOpPromise.isFulfilled() || this._currentOpPromise.isRejected()) this._setState(DISPOSED);
-          break;
-/*
-        case DISPOSED:
-          // nothing
-          break;
-*/
+            return;
+          case INITIALIZING:
+            if (this._currentOpPromise.isFulfilled()) this._setState(STOPPED);
+            else if (this._currentOpPromise.isRejected()) this._setState(INITIALIZE_FAILED, {failureReason: this._currentOpPromise.reason()});
+            break;
+          case STOPPED:
+            if (this._dispose) this._setState(DISPOSING, {method: '_serviceDispose', nextState: DISPOSED});
+            else if (this._isAllDependsAreReady && !this._stop) this._setState(STARTING, {
+              method: '_serviceStart',
+              nextState: READY
+            });
+            break;
+          case STARTING:
+            if (this._currentOpPromise.isFulfilled()) {
+              if (this._stop || !this._isAllDependsAreReady) this._setState(STOPPING, {
+                method: '_serviceStop',
+                nextState: STOPPED
+              });
+              else this._setState(READY);
+            }
+            else if (this._currentOpPromise.isRejected()) this._setState(STOPPING, {
+              method: '_serviceStop',
+              failureReason: this._currentOpPromise.reason(),
+              nextState: FAILED,
+            });
+            break;
+          case READY:
+            this._firstOpTime = null;
+            if (!this._isAllDependsAreReady || this._stop || this._failureReason || this._dispose) this._setState(STOPPING, {
+              method: '_serviceStop',
+              failureReason: this._failureReason,
+              nextState: this._failureReason ? FAILED : STOPPED,
+            });
+            break;
+          case STOPPING:
+            if (this._currentOpPromise.isFulfilled() || this._currentOpPromise.isRejected()) {
+              if (this._failureReason) this._setState(FAILED, {failureReason: this._failureReason}); // сохраняем ошибку из-за которой мы вышли или из состояния READY или из STARTING
+              else this._setState(STOPPED);
+            }
+            break;
+          case FAILED: // будет переведен в состояние STOPPED после restartInterval (см. setTimeout в setFailed() выше)
+            if (this._dispose) this._setState(DISPOSING, {method: '_serviceDispose', nextState: DISPOSED});
+            else if (this._stop) this._setState(STOPPED);
+            break;
+          case INITIALIZE_FAILED:
+            if (this._dispose) this._setState(DISPOSING, {method: '_serviceDispose', nextState: DISPOSED});
+            break;
+          case DISPOSING:
+            if (this._currentOpPromise.isFulfilled() || this._currentOpPromise.isRejected()) this._setState(DISPOSED);
+            break;
+          /*
+                  case DISPOSED:
+                    // nothing
+                    break;
+          */
+        }
+      } catch (err) {
+        this._reportError(err);
       }
     }
 
