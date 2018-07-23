@@ -104,7 +104,7 @@ export default oncePerServices(function (services) {
       /**
        * true, если был вызван метод stop()
        */
-      this._stop = false; //
+      this._stop = !!(settings && settings.stop);
 
       /**
        * true, если был вызван метод dispose()

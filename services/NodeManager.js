@@ -77,8 +77,8 @@ export default oncePerServices(function (services) {
       }
       // Шаг 2: Создаем инстансы новых сервисов.  С этого момента сервис может стартовать
       for (const svc of newServices) {
-        services[svc.name] = svc.default(services);
-        this._serviceCount++;
+        const service = services[svc.name] = svc.default(services);
+        if (!service._stop) this._serviceCount++;
       }
     }
 
