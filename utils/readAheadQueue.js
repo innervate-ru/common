@@ -27,7 +27,6 @@ export default function readAheadQueue({
     if (prevPromise && !prevPromise.isFulfilled()) {
       throw new Error(`Method next() can only be invoked once the previouse block was successfully received`);
     }
-    console.info(30, queue.length)
     if (queue.length === 0) {
       if (theEnd) return;
       return prevPromise = loadNext({context});
