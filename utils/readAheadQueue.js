@@ -31,7 +31,7 @@ export default function readAheadQueue({
       if (theEnd) return;
       return prevPromise = loadNext({context});
     } else {
-      queue.push(loadNext({context}));
+      if (queue[queue.length - 1].isFulfilled()) queue.push(loadNext({context}));
       return prevPromise = queue.shift();
     }
   };
@@ -46,7 +46,7 @@ export default function readAheadQueue({
         resolve(undefined);
       }
       if (!isPromise(r)) {
-        reject(new Error(`'func' must return eitehr a Promise or undefined: ${r}`));
+        reject(new Error(`'func' must return either a Promise or undefined: ${r}`));
         return;
       }
       r.then((data) => {
