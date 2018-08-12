@@ -3,6 +3,7 @@ import {VType, validate} from '../validation'
 const hasOwnProperty = Object.prototype.hasOwnProperty;
 
 export const ctor_settings = validate.service.finished({
+  stop: {type: VType.Boolean()},
   description: {type: VType.String()},
   url: {type: VType.String().notEmpty(), required: true},
   user: {type: VType.String().notEmpty(), required: true},

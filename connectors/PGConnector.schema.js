@@ -4,6 +4,7 @@ import {VType, validate} from '../validation'
 const postgresChannelName = v => { return /^"?[a-z0-9_]+"?$/.test(v) ? true : 'invalid postgres channel name'; }; // Тут важно вернуть через return.  Если без return и скобок, то в ES6 возвращает всегда true
 
 export const ctor_settings = validate.service.finished({
+  stop: {type: VType.Boolean()},
   context: {type: VType.String()},
   description: {type: VType.String()},
   host: {type: VType.String().notEmpty(), required: true},

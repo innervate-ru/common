@@ -26,6 +26,8 @@ import {
 
 export const DEFAULT_FAIL_RECOVERY_INTERVAL = 60000;
 
+const SERVICE_TAKES_TOO_LONG_INTERVAL = 20000;
+
 export default oncePerServices(function (services) {
 
   const {bus, testMode} = services;
@@ -268,7 +270,20 @@ export default oncePerServices(function (services) {
         if (testMode && testMode.service)
           this._testWaitPromise = this._currentOpPromise; // в режиме тестирования this._nextStateStep не вызывается по завершению асинхронного метода - нужно явно вызвать nextStateStep в коде
         else {
-          this._currentOpPromise.then(this._callNextStateStep).catch(this._callNextStateStep);
+          const startTime = Date.now();
+          const timer = setInterval(() => {
+            bus.info({
+              type: 'service.takesTooLong',
+              service: this.name,
+              method,
+              duration: Date.now() - startTime,
+            });
+          }, SERVICE_TAKES_TOO_LONG_INTERVAL);
+          const done = () => {
+            clearInterval(timer);
+            this._callNextStateStep();
+          }
+          this._currentOpPromise.then(done).catch(done);
         }
 
       } else {

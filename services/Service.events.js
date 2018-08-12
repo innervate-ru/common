@@ -63,6 +63,16 @@ export default oncePerServices(function defineEvents({bus = missingService('bus'
         }),
         toString: ev => `${ev.service}: ${ev.method}(${prettyPrint(ev.args)}) ${ev.failed ? `failed` : `ok`} in ${ev.duration} ms'`,
       },
+      {
+        kind: 'info',
+        type: 'service.takesTooLong',
+        validate: validateEventFactory({
+          _extends: BaseEvent,
+          method: {type: VType.String().notEmpty()},
+          duration: {type: VType.Int()},
+        }),
+        toString: ev => `${ev.service}: ${ev.method} takes too long (${Math.round(ev.duration / 1000)} secs) to complete`,
+      },
     ]
   );
 })

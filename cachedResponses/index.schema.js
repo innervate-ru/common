@@ -1,6 +1,7 @@
 import {VType, validate} from '../validation'
 
 export const ctor_settings = validate.ctor.this({
+  stop: {type: VType.Boolean()},
   reuseResultTime: {type: VType.Int().zero().positive(), copy: true},
   reuseResultOnErrorTime: {type: VType.Int().zero().positive(), copy: true},
   maxParallelRequests: {type: VType.Int().zero().positive(), copy: true},
