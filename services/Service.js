@@ -281,7 +281,7 @@ export default oncePerServices(function (services) {
           }, SERVICE_TAKES_TOO_LONG_INTERVAL);
           const done = () => {
             clearInterval(timer);
-            this._callNextStateStep();
+            return this._callNextStateStep();
           }
           this._currentOpPromise.then(done).catch(done);
         }
