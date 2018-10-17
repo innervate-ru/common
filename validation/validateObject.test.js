@@ -272,9 +272,9 @@ test(`Имя поля в схеме не может начинаться с по
 test(`_validate для всего объекта вызывается вне зависимости от успешности остальных проверок`, t => {
   let lastMessage = 123;
   const validate = validateObject({
-    name: {type: 'str'}, optionN: {type: 'int'}, _validate: (context, value, message, validateOptions) => { // если messages != undefined, значит предыдущие проверки вернули ошибку(и)
+    name: {type: 'str'}, optionN: {type: 'int'}, _validate: (context, value, message, validateOptions) => { // если messages !== undefined, значит предыдущие проверки вернули ошибку(и)
       lastMessage = message; // если есть message, то значит найденны ошибки.  И можно проверку всего объекта не проводить
-      if (value.optionN != 12) {
+      if (value.optionN !== 12) {
         (message || (message = [])).push(`'optionN' must be 12`);
         return message;
       }

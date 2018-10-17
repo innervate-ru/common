@@ -11,7 +11,7 @@ import addContextToError from '../context/addContextToError'
  *
  */
 export default function serviceMethodWrapper(prototypeOrInstance = missingArgument('prototypeOrInstance'), bus = missingArgument('bus'), getService = missingArgument('getService')) {
-  if (!(typeof prototypeOrInstance === 'object' && prototypeOrInstance != null && !Array.isArray(prototypeOrInstance))) invalidArgument('prototypeOrInstance', prototypeOrInstance);
+  if (!(typeof prototypeOrInstance === 'object' && prototypeOrInstance !== null && !Array.isArray(prototypeOrInstance))) invalidArgument('prototypeOrInstance', prototypeOrInstance);
   if (!(typeof getService === 'function')) invalidArgument('getService', getService);
   if ('__serviceStateValidationAdded' in prototypeOrInstance) return; // уже обработанный класс
   for (const methodName of Object.getOwnPropertyNames(prototypeOrInstance)) {
@@ -51,7 +51,7 @@ export default function serviceMethodWrapper(prototypeOrInstance = missingArgume
               }
             });
           }
-          
+
           bus.method({
             type: 'service.method',
             service: service._name,
@@ -64,7 +64,7 @@ export default function serviceMethodWrapper(prototypeOrInstance = missingArgume
         } catch (error) {
           if (service.state !== READY)  error = service._buildInvalidStateError(error); // Проверяем состояние сервиса после операции, если ошибка.  Когда сервис не в рабочем состоянии, то не стоит анализировать ошибку
           if (addContextToError(args, newArgs, error, {service: service._name, method: methodName})) service._reportError(error);
-  
+
           if(args && args.params) {
             Object.keys(args.params).map(paramKey => {
               if(Buffer.isBuffer(args.params[paramKey])) {
@@ -72,7 +72,7 @@ export default function serviceMethodWrapper(prototypeOrInstance = missingArgume
               }
             });
           }
-          
+
           bus.method({
             type: 'service.method',
             service: service._name,

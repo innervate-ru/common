@@ -18,7 +18,7 @@ export default function (typesExport) {
   addType('Boolean', v => typeof v == 'boolean');
   addType('Object', v => typeof v === 'object' && !Array.isArray(v));
   addType('Function', v => typeof v === 'function');
-  addType('Promise', v => v => typeof v === 'object' && v != null && 'then' in v);
+  addType('Promise', v => v => typeof v === 'object' && v !== null && 'then' in v);
 
   addTypeAdvanced('Fields', function (typeContextPrototype) {
 

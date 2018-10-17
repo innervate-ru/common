@@ -12,7 +12,7 @@ const MUTATION_ROOT_TYPE = 'RootMutation';
 function assembleSublevel(parentLevelBuilder, parentContext, branch) {
   if (typeof branch === 'function') {
     parentLevelBuilder.addBuilder(branch);
-  } else if (typeof branch === 'object' && branch != null && !Array.isArray(branch)) {
+  } else if (typeof branch === 'object' && branch !== null && !Array.isArray(branch)) {
     let name;
     const builderContext = () => `${parentContext()}.${name}`;
     for (name of Object.getOwnPropertyNames(branch)) {
@@ -33,7 +33,7 @@ export default class SchemaBuilder extends LevelBuilder {
     this._resolvers = this._levelQueryResolver = this._levelMutationResolver = null;
 
     if (schemaTree) {
-      if (!(typeof schemaTree === 'object' && schemaTree != null && !Array.isArray(schemaTree))) invalidArgument('schemaTree', schemaTree);
+      if (!(typeof schemaTree === 'object' && schemaTree !== null && !Array.isArray(schemaTree))) invalidArgument('schemaTree', schemaTree);
       let name;
       const builderContext = () => name;
       for(name of Object.getOwnPropertyNames(schemaTree)) {
@@ -72,7 +72,7 @@ export default class SchemaBuilder extends LevelBuilder {
     const {typeDefs, resolvers} = options;
 
     if (!(Array.isArray(typeDefs))) invalidArgument('typeDefs', typeDefs);
-    if (!(typeof resolvers === 'object' && resolvers != null && !Array.isArray(resolvers))) invalidArgument('resolvers', resolvers);
+    if (!(typeof resolvers === 'object' && resolvers !== null && !Array.isArray(resolvers))) invalidArgument('resolvers', resolvers);
 
     this._typeDefs = typeDefs;
     this._resolvers = resolvers;

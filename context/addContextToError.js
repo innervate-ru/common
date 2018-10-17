@@ -32,5 +32,5 @@ export default function addContextToError(args, newArgs, error, details) {
     errorContext.id = context;
     errorContext.stack = [newDetails];
   }
-  return args != newArgs; // true, значит был создан методом ./addContextToArgs новый вариант args, для того чтобы добавить поле context
+  return args !== newArgs; // true, значит был создан методом ./addContextToArgs новый вариант args, для того чтобы добавить поле context
 }

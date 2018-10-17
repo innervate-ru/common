@@ -105,7 +105,7 @@ function addDefaultMessage(ev) {
 
 export default function (services = {}) {
 
-  if (!(typeof services === 'object' && services != null && !Array.isArray(services))) throw new Error(`Invalid argument 'services': ${prettyPrint(services)}`);
+  if (!(typeof services === 'object' && services !== null && !Array.isArray(services))) throw new Error(`Invalid argument 'services': ${prettyPrint(services)}`);
 
   const {
     testMode,
@@ -257,7 +257,7 @@ export default function (services = {}) {
      * - false - метод не предлагает своего вариант, и потому другие методы и метод toString определнные в событии, должны быть использованы
      */
     alterToString(alterMap = missingArgument('alterMap')) {
-      if (!(typeof alterMap === 'object' && alterMap != null && !Array.isArray(alterMap))) invalidArgument('alterMap', alterMap);
+      if (!(typeof alterMap === 'object' && alterMap !== null && !Array.isArray(alterMap))) invalidArgument('alterMap', alterMap);
       for (const eventType in alterMap) {
         if (!hasOwnProperty.call(alterMap, eventType)) continue;
         const toString = alterMap[eventType];

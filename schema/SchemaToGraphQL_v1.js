@@ -186,7 +186,7 @@ export default class SchemaToGraphQL {
 
         for (let pp of paramProcessors) {
           let promise = pp.call(methodContext, methodParams, fixedArgs, request);
-          if (typeof promise != 'undefined') paramsPromises.push(promise);
+          if (typeof promise !== 'undefined') paramsPromises.push(promise);
         }
 
         if (paramsPromises.length > 0) await Promise.all(paramsPromises);
@@ -231,7 +231,7 @@ export default class SchemaToGraphQL {
 
               for (let rp of resultProcessors) {
                 let promise = rp.call(methodContext, rows, request);
-                if (typeof promise != 'undefined') resultPromises.push(promise);
+                if (typeof promise !== 'undefined') resultPromises.push(promise);
               }
 
               if (resultPromises.length > 0) await Promise.all(resultPromises);

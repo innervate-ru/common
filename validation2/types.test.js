@@ -148,7 +148,7 @@ test.only(`VType._build возвращает билдер валидатора �
   t.is(VType.String(v => v.length > 1)._build()(() => ``, {})._key, 'String(4)');
 
   // при этом, если функция одна и так же, то повторно используется ранее созданный контекст
-  const f = v => v != 'x';
+  const f = v => v !== 'x';
   t.is(VType.String(f)._key, 'String(5)');
   t.is(VType.String(f)._build()(() => ``, {})._key, 'String(5)');
   t.is(VType.String(f)._key, 'String(5)');

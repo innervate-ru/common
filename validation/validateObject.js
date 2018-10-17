@@ -259,7 +259,7 @@ export function validateObjectFactory({
     const validators = [];
     const fieldsMap = Object.create(null);
 
-    if (!(typeof fields === 'object' && fields != null && !Array.isArray(fields)))
+    if (!(typeof fields === 'object' && fields !== null && !Array.isArray(fields)))
       throw new Error(`Field '${parentContext()}': Invalid attribute 'fields' value: ${prettyPrint(fields)}`);
 
     let _final = false;
@@ -303,7 +303,7 @@ export function validateObjectFactory({
     }
 
     return function (context, value, message, validateOptions) {
-      if (typeof value === 'object' && value != null && !Array.isArray(value))
+      if (typeof value === 'object' && value !== null && !Array.isArray(value))
         return validateSubfields(context, value, message, validateOptions);
       (message || (message = [])).push(invalidFieldValue(context, value));
       return message;
@@ -429,7 +429,7 @@ export function validateObjectFactory({
     if (array) { ++cnt; }
 
     if (cnt === 0) throw new Error(`Field '${context()}': Must have either 'type', 'fields' or 'array' attribute: ${prettyPrint(fieldDef)}`);
-    if (cnt != 1) throw new Error(`Field '${context()}': Cannot have in the same time 'type', 'fields' and 'array' attributes: ${prettyPrint(fieldDef)}`);
+    if (cnt !== 1) throw new Error(`Field '${context()}': Cannot have in the same time 'type', 'fields' and 'array' attributes: ${prettyPrint(fieldDef)}`);
 
     if (fields)
       return _validateSubfields.call(this, context, fields);
@@ -472,7 +472,7 @@ export function validateObjectFactory({
    */
   function _validateType(context, fieldDef, type) {
 
-    if (typeof type === 'object' && type != null && '_vtype' in type) return type._build().call(this, context, fieldDef);
+    if (typeof type === 'object' && type !== null && '_vtype' in type) return type._build().call(this, context, fieldDef);
 
     switch (type) {
 

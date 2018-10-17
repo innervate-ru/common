@@ -29,7 +29,7 @@ export function loadFiles(schemaPath = missingArgument('schemaPath')) {
     let {'default': method} = file = require(path.join(dir, filename));
     // проверяем что имя метода в файле или отсутствует или равно имени файла
     let methodName = path.basename(filename, '.js');
-    if (method.hasOwnProperty('name') && method.name != methodName)
+    if (method.hasOwnProperty('name') && method.name !== methodName)
       console.error(`File '${path.join(path.relative(process.cwd(), dir), filename)}': method.name '${method.name}' not equal to filename '${methodName}'`);
     method.name = methodName;
     res.push(file);

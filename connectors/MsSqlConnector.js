@@ -196,7 +196,7 @@ export default oncePerServices(function (services) {
         let hasNext = false;
 
         let request = new Request(query || procedure, (error, rowCount) => {
-          if (error && error.code != 'ECANCEL') {
+          if (error && error.code !== 'ECANCEL') {
             this._connector._rejectWithError(reject, error);
           } else {
             resolve({rows: res, hasNext, columns});

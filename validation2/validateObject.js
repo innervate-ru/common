@@ -14,7 +14,7 @@ function buildValidateFields(parentContext, fields) {
   const validators = [];
   const fieldsMap = Object.create(null);
 
-  if (!(typeof fields === 'object' && fields != null && !Array.isArray(fields)))
+  if (!(typeof fields === 'object' && fields !== null && !Array.isArray(fields)))
     throw new Error(`Field '${parentContext()}': Invalid attribute 'fields' value: ${prettyPrint(fields)}`);
 
   let _final = false;
@@ -58,7 +58,7 @@ function buildValidateFields(parentContext, fields) {
   }
 
   return function (context, value, message, validateOptions) {
-    if (typeof value === 'object' && value != null && !Array.isArray(value))
+    if (typeof value === 'object' && value !== null && !Array.isArray(value))
       return validateSubfields(context, value, message, validateOptions);
     (message || (message = [])).push(validateOptions.invalidFieldValue(context, value));
     return message;
@@ -186,7 +186,7 @@ function _validateEitherTypeOrFields(context, fieldDef) {
   if (array) { ++cnt; }
 
   if (cnt === 0) throw new Error(`Field '${context()}': Must have either 'type', 'fields' or 'array' attribute: ${prettyPrint(fieldDef)}`);
-  if (cnt != 1) throw new Error(`Field '${context()}': Cannot have in the same time 'type', 'fields' and 'array' attributes: ${prettyPrint(fieldDef)}`);
+  if (cnt !== 1) throw new Error(`Field '${context()}': Cannot have in the same time 'type', 'fields' and 'array' attributes: ${prettyPrint(fieldDef)}`);
 
   if (fields)
     return buildValidateFields.call(this, context, fields);
@@ -229,7 +229,7 @@ function _validateListOfTypes(context, fieldDef) {
  */
 function _validateType(context, fieldDef, type) {
 
-  if (!(typeof type === 'object' && type != null && '_vtype' in type)) {
+  if (!(typeof type === 'object' && type !== null && '_vtype' in type)) {
 
     switch (type) {
 

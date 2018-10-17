@@ -10,7 +10,7 @@ const hasOwnProperty = Object.prototype.hasOwnProperty;
  */
 export default function buildFullErrorMessage(error = missingArgument('error')) {
 
-  if (!(typeof error === 'object' && error != null && !Array.isArray(error))) invalidArgument('error', error);
+  if (!(typeof error === 'object' && error !== null && !Array.isArray(error))) invalidArgument('error', error);
 
   let contextId;
   if (hasOwnProperty.call(error, 'context')) contextId = error.context.id;

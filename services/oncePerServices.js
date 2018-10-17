@@ -11,14 +11,14 @@ export default function oncePerServices(method = missingArgument('method')) {
 
   return function (services = missingArgument('services')) {
 
-    if (!(typeof services === 'object' && services != null && !Array.isArray(services))) invalidArgument('services', services);
+    if (!(typeof services === 'object' && services !== null && !Array.isArray(services))) invalidArgument('services', services);
 
     let sv = cache.get(services);
     if (!sv)
       cache.set(services, sv = new WeakMap()); // создаем новый кеш объект для данного объекта services
     else if (sv.has(method)) {
       const value = sv.get(method);
-      if (typeof value === 'object' && value != null && '__thrown' in value) throw value.__thrown;
+      if (typeof value === 'object' && value !== null && '__thrown' in value) throw value.__thrown;
       return value;
     }
 
