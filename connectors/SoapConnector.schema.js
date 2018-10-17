@@ -9,7 +9,7 @@ export const config = validateAndCopyOptionsFactory({
   uri: {type: VType.String().notEmpty(), required: true/*, copy: true*/},
   login: {type: VType.String().notEmpty(), required: false/*, copy: true*/},
   password: {type: VType.String().notEmpty(), required: false, copy: true},
-  http_login: {type: VType.String().notEmpty(), required: false/*, copy: true*/},
-  http_password: {type: VType.String().notEmpty(), required: false, copy: true},
-  soap_options: {type: VType.Object(), required: false}, // Опция для прокидывания https://www.npmjs.com/package/soap#specifying-the-exact-namespace-definition-of-the-root-element
+  httpLogin: {type: VType.String().notEmpty(), required: false/*, copy: true*/},
+  httpPassword: {type: VType.String().notEmpty(), required: false, copy: true},
+  soapOptions: {type: VType.Object(), required: false}, // Опция для прокидывания https://www.npmjs.com/package/soap#specifying-the-exact-namespace-definition-of-the-root-element
 });
