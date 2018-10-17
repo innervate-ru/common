@@ -26,6 +26,7 @@ export default oncePerServices(function (services) {
       // TODO:  Привести к общему виду.  При переходе с задачи интеграции с 1С на интеграцию с МТС Connect, url -> uri, user -> login
       this._url = options.uri;
       this._user = options.login;
+      this._httpUser = options.httpLogin;
     }
 
     _addMethods() {
@@ -86,14 +87,32 @@ export default oncePerServices(function (services) {
       });
       return new Promise((resolve, reject) => {
         let urlObject = urlApi.parse(this._url);
-        if (this._user) urlObject.auth = `${this._user}:${this._password}`;
-        soap.createClient(`${urlApi.format(urlObject)}`, (err, client) => {
+        let auth = null;
+        
+        let options = {};
+        
+        if(this._options && this._options.soapOptions) {
+          options = {...this._options.soapOptions};
+        }
+        
+        if (this._user) {
+          urlObject.auth = `${this._user}:${this._password}`;
+        }
+        
+        if (this._httpUser) {
+          auth = "Basic " + new Buffer(`${this._httpUser}:${this._httpPassword}`).toString("base64");
+          options.wsdl_headers = {Authorization: auth};
+        }
+        
+        soap.createClient(`${urlApi.format(urlObject)}`, options, (err, client) => {
           if (err) {
             debug('client creation failed %O', err);
             reject(new SoapErrorException({url: this._url, method: 'createClient', err}));
           } else {
             debug(`client creation succeeded`);
             if (this._user) client.setSecurity(new soap.BasicAuthSecurity(this._user, this._password));
+            if (this._httpUser) client.addHttpHeader('Authorization', auth); //http-авторизация
+            
             this._connection = client;
             this._addMethods();
             resolve();
