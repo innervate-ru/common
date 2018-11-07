@@ -13,8 +13,9 @@ import addContextToError from '../context/addContextToError'
 export default function serviceMethodWrapper(prototypeOrInstance = missingArgument('prototypeOrInstance'), bus = missingArgument('bus'), getService = missingArgument('getService')) {
   if (!(typeof prototypeOrInstance === 'object' && prototypeOrInstance !== null && !Array.isArray(prototypeOrInstance))) invalidArgument('prototypeOrInstance', prototypeOrInstance);
   if (!(typeof getService === 'function')) invalidArgument('getService', getService);
-  if ('__serviceStateValidationAdded' in prototypeOrInstance) return; // уже обработанный класс
-  for (const methodName of Object.getOwnPropertyNames(prototypeOrInstance)) {
+  const methods = Object.getOwnPropertyNames(prototypeOrInstance);
+  if (methods.indexOf('__serviceStateValidationAdded') >= 0) return; // уже обработанный класс
+  for (const methodName of methods) {
     if (methodName === 'constructor') continue;
     if (!methodName.startsWith('_')) {
       let propType;

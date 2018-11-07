@@ -314,7 +314,7 @@ export default oncePerServices(function (services) {
         }
         case READY: {
           const serviceRunImpl = this._serviceRun;
-          if (serviceRunImpl) serviceRunImpl.call(this._serviceImpl);
+          if (serviceRunImpl) setTimeout(serviceRunImpl.bind(this._serviceImpl), 0);
           break;
         }
         case DISPOSED: {
