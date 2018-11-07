@@ -22,8 +22,25 @@ export const stringToTediousTypeMap = (function() {
   map['date'] = TYPES.DateTime; // TODO: перепроверить соответствие
   map['time'] = TYPES.DateTime; // TODO: перепроверить соответствие
   map['varbinary'] = TYPES.VarBinary; // TODO: перепроверить соответствие
-  
-  for (const typeName in TYPES) map[typeName] = TYPES[typeName];
+
+  for (const typeName in TYPES) {
+    switch (typeName) { // Tedious start to warn to do not use those types
+      case 'IntN':
+      case 'DateN':
+      case 'BitN':
+      case 'DateTimeOffsetN':
+      case 'FloatN':
+      case 'MoneyN':
+      case 'DateTime2N':
+      case 'DateTimeN':
+      case 'TimeN':
+      case 'DecimalN':
+      case 'NumericN':
+      case 'UniqueIdentifierN':
+        continue;
+    }
+    map[typeName] = TYPES[typeName];
+  }
   return map;
 })();
 
