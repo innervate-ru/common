@@ -15,7 +15,7 @@ export default oncePerServices(function defineEvents({bus = missingService('bus'
         startDuration: {type: VType.Int().positive().zero()}, // значение ноль может быть во время тестирования с fake timer'ом
         failedServices: {type: VType.Array().onlyStrings()},
       }),
-      toString: (ev) => `${ev.service}: node started in ${moment.duration(ev.startDuration).format('h:mm:ss', 3)}${ev.failedServices ? `; failed: ${ev.failedServices.join()}` : ``}`,
+      toString: (ev) => `${ev.service}: node started in ${moment.duration(ev.startDuration).format('h:mm:ss', 3)}${ev.failedServices ? `; failed: ${ev.failedServices.join(', ')}` : ``}`,
     },
     // service.error
     {

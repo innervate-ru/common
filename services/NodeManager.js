@@ -2,8 +2,12 @@ import oncePerServices from './oncePerServices'
 import prettyPrint from '../utils/prettyPrint'
 import defineProps from '../utils/defineProps'
 import missingService from './missingService'
-import {READY, FAILED, STOPPED} from './Service.states'
-import errorDataToEvent from "../errors/errorDataToEvent";
+import {
+  READY,
+  FAILED,
+  STOPPED,
+  WAITING_FAILED_TO_START_SERVICE
+} from './Service.states'
 
 const hasOwnProperty = Object.prototype.hasOwnProperty;
 const schema = require('./NodeManager.schema');
@@ -16,7 +20,7 @@ export default oncePerServices(function (services) {
 
   class NodeManager {
 
-    _serviceCount = 0;
+    _serviceCountToStartNode = 0;
     _serviceStarted = 0;
     _startedPromise = new Promise((resolve, reject) => {
       this._startedResolve = resolve;
@@ -29,10 +33,10 @@ export default oncePerServices(function (services) {
       const startTime = Date.now();
       const startedServices = Object.create(null);
       const listener = (ev) => {
-        if (ev.state === READY || ev.state == FAILED) {
-          if (!hasOwnProperty.call(startedServices, ev.service)) { // этот сервис ещё не проходил через READY или FAILED
+        if (ev.state === READY || ev.state === FAILED || ev.state === WAITING_FAILED_TO_START_SERVICE) {
+          if (!hasOwnProperty.call(startedServices, ev.service)) { // этот сервис ещё не проходил через READY, FAILED или WAITING_FAILED_TO_START_SERVICE
             startedServices[ev.service] = true;
-            if (++this._serviceStarted === this._serviceCount) { // все зарегестрированные сервисы прошли через состояние READY или FAILED
+            if (++this._serviceStarted === this._serviceCountToStartNode) { // все зарегестрированные сервисы прошли через состояние READY или FAILED
               try {
                 bus.removeListener('service.state', listener); // перестаем слушать изменения состояний
                 const failedServices = [];
@@ -40,7 +44,7 @@ export default oncePerServices(function (services) {
                   const service = this._services[serviceName];
                   if (!(typeof service === 'object' && hasOwnProperty.call(service, '_service'))) continue; // это базовый сервис - console, bus, manager, testMode
                   const state = service._service.get('state');
-                  if (state === FAILED) failedServices.push(serviceName);
+                  if (state === FAILED || state === WAITING_FAILED_TO_START_SERVICE) failedServices.push(serviceName);
                 }
                 const ev = {
                   type: 'nodemanager.started',
@@ -103,7 +107,7 @@ export default oncePerServices(function (services) {
             bus.event(ev);
           }
           else {
-            this._serviceCount++;
+            this._serviceCountToStartNode++;
           }
         }
       }

@@ -1,3 +1,4 @@
+import {invalidArgument} from '../utils/arguments'
 import oncePerServices from './oncePerServices'
 import defineProps from '../utils/defineProps'
 import prettyPrint from '../utils/prettyPrint'
@@ -13,6 +14,7 @@ import addContextToError from '../context/addContextToError'
 import {
   NOT_INITIALIZED,
   WAITING_OTHER_SERVICES_TO_START_OR_FAIL,
+  WAITING_FAILED_TO_START_SERVICE,
   INITIALIZING,
   INITIALIZE_FAILED,
   STARTING,
@@ -126,13 +128,25 @@ export default oncePerServices(function (services) {
           const dependsOnMap = this._dependsOn = {};
           let dependsOnCount = 0;
           dependsOn.forEach(v => {
-            if (dependsOnMap[v._service.name] = (v._service.state === READY || v._service.state === FAILED)) dependsOnCount++;
+            if (dependsOnMap[v._service.name] = (v._service.state === READY)) dependsOnCount++;
           });
 
           this._isAllDependsAreReady = (dependsOnCount === dependsOnTotal);
           bus.on('service.state', ev => {
             if (hasOwnProperty.call(dependsOnMap, ev.service)) {
               const isReady = dependsOnMap[ev.service];
+              if (this._state === WAITING_OTHER_SERVICES_TO_START_OR_FAIL && (ev.state === FAILED || ev.state === WAITING_FAILED_TO_START_SERVICE)) {
+                this._state = WAITING_FAILED_TO_START_SERVICE;
+                const ev2 = {
+                  type: 'service.state',
+                  service: this._name,
+                  state: this._state,
+                  prevState: WAITING_OTHER_SERVICES_TO_START_OR_FAIL,
+                  reasonMessage: `service cannot start because service it depends on has failed to start: ${ev.service}`,
+                };
+                if (this._serviceType) ev.serviceType = this._serviceType;
+                bus.event(ev2);
+              }
               if (isReady) {
                 if (ev.state !== READY) {
                   dependsOnMap[ev.service] = false;
@@ -168,6 +182,7 @@ export default oncePerServices(function (services) {
             else this._setState(WAITING_OTHER_SERVICES_TO_START_OR_FAIL);
             break;
           case WAITING_OTHER_SERVICES_TO_START_OR_FAIL:
+          case WAITING_FAILED_TO_START_SERVICE:
             if (this._dispose) this._setState(DISPOSING, {method: '_serviceDispose', nextState: DISPOSED});
             else if (this._isAllDependsAreReady) this._setState(INITIALIZING, {
               method: '_serviceInit',
@@ -260,10 +275,10 @@ export default oncePerServices(function (services) {
         const args = Object.create(null);
         args.context = shortid();
 
-        const promise = this._currentOpPromise = methodImpl.call(this._serviceImpl, args).catch((error) => {
+        const promise = this._currentOpPromise = methodImpl.call(this._serviceImpl, args).catch(async (error) => {
           addContextToError(args, args, error, {service: this._name, method});
           this._reportError(error);
-          return Promise.rejected(error);
+          throw error;
         });
         if (!('then' in promise)) throw new Error(`Method must return a promise: ${prettyPrint(method)}`);
 
@@ -448,6 +463,7 @@ export default oncePerServices(function (services) {
     // Делаем класс наследник, который добавляем в объект свойство _service
     class ServiceImpl extends serviceClass {
       constructor(name, settings) {
+        if (!(typeof name === 'string' && name.length > 0)) invalidArgument('name', name);
         super(omit(settings, ['dependsOn'])); // не передаем dependsOn, так как это ломает сериализацию параметров при выводе в graylog
         this._service = new Service(name, this, serviceClass.SERVICE_TYPE, settings);
         if (!(testMode && testMode.service)) this._service._nextStateStep();

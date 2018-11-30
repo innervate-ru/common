@@ -4,7 +4,12 @@ import oncePerServices from './oncePerServices'
 
 import {VType, validateEventFactory, BaseEvent} from '../events'
 
-import {NOT_INITIALIZED, WAITING_OTHER_SERVICES_TO_START_OR_FAIL, INITIALIZING} from './Service.states'
+import {
+  NOT_INITIALIZED,
+  WAITING_OTHER_SERVICES_TO_START_OR_FAIL,
+  WAITING_FAILED_TO_START_SERVICE,
+  INITIALIZING
+} from './Service.states'
 
 export default oncePerServices(function defineEvents({bus = missingService('bus'), testMode}) {
 
@@ -23,7 +28,11 @@ export default oncePerServices(function defineEvents({bus = missingService('bus'
         }),
         toString: (ev) => {
           // Чтобы не сбивать с толку, при начальном запуске не выводим сообщение что сервис перешел в состояние stopped
-          if (ev.prevState === NOT_INITIALIZED || ev.prevState === WAITING_OTHER_SERVICES_TO_START_OR_FAIL || ev.prevState === INITIALIZING) return;
+          if (
+            ev.prevState === NOT_INITIALIZED ||
+            (ev.prevState === WAITING_OTHER_SERVICES_TO_START_OR_FAIL && ev.state !== WAITING_FAILED_TO_START_SERVICE) ||
+            ev.prevState === INITIALIZING)
+            return;
           return `${ev.service}: state: '${ev.state}'${(ev.reasonMessage || ev.reason) ? ` (reason: '${ev.reasonMessage || ev.reason.message}')` : ``}`
         },
       },
@@ -32,10 +41,10 @@ export default oncePerServices(function defineEvents({bus = missingService('bus'
         kind: 'error',
         type: 'service.error',
         validate: validateEventFactory({
-            _extends: BaseEvent,
-            serviceType: {type: VType.String().notEmpty()},
-            error: {fields: require('../errors/error.schema').eventErrorSchema},
-          }),
+          _extends: BaseEvent,
+          serviceType: {type: VType.String().notEmpty()},
+          error: {fields: require('../errors/error.schema').eventErrorSchema},
+        }),
         toString: (ev) =>
           (testMode && testMode.service) ? `${ev.service}: error: '${ev.error.message}'` : // для testMode специальное сообщение, которое легко проверять и оно не содержит stack
             `${ev.service}: ${ev.error.stack}`,
