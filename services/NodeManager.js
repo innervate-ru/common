@@ -78,10 +78,10 @@ export default oncePerServices(function (services) {
       // Шаг 1: Вызываем у всех новых сервисов метод config, если он определен, для того чтобы сервисы могли зарегестрировать события
       for (const svc of newServices) {
         if (!(hasOwnProperty.call(svc, 'name') && typeof svc.name === 'string')) throw new Error(`Invalid argument 'service': ${prettyPrint(svc)}`);
-        if (hasOwnProperty.call(services, svc.name)) throw new Error(`Duplicated service name: '${svc.name}'`);
       }
       // Шаг 2: Создаем инстансы новых сервисов.  С этого момента сервис может стартовать
       for (const svc of newServices) {
+        if (hasOwnProperty.call(services, svc.name)) throw new Error(`Duplicated service name: '${svc.name}'`);
         const service = services[svc.name] = svc.default(services);
         if (service._service._stop) {
           const ev = {
