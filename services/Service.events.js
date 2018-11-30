@@ -18,12 +18,13 @@ export default oncePerServices(function defineEvents({bus = missingService('bus'
           state: {required: true, type: VType.String().notEmpty()},
           prevState: {required: true, type: VType.String().notEmpty()},
           serviceType: {type: VType.String().notEmpty()},
+          reasonMessage: {type: VType.String().notEmpty()},
           reason: {fields: require('../errors/error.schema').eventErrorSchema}, // причина перехода в состояние FAILED - поле message из Error
         }),
         toString: (ev) => {
           // Чтобы не сбивать с толку, при начальном запуске не выводим сообщение что сервис перешел в состояние stopped
           if (ev.prevState === NOT_INITIALIZED || ev.prevState === WAITING_OTHER_SERVICES_TO_START_OR_FAIL || ev.prevState === INITIALIZING) return;
-          return `${ev.service}: state: '${ev.state}'${ev.reason ? ` (reason: '${ev.reason.message}')` : ``}`
+          return `${ev.service}: state: '${ev.state}'${(ev.reasonMessage || ev.reason) ? ` (reason: '${ev.reasonMessage || ev.reason.message}')` : ``}`
         },
       },
       // service.error

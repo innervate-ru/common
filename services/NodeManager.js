@@ -2,7 +2,8 @@ import oncePerServices from './oncePerServices'
 import prettyPrint from '../utils/prettyPrint'
 import defineProps from '../utils/defineProps'
 import missingService from './missingService'
-import {READY, FAILED} from './Service.states'
+import {READY, FAILED, STOPPED} from './Service.states'
+import errorDataToEvent from "../errors/errorDataToEvent";
 
 const hasOwnProperty = Object.prototype.hasOwnProperty;
 const schema = require('./NodeManager.schema');
@@ -78,7 +79,33 @@ export default oncePerServices(function (services) {
       // Шаг 2: Создаем инстансы новых сервисов.  С этого момента сервис может стартовать
       for (const svc of newServices) {
         const service = services[svc.name] = svc.default(services);
-        if (!service._service._stop) this._serviceCount++;
+        if (service._service._stop) {
+          const ev = {
+            type: 'service.state',
+            service: service._service._name,
+            state: service._service._state,
+            prevState: STOPPED,
+            reasonMessage: `service has "stop" set to true in config`
+          };
+          if (service._service._serviceType) ev.serviceType = service._service._serviceType;
+          bus.event(ev);
+        }  else {
+          const d = dependsOnStoppedServices(services, service._service.dependsOn);
+          if (d) {
+            const ev = {
+              type: 'service.state',
+              service: service._service._name,
+              state: service._service._state,
+              prevState: STOPPED,
+              reasonMessage: `service will not start, cause it depends on service with "stop" set to true: ${d.join(', ')}`,
+            };
+            if (service._service._serviceType) ev.serviceType = service._service._serviceType;
+            bus.event(ev);
+          }
+          else {
+            this._serviceCount++;
+          }
+        }
       }
     }
 
@@ -138,5 +165,23 @@ export default oncePerServices(function (services) {
   });
 
   return NodeManager;
+
+  function dependsOnStoppedServices(services, dependsOn) {
+    let r;
+    if (dependsOn) {
+      for (const svcName of Object.keys(dependsOn)) {
+        const svc = services[svcName]._service;
+        if (svc._stop) (r || (r = [])).push(svcName);
+        else {
+          const v = dependsOnStoppedServices(services, svc.dependsOn);
+          if (v) {
+            if (r) r = Array.prototype.push.apply(r, v);
+            else r = v;
+          }
+        }
+      }
+    }
+    return r;
+  }
 
 });
