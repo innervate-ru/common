@@ -5,6 +5,8 @@ import configAPI from 'config'
 import prettyPrint from '../utils/prettyPrint'
 import defineProps from '../utils/defineProps'
 import {validateOptionsFactory} from '../validation/validateObject'
+import CircularJSON from 'circular-json'
+import errorDataToEvent from '../errors/errorDataToEvent'
 
 const hasOwnProperty = Object.prototype.hasOwnProperty;
 const realConsole = console;
@@ -31,17 +33,6 @@ function graylogSendCB(err) {
   });
 }
 
-// function graylogStop() {
-//   return new Promise(function (resolve, reject) {
-//     if (!graylog) resolve();
-//     else {
-//       graylog = null; // прекращаем отправку сообщений
-//       if (graylogCount === 0) resolve();
-//       else graylogStopResolve = resolve;
-//     }
-//   });
-// }
-
 function graylogSend(ev) {
   if (graylog) {
     if (!hasOwnProperty.call(ev, 'message')) {
@@ -50,10 +41,31 @@ function graylogSend(ev) {
       ev.message = `${service}: ${type}${Object.keys(rest).length > 0 ? ` ${prettyPrint(rest)}` : ''}`;
     }
     ++graylogCount;
-    graylog.send(JSON.stringify(ev), graylogSendCB);
 
+    let evStr;
+    try {
+      evStr = JSON.stringify(ev);
+    } catch (err) {
+      // we cannot log an event with circular info in it.  And this most likely is a problem in the logic - so we return
+      // this error, but make anther record to graylog with json saved in a cicular-safe way.
+      const {host, timestamp, service, node, ...rest} = ev;
+      const errEv = {
+        level: 0, // critical error
+        host,
+        timestamp,
+        node,
+        service,
+        type: 'bus.error',
+        circularJSON:  CircularJSON.stringify(rest),
+      };
+      errorDataToEvent(err, errEv);
+      graylogSend(errEv);
+      throw err;
+    }
+
+    graylog.send(evStr, graylogSendCB);
     if(graylogBackup) {
-      graylogBackup.send(JSON.stringify(ev), () => {});
+      graylogBackup.send(evStr, () => {});
     }
   }
 }
