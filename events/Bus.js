@@ -50,7 +50,7 @@ function graylogSend(ev) {
       // this error, but make anther record to graylog with json saved in a cicular-safe way.
       const {host, timestamp, service, node, ...rest} = ev;
       const errEv = {
-        level: 0, // critical error
+        level: 1,
         host,
         timestamp,
         node,
@@ -60,7 +60,7 @@ function graylogSend(ev) {
       };
       errorDataToEvent(err, errEv);
       graylogSend(errEv);
-      throw err;
+      evStr = CircularJSON.stringify(ev);
     }
 
     graylog.send(evStr, graylogSendCB);
