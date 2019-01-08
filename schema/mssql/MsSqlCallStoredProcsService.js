@@ -35,9 +35,9 @@ export default oncePerServices(function (services) {
     _addMethods(schema = missingArgument('schema')) {
       if (!(Array.isArray(schema))) invalidArgument('schema', schema);
       processSchema.call(this, schema);
-      serviceMethodWrapper(this, bus, function () {
+      serviceMethodWrapper({prototypeOrInstance: this, bus, getService: function () {
         return this._service;
-      });
+      }});
     }
   }
 
@@ -75,13 +75,13 @@ function addMethod(model) {
   }
 
   const storedProcName = model.name;
-  
+
   this[storedProcName] = /*async*/ function (args = {}) {
 
     const {_offset = 0, _limit = Number.MAX_SAFE_INTEGER, context, ...params} = args;
 
     const execName = model.execName ? model.execName : storedProcName;
-    
+
     return this._connector.exec({context, procedure: execName, offset: _offset, limit: _limit, paramsDef, params});
   };
 }

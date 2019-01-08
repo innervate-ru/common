@@ -155,9 +155,9 @@ export default oncePerServices(function (services) {
 
   }
 
-  serviceMethodWrapper(PGConnector.prototype, bus, function () {
+  serviceMethodWrapper({prototypeOrInstance: PGConnector.prototype, bus, getService: function () {
     return this._service;
-  });
+  }});
 
   class Connection {
 
@@ -204,9 +204,9 @@ export default oncePerServices(function (services) {
     }
   }
 
-  serviceMethodWrapper(Connection.prototype, bus, function () {
+  serviceMethodWrapper({prototypeOrInstance: Connection.prototype, bus, getService: function () {
     return this._connector._service;
-  });
+  }});
 
   PGConnector.SERVICE_TYPE = SERVICE_TYPE;
 

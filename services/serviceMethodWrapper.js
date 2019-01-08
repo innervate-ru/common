@@ -10,7 +10,12 @@ import addContextToError from '../context/addContextToError'
  *
  *
  */
-export default function serviceMethodWrapper(prototypeOrInstance = missingArgument('prototypeOrInstance'), bus = missingArgument('bus'), getService = missingArgument('getService')) {
+export default function serviceMethodWrapper({
+                                               prototypeOrInstance = missingArgument('prototypeOrInstance'),
+                                               bus = missingArgument('bus'),
+                                               getService = missingArgument('getService'),
+                                               contextRequired,
+                                             }) {
   if (!(typeof prototypeOrInstance === 'object' && prototypeOrInstance !== null && !Array.isArray(prototypeOrInstance))) invalidArgument('prototypeOrInstance', prototypeOrInstance);
   if (!(typeof getService === 'function')) invalidArgument('getService', getService);
   const methods = Object.getOwnPropertyNames(prototypeOrInstance);
@@ -32,12 +37,22 @@ export default function serviceMethodWrapper(prototypeOrInstance = missingArgume
       prototypeOrInstance[privateMethodName] = method;
 
       prototypeOrInstance[methodName] = async function (args) {
+
+        if (contextRequired) {
+          if (!(typeof args.context === 'string' && args.context.length > 0)) {
+            missingArgument('context');
+          }
+        }
+
         const newArgs = addContextToArgs(args);
         const service = getService.call(this);
         service.touch();
         if (service.state !== READY) { // проверяем состояние перед операции
           const error = service._buildInvalidStateError();
-          if (addContextToError(args, newArgs, error, {service: service._name, method: methodName})) service._reportError(error);
+          if (addContextToError(args, newArgs, error, {
+            service: service._name,
+            method: methodName
+          })) service._reportError(error);
           throw error;
         }
         const startTime = Date.now();
@@ -45,9 +60,9 @@ export default function serviceMethodWrapper(prototypeOrInstance = missingArgume
           const r = await Promise.resolve(method.call(this, newArgs));
 
           // Если прилетел буффер (файл), убираем его контент
-          if(args && args.params) {
+          if (args && args.params) {
             Object.keys(args.params).map(paramKey => {
-              if(Buffer.isBuffer(args.params[paramKey])) {
+              if (Buffer.isBuffer(args.params[paramKey])) {
                 args.params[paramKey] = `Buffer (length: ${Buffer.byteLength(args.params[paramKey])})`;
               }
             });
@@ -63,12 +78,15 @@ export default function serviceMethodWrapper(prototypeOrInstance = missingArgume
           });
           return r;
         } catch (error) {
-          if (service.state !== READY)  error = service._buildInvalidStateError(error); // Проверяем состояние сервиса после операции, если ошибка.  Когда сервис не в рабочем состоянии, то не стоит анализировать ошибку
-          if (addContextToError(args, newArgs, error, {service: service._name, method: methodName})) service._reportError(error);
+          if (service.state !== READY) error = service._buildInvalidStateError(error); // Проверяем состояние сервиса после операции, если ошибка.  Когда сервис не в рабочем состоянии, то не стоит анализировать ошибку
+          if (addContextToError(args, newArgs, error, {
+            service: service._name,
+            method: methodName
+          })) service._reportError(error);
 
-          if(args && args.params) {
+          if (args && args.params) {
             Object.keys(args.params).map(paramKey => {
-              if(Buffer.isBuffer(args.params[paramKey])) {
+              if (Buffer.isBuffer(args.params[paramKey])) {
                 args.params[paramKey] = `Buffer (length: ${Buffer.byteLength(args.params[paramKey])})`;
               }
             });

@@ -458,7 +458,7 @@ export default oncePerServices(function (services) {
     },
   });
 
-  return function (serviceClass) {
+  return function (serviceClass, options) {
 
     // Делаем класс наследник, который добавляем в объект свойство _service
     class ServiceImpl extends serviceClass {
@@ -470,9 +470,9 @@ export default oncePerServices(function (services) {
       }
     }
 
-    serviceMethodWrapper(serviceClass.prototype, bus, function () {
+    serviceMethodWrapper({prototypeOrInstance: serviceClass.prototype, bus, contextRequired: options && options.contextRequired, getService: function () {
       return this._service;
-    });
+    }});
 
     return ServiceImpl;
   }

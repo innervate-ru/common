@@ -141,7 +141,7 @@ export default oncePerServices(function (services) {
     }
   }
 
-  serviceMethodWrapper(MsSqlConnector.prototype, bus, function() { return this._service; });
+  serviceMethodWrapper({prototypeOrInstance: MsSqlConnector.prototype, bus, getService: function() { return this._service; }});
 
   defineProps(MsSqlConnector, {
     msSqlConfig: {
@@ -263,7 +263,7 @@ export default oncePerServices(function (services) {
     }
   }
 
-  serviceMethodWrapper(Connection.prototype, bus, function() { return this._connector._service; });
+  serviceMethodWrapper({prototypeOrInstance: Connection.prototype, bus, getService: function() { return this._connector._service; }});
 
   MsSqlConnector.SERVICE_TYPE = SERVICE_TYPE;
 
