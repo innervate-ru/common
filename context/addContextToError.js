@@ -1,7 +1,7 @@
 const hasOwnProperty = Object.prototype.hasOwnProperty;
 
 /**
- * Добавляет в ошибку информацию о том, в каком контексте случилась ошибка - context.id.  Плюс в список context.stack
+ * Добавляет в ошибку информацию о том, в каком контексте случилась ошибка - context.  Плюс в список calls
  * добавляется информация о контексте - в каком методе / http-вызове / graphql-запросе случилась ошибка, и какие
  * были при этом параметры.
  *
@@ -22,15 +22,14 @@ export default function addContextToError(args, newArgs, error, details) {
     delete newDetails.args; // если нет аргументов, проверяем что их не и в деталях
   }
   if (hasOwnProperty.call(error, 'context')) { // контекст уже есть - так что просто добавляем к нему
-    if (error.context.id !== context) {
-      error.context.stack.unshift(`Context being replaced to '${error.context.id}'`);
-      error.context.id = context;
+    if (error.context !== context) {
+      error.calls.unshift(`Context being replaced to '${error.context}'`);
+      error.context = context;
     }
-    error.context.stack.unshift(newDetails);
+    error.calls.unshift(newDetails);
   } else { // добавляем свойство context: {id, stack} в error
-    const errorContext = error.context = Object.create(null);
-    errorContext.id = context;
-    errorContext.stack = [newDetails];
+    error.context = context;
+    error.calls = [newDetails];
   }
   return args !== newArgs; // true, значит был создан методом ./addContextToArgs новый вариант args, для того чтобы добавить поле context
 }

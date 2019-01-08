@@ -11,13 +11,12 @@ export default function bindErrorToContext(error = missingArgument('error'), con
   if (!(typeof context === 'string' && context.length > 0)) invalidArgument('context', context);
 
   if (hasOwnProperty.call(error, 'context')) {
-    if (error.context.id !== context) {
-      error.context.stack.push(`Context being replaced to '${error.context.id}'`);
-      error.context.id = context;
+    if (error.context !== context) {
+      error.calls.push(`Context being replaced to '${error.context}'`);
+      error.context = context;
     }
   } else {
-    const errorContext = error.context = Object.create(null);
-    errorContext.id = context;
+    error.context = context;
   }
 }
 

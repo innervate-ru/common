@@ -1,4 +1,4 @@
-import buildFullErrorMessage from '../utils/buildFullErrorMessage'
+// import buildFullErrorMessage from '../utils/buildFullErrorMessage'
 
 export default function wrapResolver(resolver) {
   return resolver;

@@ -13,13 +13,13 @@ export default function buildFullErrorMessage(error = missingArgument('error')) 
   if (!(typeof error === 'object' && error !== null && !Array.isArray(error))) invalidArgument('error', error);
 
   let contextId;
-  if (hasOwnProperty.call(error, 'context')) contextId = error.context.id;
+  if (hasOwnProperty.call(error, 'context')) contextId = error.context;
 
   let extra;
   for (const fieldName in error) {
     if (!hasOwnProperty.call(error, fieldName)) continue;
     switch (fieldName) {
-      case 'name': case 'message': case 'stack': case 'context': continue;
+      case 'name': case 'message': case 'stack': case 'calls': case 'context': continue;
     }
     const v = error[fieldName];
     if (v !== undefined) (extra || (extra = Object.create(null)))[fieldName] = v;
