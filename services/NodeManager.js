@@ -28,6 +28,9 @@ export default oncePerServices(function (services) {
 
     constructor(options) {
       schema.ctor_options(this, options);
+      if (Array.isArray(options.startOnly) && options.startOnly.length > 0) {
+        this._startOnly = options.startOnly.reduce((a, v) => { a[v] = true; return a; }, Object.create(null));
+      }
 
       // выдаем событие nodemanager.started, когда все зарегистрированные сервисы
       const startTime = Date.now();
@@ -66,7 +69,10 @@ export default oncePerServices(function (services) {
 
       Object.assign(this._services = Object.create(null), services);
       this._services.manager = this;
-      if (options.services) this.add(options.services);
+      if (options.services) {
+
+        this.add(options.services);
+      }
     }
 
     /**
@@ -83,30 +89,45 @@ export default oncePerServices(function (services) {
       for (const svc of newServices) {
         if (hasOwnProperty.call(services, svc.name)) throw new Error(`Duplicated service name: '${svc.name}'`);
         const service = services[svc.name] = svc.default(services);
+      }
+    }
+
+    _startServices() {
+      const services = this._services;
+      for (const serviceName in this._services) {
+        const service = this._services[serviceName];
+        if (!service._service) continue; // пропускаем manager, bus, console
         if (service._service._stop) {
-          const ev = {
-            type: 'service.state',
-            service: service._service._name,
-            state: service._service._state,
-            prevState: STOPPED,
-            reasonMessage: `service has "stop" set to true in config`
-          };
-          if (service._service._serviceType) ev.serviceType = service._service._serviceType;
-          bus.event(ev);
-        }  else {
-          const d = dependsOnStoppedServices(services, service._service.dependsOn);
-          if (d) {
+          if (!this._startOnly) {
             const ev = {
               type: 'service.state',
               service: service._service._name,
               state: service._service._state,
               prevState: STOPPED,
-              reasonMessage: `service will not start, cause it depends on service with "stop" set to true: ${d.join(', ')}`,
+              reasonMessage: `service has "stop" set to true in config`
             };
             if (service._service._serviceType) ev.serviceType = service._service._serviceType;
             bus.event(ev);
           }
+        } else {
+          const d = dependsOnStoppedServices(services, service._service.dependsOn);
+          if (d) {
+            if (!this._startOnly) {
+              const ev = {
+                type: 'service.state',
+                service: service._service._name,
+                state: service._service._state,
+                prevState: STOPPED,
+                reasonMessage: `service will not start, cause it depends on service with "stop" set to true: ${d.join(', ')}`,
+              };
+              if (service._service._serviceType) ev.serviceType = service._service._serviceType;
+              bus.event(ev);
+            }
+          }
           else {
+            if (this._startOnly) {
+              service._service.start(); // это нужно только когда указан this._startOnly.  Иначе сервис стартует сразу, как его создали - см. код Service.js
+            }
             this._serviceCountToStartNode++;
           }
         }
@@ -163,6 +184,10 @@ export default oncePerServices(function (services) {
        * @returns {Promise}
        */
       get() {
+        if (this._startOnly) {
+          leaveOnlyRequiredServices(this._services, this._startOnly);
+        }
+        this._startServices();
         return this._startedPromise;
       }
     },
@@ -175,8 +200,9 @@ export default oncePerServices(function (services) {
     if (dependsOn) {
       for (const svcName of Object.keys(dependsOn)) {
         const svc = services[svcName]._service;
-        if (svc._stop) (r || (r = [])).push(svcName);
-        else {
+        if (svc._stop) {
+          (r || (r = [])).push(svcName);
+        } else {
           const v = dependsOnStoppedServices(services, svc.dependsOn);
           if (v) {
             if (r) r = Array.prototype.push.apply(r, v);
@@ -188,4 +214,30 @@ export default oncePerServices(function (services) {
     return r;
   }
 
+  /**
+   * Ставим признак stop на все сервисы, кроме тех, которые перечислены в startOnly и сервисы от которых зависят сервисы в startOnly.
+   */
+  function leaveOnlyRequiredServices(services, startOnly) {
+    const map = Object.create(null);
+    addDependsOn(map, services, startOnly);
+    Object.values(services).forEach(svc => {
+      if (svc._service && !map[svc._service.name]) {
+        svc._service._stop = true;
+      }
+    });
+  }
+
+  function addDependsOn(map, services, dependsOn) {
+    for (const svcName in dependsOn) {
+      const svc = services[svcName];
+      if (!svc) {
+        throw new Error(`Missing service '${svcName}'`);
+      }
+      map[svcName] = true;
+      const dependsOn = svc._service.dependsOn;
+      if (dependsOn) {
+        addDependsOn(map, services, dependsOn);
+      }
+    }
+  }
 });

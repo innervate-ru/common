@@ -32,7 +32,7 @@ const SERVICE_TAKES_TOO_LONG_INTERVAL = 20000;
 
 export default oncePerServices(function (services) {
 
-  const {bus, testMode} = services;
+  const {manager, bus, testMode} = services;
 
   class Service {
 
@@ -466,7 +466,7 @@ export default oncePerServices(function (services) {
         if (!(typeof name === 'string' && name.length > 0)) invalidArgument('name', name);
         super(omit(settings, ['dependsOn'])); // не передаем dependsOn, так как это ломает сериализацию параметров при выводе в graylog
         this._service = new Service(name, this, serviceClass.SERVICE_TYPE, settings);
-        if (!(testMode && testMode.service)) this._service._nextStateStep();
+        if (!(testMode && testMode.service) && !manager._startOnly) this._service._nextStateStep();
       }
     }
 
