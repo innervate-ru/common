@@ -25,6 +25,7 @@ export const stringToTediousTypeMap = (function() {
 
   for (const typeName in TYPES) {
     switch (typeName) { // Tedious start to warn to do not use those types
+      case 'Null':
       case 'IntN':
       case 'DateN':
       case 'BitN':
