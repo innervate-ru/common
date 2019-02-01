@@ -8,11 +8,24 @@ import {validateOptionsFactory} from '../validation/validateObject'
 import CircularJSON from 'circular-json'
 import errorDataToEvent from '../errors/errorDataToEvent'
 
+import {
+  CRITICAL_ERROR,
+  ERROR,
+  WARN,
+  INFO,
+  ACTION,
+  COMMAND,
+  EVENT,
+  METHOD,
+  DEBUG,
+} from './Bus.levels'
+
 const hasOwnProperty = Object.prototype.hasOwnProperty;
 const realConsole = console;
 
 let graylog = null, graylogCount = 0, graylogStopResolve;
 let graylogBackup = null, graylogBackupCount = 0, graylogBackupStopResolve;
+let graylogListeners;
 
 function graylogSendCB(err) {
   if (--graylogCount === 0) graylogStopResolve && graylogStopResolve();
@@ -66,6 +79,10 @@ function graylogSend(ev) {
     graylog.send(evStr, graylogSendCB);
     if(graylogBackup) {
       graylogBackup.send(evStr, () => {});
+    }
+
+    if (graylogListeners) {
+      graylogListeners.forEach(listener => { listener(ev); })
     }
   }
 }
@@ -133,10 +150,12 @@ export default function (services = {}) {
       validate: (fieldName, fieldDef) => function (object, message, options) {
         switch (object.kind) {
           case 'event':
+          case 'action':
+          case 'method':
           case 'command':
-          case 'info':
           case 'error':
           case 'warn':
+          case 'info':
           case 'debug':
             return;
         }
@@ -184,8 +203,10 @@ export default function (services = {}) {
    */
   class Bus extends EventEmitter {
 
-    constructor({nodeName}) {
+    constructor({nodeName = missingArgument('nodeName'), listeners}) {
       super();
+      if (!(listeners === undefined || listeners === null || Array.isArray(listeners))) invalidArgument('listeners', listeners);
+      graylogListeners = listeners;
       this.setMaxListeners(0); // без ограничения
       this._config = Object.create(null);
       this._alterToString = Object.create(null);
@@ -211,13 +232,6 @@ export default function (services = {}) {
 
     async dispose() {
       return graylogStop();
-    }
-
-    /**
-     * Возвращает значение, для того чтобы указать его в поле index события, чтобы можно было связанные события потом сортировать по index.
-     */
-    nextIndex() {
-      return this._index++;
     }
 
     /**
@@ -303,10 +317,10 @@ export default function (services = {}) {
       if (!(arguments.length === 1)) throw new Error(`Invalid number of arguments: ${prettyPrint(arguments)}`);
       const evConfig = checkEvent('error', ev, this._config);
       ev = wrapEvent.call(this, ev);
-      ev.level = 0;
+      ev.level = CRITICAL_ERROR;
       this.emitEvent(ev);
       const evm = addMessageField(ev, evConfig, this._alterToString);
-      if (0 <= this._clevel && evm) console.error(evm.message);
+      if (CRITICAL_ERROR <= this._clevel && evm) console.error(evm.message);
       graylogSend(evm || ev);
     }
 
@@ -317,10 +331,10 @@ export default function (services = {}) {
       if (!(arguments.length === 1)) throw new Error(`Invalid number of arguments: ${prettyPrint(arguments)}`);
       const evConfig = checkEvent('error', ev, this._config);
       ev = wrapEvent.call(this, ev);
-      ev.level = 1;
+      ev.level = ERROR;
       this.emitEvent(ev);
       const evm = addMessageField(ev, evConfig, this._alterToString);
-      if (1 <= this._clevel && evm) console.error(evm.message);
+      if (ERROR <= this._clevel && evm) console.error(evm.message);
       graylogSend(evm || ev);
     }
 
@@ -332,9 +346,9 @@ export default function (services = {}) {
       const evConfig = checkEvent('warn', ev, this._config);
       ev = wrapEvent.call(this, ev);
       this.emitEvent(ev);
-      ev.level = 2;
+      ev.level = WARN;
       const evm = addMessageField(ev, evConfig, this._alterToString);
-      if (2 <= this._clevel && evm) console.warn(evm.message);
+      if (WARN <= this._clevel && evm) console.warn(evm.message);
       graylogSend(evm || ev);
     }
 
@@ -345,10 +359,24 @@ export default function (services = {}) {
       if (!(arguments.length === 1)) throw new Error(`Invalid number of arguments: ${prettyPrint(arguments)}`);
       const evConfig = checkEvent('info', ev, this._config);
       ev = wrapEvent.call(this, ev);
-      ev.level = 3;
+      ev.level = INFO;
       this.emitEvent(ev);
       const evm = addMessageField(ev, evConfig, this._alterToString);
-      if (3 <= this._clevel && evm) console.info(evm.message);
+      if (INFO <= this._clevel && evm) console.info(evm.message);
+      graylogSend(evm || ev);
+    }
+
+    /**
+     * То же, что event, но если запущено несколько узлов в одной шине, то это событие передается другим узлам
+     */
+    action(ev) {
+      if (!(arguments.length === 1)) throw new Error(`Invalid number of arguments: ${prettyPrint(arguments)}`);
+      const evConfig = checkEvent('action', ev, this._config);
+      ev = wrapEvent.call(this, ev);
+      ev.level = ACTION;
+      this.emitEvent(ev);
+      const evm = addMessageField(ev, evConfig, this._alterToString);
+      if (ACTION <= this._clevel && evm) console.info(evm.message);
       graylogSend(evm || ev);
     }
 
@@ -359,10 +387,10 @@ export default function (services = {}) {
       if (!(arguments.length === 1)) throw new Error(`Invalid number of arguments: ${prettyPrint(arguments)}`);
       const evConfig = checkEvent('command', ev, this._config);
       ev = wrapEvent.call(this, ev);
-      ev.level = 4;
+      ev.level = COMMAND;
       this.emitEvent(ev);
       const evm = addMessageField(ev, evConfig, this._alterToString);
-      if (4 <= this._clevel && evm) console.info(evm.message);
+      if (COMMAND <= this._clevel && evm) console.info(evm.message);
       graylogSend(evm || ev);
     }
 
@@ -373,10 +401,10 @@ export default function (services = {}) {
       if (!(arguments.length === 1)) throw new Error(`Invalid number of arguments: ${prettyPrint(arguments)}`);
       const evConfig = checkEvent('event', ev, this._config);
       ev = wrapEvent.call(this, ev);
-      ev.level = 5;
+      ev.level = EVENT;
       this.emitEvent(ev);
       const evm = addMessageField(ev, evConfig, this._alterToString);
-      if (5 <= this._clevel && evm) console.info(evm.message);
+      if (EVENT <= this._clevel && evm) console.info(evm.message);
       graylogSend(evm || ev);
     }
 
@@ -387,10 +415,10 @@ export default function (services = {}) {
       if (!(arguments.length === 1)) throw new Error(`Invalid number of arguments: ${prettyPrint(arguments)}`);
       const evConfig = checkEvent('method', ev, this._config);
       ev = wrapEvent.call(this, ev);
-      ev.level = 6;
+      ev.level = METHOD;
       this.emitEvent(ev);
       const evm = addMessageField(ev, evConfig, this._alterToString);
-      if (6 <= this._clevel && evm) console.info(evm.message);
+      if (METHOD <= this._clevel && evm) console.info(evm.message);
       graylogSend(evm || ev);
     }
 
@@ -400,9 +428,9 @@ export default function (services = {}) {
     debug(ev) {
       if (!(arguments.length === 1)) throw new Error(`Invalid number of arguments: ${prettyPrint(arguments)}`);
       ev = wrapEvent.call(this, ev);
-      ev.level = 7;
+      ev.level = DEBUG;
       const evm = addMessageField(ev, undefined, this._alterToString);
-      if (7 <= this._clevel && evm) console.debug(evm.message);
+      if (DEBUG <= this._clevel && evm) console.debug(evm.message);
       graylogSend(evm || ev);
     }
   }

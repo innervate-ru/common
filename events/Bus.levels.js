@@ -1,0 +1,9 @@
+export const CRITICAL_ERROR = 0;
+export const ERROR = 1;
+export const WARN = 2;
+export const INFO = 3;
+export const ACTION = 4;
+export const COMMAND = 5;
+export const EVENT = 6;
+export const METHOD = 7;
+export const DEBUG = 8;
