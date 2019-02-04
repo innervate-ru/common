@@ -218,12 +218,19 @@ export default class SchemaToGraphQL {
 
               debug(`call service method %s(%O)`, methodName, methodParams);
 
-              let {rows, hasNext} = await connector[methodName]({
-                context,
-                ...methodParams,
-                _offset: startOffset,
-                _limit: endOffset - startOffset + 1,
-              });
+              let rows, hasNext;
+
+              try {
+                ({rows, hasNext} = await connector[methodName]({
+                  context,
+                  ...methodParams,
+                  _offset: startOffset,
+                  _limit: endOffset - startOffset + 1,
+                }));
+              } catch (err) {
+                err += `; methodName: ${methodName}`
+                throw err;
+              }
 
               debug(`rows.length: %d, hasNext: %s`, rows.length, hasNext);
 
