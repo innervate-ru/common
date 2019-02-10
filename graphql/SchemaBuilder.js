@@ -77,7 +77,7 @@ export default class SchemaBuilder extends LevelBuilder {
     this._typeDefs = typeDefs;
     this._resolvers = resolvers;
 
-    await this._runBuilders({...options, builderContext: Object.create(null)});
+    const stat = await this._runBuilders({...options, builderContext: Object.create(null)});
 
     const hasQueries = (this._queries.length > 0);
     const hasMutations = (this._mutations.length > 0);
@@ -102,5 +102,7 @@ export default class SchemaBuilder extends LevelBuilder {
     if (hasQueries) schemaBuilder.addField({name: 'query', type: QUERY_ROOT_TYPE});
     if (hasMutations) schemaBuilder.addField({name: 'mutation', type: MUTATION_ROOT_TYPE});
     typeDefs.push(schemaBuilder.build());
+
+    return stat;
   }
 }

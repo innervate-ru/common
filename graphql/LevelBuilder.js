@@ -3,6 +3,8 @@ import sortBy from 'lodash/sortBy'
 import TypeBuilder from './TypeBuilder'
 import wrapResolver from './wrapResolver'
 
+const BUILDER_TAKES_TOO_LONG_INTERVAL = 20000;
+
 const schema = require('./LevelBuilder.schema');
 
 /**
@@ -122,7 +124,7 @@ export default class LevelBuilder {
   }
 
   _builderFinished = () => {
-    if (++this._buildersCompletedCount === this._builders.length && this._done()) this._done(); // если _done нет, значит случилась ошибка
+    if (++this._buildersCompletedCount === this._builders.length && this._done) this._done(); // если _done нет, значит случилась ошибка
   };
 
   _builderFailed = (error) => {
@@ -136,15 +138,58 @@ export default class LevelBuilder {
 
     if (this._builders.length === 0) return;
 
-    const {typeDefs, resolvers, builderContext} = options;
+    const {bus, typeDefs, resolvers, builderContext, parentLevelName} = options;
+
+    const levelName = (parentLevelName ? `${parentLevelName}.` : '') + this._name;
 
     const donePromise = new Promise((resolve, reject) => {
-      this._done = resolve;
+      this._done = () => {
+        const r = {name: this._name, startTime: Date.now() - startTime}; // возвращаем время, которое работала данная ветка
+        if (stat) {
+          r.stat = stat;
+        }
+        resolve(r);
+      };
       this._reject = reject;
     });
 
-    const builderArgs = this._builderArgs = {parentLevelBuilder: this, typeDefs, resolvers, builderContext};
-    this._builders.forEach(builder => (builder instanceof LevelBuilder ? builder.build(builderArgs) : builder(builderArgs)).then(this._builderFinished));
+    const startTime = Date.now();
+
+    let stat;
+
+    const builderArgs = this._builderArgs = {bus, parentLevelBuilder: this, typeDefs, resolvers, parentLevelName: levelName, builderContext};
+
+    this._builders.forEach(
+      builder => {
+        const isLevelBuilder = builder instanceof LevelBuilder;
+        let build = isLevelBuilder ? builder.build(builderArgs) : builder(builderArgs);
+
+        if (bus && !isLevelBuilder) {
+          const timer = setInterval(() => {
+            bus.info({
+              type: 'graphql.builderTakesTooLong',
+              service: 'graphql',
+              name: levelName,
+              duration: Date.now() - startTime,
+            });
+          }, BUILDER_TAKES_TOO_LONG_INTERVAL);
+          build = build.then(data => {
+            clearInterval(timer);
+            return data;
+          });
+        }
+
+        build
+          .then(data => {
+            if (data) { // время доступно только для уровней с LevelBulder.  Вложенные билдеры не измеряем
+              const {name, ...rest} = data;
+              (stat || (stat = Object.create(null)))[data.name] = rest;
+            }
+            this._builderFinished();
+          })
+          .catch(this._builderFailed);
+      });
+
 
     return donePromise; // ждем когда все билдеры сработают
   }
@@ -158,7 +203,7 @@ export default class LevelBuilder {
     this._typeDefs = typeDefs;
     this._resolvers = resolvers;
 
-    await this._runBuilders(options);
+    const stat = await this._runBuilders(options);
 
     if (this._queries.length > 0) { // добавляем query поле в родительский билдер
       const typeName = `${this.getTypeBaseName()}Query`;
@@ -175,5 +220,7 @@ export default class LevelBuilder {
       this._mutations.forEach(v => typeBuilder.addField(v));
       parentLevelBuilder.addMutation({description: this._description, name: this._name, type: typeName, typeDef: typeBuilder.build()});
     }
+
+    return stat;
   }
 }
