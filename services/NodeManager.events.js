@@ -17,7 +17,6 @@ export default oncePerServices(function defineEvents({bus = missingService('bus'
       }),
       toString: (ev) => `${ev.service}: node started in ${moment.duration(ev.startDuration).format('h:mm:ss', 3)}${ev.failedServices ? `; failed: ${ev.failedServices.join(', ')}` : ``}`,
     },
-    // service.error
     {
       kind: 'error',
       type: 'nodemanager.error',
@@ -28,7 +27,6 @@ export default oncePerServices(function defineEvents({bus = missingService('bus'
       }),
       toString: (ev) => `${ev.service}: ${ev.error.stack}`,
     },
-    // service.error
     {
       kind: 'event',
       type: 'nodemanager.health',

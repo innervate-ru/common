@@ -31,7 +31,8 @@ function graylogSendCB(err) {
   if (--graylogCount === 0) graylogStopResolve && graylogStopResolve();
 }
 
-/* async */ function graylogStop() {
+/* async */
+function graylogStop() {
   return new Promise(function (resolve, reject) {
     if (!graylog && !graylogBackup) resolve();
     else {
@@ -69,7 +70,7 @@ function graylogSend(ev) {
         node,
         service,
         type: 'bus.error',
-        circularJSON:  CircularJSON.stringify(rest),
+        circularJSON: CircularJSON.stringify(rest),
       };
       errorDataToEvent(err, errEv);
       graylogSend(errEv);
@@ -77,12 +78,15 @@ function graylogSend(ev) {
     }
 
     graylog.send(evStr, graylogSendCB);
-    if(graylogBackup) {
-      graylogBackup.send(evStr, () => {});
+    if (graylogBackup) {
+      graylogBackup.send(evStr, () => {
+      });
     }
 
     if (graylogListeners) {
-      graylogListeners.forEach(listener => { listener(ev); })
+      graylogListeners.forEach(listener => {
+        listener(ev);
+      })
     }
   }
 }
@@ -212,7 +216,7 @@ export default function (services = {}) {
       this._alterToString = Object.create(null);
       this._index = 0;
       if (nodeName) this._node = nodeName;
-      this._clevel  = configAPI.has('consoleLevel') ? configAPI.get('consoleLevel') : 100;
+      this._clevel = configAPI.has('consoleLevel') ? configAPI.get('consoleLevel') : 100;
       if (configAPI.has('grayLog')) {
         const graylogConfig = configAPI.get('grayLog');
         if (graylogConfig && graylogConfig.enabled) {
@@ -220,7 +224,7 @@ export default function (services = {}) {
           graylog.setConfig(graylogConfig.config);
         }
       }
-      //Делаем инстанс для второго канала
+      // Делаем инстанс для второго канала
       if (configAPI.has('grayLogBackup')) {
         const graylogConfigBackup = configAPI.get('grayLogBackup');
         if (graylogConfigBackup && graylogConfigBackup.enabled) {
@@ -228,6 +232,20 @@ export default function (services = {}) {
           graylogBackup.setConfig(graylogConfigBackup.config);
         }
       }
+      // Добавляем перехват для unhandled rejection
+      process.on('unhandledRejection', error => {
+        const errEvent = {
+          type: 'unhandled.error',
+          service: nodeName,
+        };
+        if (error instanceof Error) {
+          error.message = `Unhandled rejection${error.message ? `: ${error.message}` : ''}`;
+          errorDataToEvent(error, errEvent);
+        } else {
+          errEvent.error = {message: `Unhandled rejection without Error object${error ? `: ${error}` : ''}`};
+        }
+        this.error(errEvent);
+      });
     }
 
     async dispose() {
