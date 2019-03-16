@@ -10,7 +10,6 @@ export default function errorDataToEvent(error, event, field = `error`) {
     message,
     stack: reduceErrorStack(error, message),
   };
-  Object.keys(error).forEach((v) => { console.info(v); })
   if (hasOwnProperty.call(error, 'context')) {
     event.context = error.context;
   }
