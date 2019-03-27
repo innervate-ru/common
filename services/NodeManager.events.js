@@ -25,7 +25,7 @@ export default oncePerServices(function defineEvents({bus = missingService('bus'
         serviceType: {type: VType.String().notEmpty()},
         error: {fields: require('../errors/error.schema').eventErrorSchema},
       }),
-      toString: (ev) => `${ev.service}: ${ev.error.stack}`,
+      toString: (ev) => `${ev.service}: ${ev.stack}`,
     },
     {
       kind: 'event',
