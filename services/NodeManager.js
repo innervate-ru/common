@@ -231,7 +231,8 @@ export default oncePerServices(function (services) {
     for (const svcName in dependsOn) {
       const svc = services[svcName];
       if (!svc) {
-        throw new Error(`Missing service '${svcName}'`);
+        // throw new Error(`Missing service '${svcName}'`);
+        continue; // zork: вместо ошибки, просто пропускаем сервис который есть в config/startOnly.js, но при этом не добавлен в NodeManager
       }
       map[svcName] = true;
       const dependsOn = svc._service.dependsOn;

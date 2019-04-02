@@ -47,7 +47,7 @@ function graylogStop() {
   });
 }
 
-function graylogSend(ev) {
+function graylogSend(ev, self) {
   if (graylog) {
     if (!hasOwnProperty.call(ev, 'message')) {
       ev = Object.assign(Object.create(null), ev);
@@ -73,7 +73,7 @@ function graylogSend(ev) {
         circularJSON: CircularJSON.stringify(rest),
       };
       errorDataToEvent(err, errEv);
-      graylogSend(errEv);
+      graylogSend(errEv, self);
       evStr = CircularJSON.stringify(ev);
     }
 
@@ -85,7 +85,7 @@ function graylogSend(ev) {
 
     if (graylogListeners) {
       graylogListeners.forEach(listener => {
-        listener(ev);
+        listener(ev, self);
       })
     }
   }
@@ -339,7 +339,7 @@ export default function (services = {}) {
       this.emitEvent(ev);
       const evm = addMessageField(ev, evConfig, this._alterToString);
       if (CRITICAL_ERROR <= this._clevel && evm) console.error(evm.message);
-      graylogSend(evm || ev);
+      graylogSend(evm || ev, this);
     }
 
     /**
@@ -353,7 +353,7 @@ export default function (services = {}) {
       this.emitEvent(ev);
       const evm = addMessageField(ev, evConfig, this._alterToString);
       if (ERROR <= this._clevel && evm) console.error(evm.message);
-      graylogSend(evm || ev);
+      graylogSend(evm || ev, this);
     }
 
     /**
@@ -367,7 +367,7 @@ export default function (services = {}) {
       ev.level = WARN;
       const evm = addMessageField(ev, evConfig, this._alterToString);
       if (WARN <= this._clevel && evm) console.warn(evm.message);
-      graylogSend(evm || ev);
+      graylogSend(evm || ev, this);
     }
 
     /**
@@ -381,7 +381,7 @@ export default function (services = {}) {
       this.emitEvent(ev);
       const evm = addMessageField(ev, evConfig, this._alterToString);
       if (INFO <= this._clevel && evm) console.info(evm.message);
-      graylogSend(evm || ev);
+      graylogSend(evm || ev, this);
     }
 
     /**
@@ -395,7 +395,7 @@ export default function (services = {}) {
       this.emitEvent(ev);
       const evm = addMessageField(ev, evConfig, this._alterToString);
       if (ACTION <= this._clevel && evm) console.info(evm.message);
-      graylogSend(evm || ev);
+      graylogSend(evm || ev, this);
     }
 
     /**
@@ -409,7 +409,7 @@ export default function (services = {}) {
       this.emitEvent(ev);
       const evm = addMessageField(ev, evConfig, this._alterToString);
       if (COMMAND <= this._clevel && evm) console.info(evm.message);
-      graylogSend(evm || ev);
+      graylogSend(evm || ev, this);
     }
 
     /**
@@ -423,7 +423,7 @@ export default function (services = {}) {
       this.emitEvent(ev);
       const evm = addMessageField(ev, evConfig, this._alterToString);
       if (EVENT <= this._clevel && evm) console.info(evm.message);
-      graylogSend(evm || ev);
+      graylogSend(evm || ev, this);
     }
 
     /**
@@ -437,7 +437,7 @@ export default function (services = {}) {
       this.emitEvent(ev);
       const evm = addMessageField(ev, evConfig, this._alterToString);
       if (METHOD <= this._clevel && evm) console.info(evm.message);
-      graylogSend(evm || ev);
+      graylogSend(evm || ev, this);
     }
 
     /**
@@ -449,7 +449,7 @@ export default function (services = {}) {
       ev.level = DEBUG;
       const evm = addMessageField(ev, undefined, this._alterToString);
       if (DEBUG <= this._clevel && evm) console.debug(evm.message);
-      graylogSend(evm || ev);
+      graylogSend(evm || ev, this);
     }
   }
 
