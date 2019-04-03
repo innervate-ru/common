@@ -3,6 +3,7 @@ import path from 'path'
 import {missingArgument} from '../validation'
 import {oncePerServices, missingService, fixDependsOn, READY} from '../services'
 import ensureDir from '../utils/ensureDir'
+import promisify from '../utils/promisify'
 
 import urlApi from 'url'
 import soap from 'soap'
@@ -88,22 +89,22 @@ export default oncePerServices(function (services) {
       return new Promise((resolve, reject) => {
         let urlObject = urlApi.parse(this._url);
         let auth = null;
-        
+
         let options = {};
-        
+
         if(this._options && this._options.soapOptions) {
           options = {...this._options.soapOptions};
         }
-        
+
         if (this._user) {
           urlObject.auth = `${this._user}:${this._password}`;
         }
-        
+
         if (this._httpUser) {
           auth = "Basic " + new Buffer(`${this._httpUser}:${this._httpPassword}`).toString("base64");
           options.wsdl_headers = {Authorization: auth};
         }
-        
+
         soap.createClient(`${urlApi.format(urlObject)}`, options, (err, client) => {
           if (err) {
             debug('client creation failed %O', err);
@@ -112,7 +113,7 @@ export default oncePerServices(function (services) {
             debug(`client creation succeeded`);
             if (this._user) client.setSecurity(new soap.BasicAuthSecurity(this._user, this._password));
             if (this._httpUser) client.addHttpHeader('Authorization', auth); //http-авторизация
-            
+
             this._connection = client;
             this._addMethods();
             resolve();
@@ -131,7 +132,7 @@ export default oncePerServices(function (services) {
       if (!this.hasOwnProperty('_client')) throw Error('Not initialized');
       let filenameNormolized = path.resolve(process.cwd(), filename);
       ensureDir(path.dirname(filenameNormolized));
-      await Promise.promisify(fs.writeFile)(filenameNormolized, JSON.stringify(this._connection.describe(), null, 2));
+      await promisify(fs.writeFile)(filenameNormolized, JSON.stringify(this._connection.describe(), null, 2));
     }
   }
 
