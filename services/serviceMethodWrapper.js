@@ -46,7 +46,6 @@ export default function serviceMethodWrapper({
 
         const newArgs = addContextToArgs(args);
         const service = getService.call(this);
-        service.touch();
         if (service.state !== READY) { // проверяем состояние перед операции
           const error = service._buildInvalidStateError();
           if (addContextToError(args, newArgs, error, {
@@ -82,7 +81,13 @@ export default function serviceMethodWrapper({
           if (addContextToError(args, newArgs, error, {
             service: service._name,
             method: methodName
-          })) service._reportError(error);
+          })) {
+            if (service._serviceIsCriticalError(error)) {
+              service.criticalFailure(error);
+            } else {
+              service._reportError(error);
+            }
+          }
 
           if (args && args.params) {
             Object.keys(args.params).map(paramKey => {

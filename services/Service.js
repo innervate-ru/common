@@ -41,14 +41,15 @@ export default oncePerServices(function (services) {
       this._serviceType = SERVICE_TYPE;
 
       /**
-       * Время, когда была выполнена первая операция на сервисе, после запуска.  Нужно, чтобы отслеживать интервал который сервис работает без ошибок.
-       */
-      this._firstOpTime = null;
-
-      /**
        * Счетчик быстрых перезагрузок - когода перезагрузка происходит сразу после ошибки.  Нужно, чтобы при частых быстрых перезагрузках, сервис останавливался в состоянии FAILED.
        */
-      this._quickRestartsCount = 0;
+      this._restartCount = 0;
+
+      /**
+       * Признак, что включен режим быстроого перезапуска сервиса.
+       */
+      // TODO: Сделать реализацию с Promise
+      this._quickRestart = null;
 
       /**
        * Имя сервиса, состоящие из имени узла (node) и имени сервиса разделенных двоеточием.
@@ -91,7 +92,7 @@ export default oncePerServices(function (services) {
        * Объект-реализация сервиса, опционально может иметь методы реализующие инициализацию, запуск, остановку
        * и диструкцию сервиса.
        */
-      ['_serviceInit', '_serviceStart', '_serviceRun', '_serviceStop', '_serviceDispose'].forEach(m => {
+      ['_serviceInit', '_serviceCheck', '_serviceStart', '_serviceRun', '_serviceStop', '_serviceDispose', '_serviceIsCriticalError', '_serviceRestartLogic'].forEach(m => {
         if (m in serviceImpl) {
           const method = serviceImpl[m];
           if (!(typeof method === 'function'))
@@ -99,6 +100,19 @@ export default oncePerServices(function (services) {
           this[m] = method;
         }
       });
+
+      if (this._serviceCheck) {
+        if (this._serviceStart) {
+          const serviceCheck = this._serviceCheck;
+          const serviceStart = this._serviceStart;
+          this._serviceStart = async () => {
+            await serviceCheck.call(this);
+            await serviceStart.call(this);
+          }
+        } else {
+          this._serviceStart = this._serviceCheck;
+        }
+      }
 
       /**
        * true, если сервис или не зависит от других сервисов, или все сервисы от которых зависит этот сервис находятся в состоянии READY
@@ -168,10 +182,30 @@ export default oncePerServices(function (services) {
           });
         }
       }
+    }
 
-      // TODO: Добавить состояние и логику для быстрой перезагрузке в состоянии READY
-      // TODO: Uptime
-      // TODO: Operations timing
+    /**
+     * По умолчанию, все ошибки считаются не критическими.
+     */
+    _serviceIsCriticalError(error) {
+      return false;
+    }
+
+    /**
+     * По умолчанию, сервис после критической ошибки делает две попытки быстрого перезапуска, после чего
+     * перезапуски делаются с шагоом this._failRecoveryInterval (по умолчанию - 60 сек).
+     */
+    _serviceRestartLogic(attempt) {
+      if (attempt < 2) {
+        return {
+          nextRestart: 0,
+          isQuickRestart: true,
+        }
+      }
+      return {
+        nextRestart: this._failRecoveryInterval,
+        isQuickRestart: false,
+      }
     }
 
     _nextStateStep() {
@@ -215,7 +249,7 @@ export default oncePerServices(function (services) {
             });
             break;
           case READY:
-            this._firstOpTime = null;
+            this._restartCount = 0;
             if (!this._isAllDependsAreReady || this._stop || this._failureReason || this._dispose) this._setState(STOPPING, {
               method: '_serviceStop',
               failureReason: this._failureReason,
@@ -322,9 +356,16 @@ export default oncePerServices(function (services) {
 
       switch (this._state) {
         case FAILED: {
+          const {
+            nextRestart,
+            isQuickRestart,
+          } = this._serviceRestartLogic(this._restartCount++);
+          // после того как закончились попытки quick restart, нельзя вернуться обратно в этот режим
+          this._quickRestart = this._restartCount === 1 ? isQuickRestart : (this._quickRestart && isQuickRestart);
+
           this._restartTimer = setTimeout(() => {
             this._setState(STOPPED);
-          }, this._failRecoveryInterval);
+          }, nextRestart);
           break;
         }
         case READY: {
@@ -378,10 +419,6 @@ export default oncePerServices(function (services) {
     stop() {
       this._stop = true;
       this._nextStateStep();
-    }
-
-    touch() {
-      if (this._firstOpTime === null) this._firstOpTime = Date.now();
     }
 
     /**
