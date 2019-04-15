@@ -30,6 +30,8 @@ export const DEFAULT_FAIL_RECOVERY_INTERVAL = 60000;
 
 const SERVICE_TAKES_TOO_LONG_INTERVAL = 20000;
 
+const schema = require('./Service.schema');
+
 export default oncePerServices(function (services) {
 
   const {manager, bus, testMode} = services;
@@ -56,7 +58,7 @@ export default oncePerServices(function (services) {
        */
       this._name = name;
 
-      require('./Service.schema').ctor_settings(settings, {copyTo: this, argument: 'settings', name: this._name});
+      schema.ctor_settings(settings, {copyTo: this, argument: 'settings', name: this._name});
 
       /**
        * Состояние в котором находится сервис.
@@ -125,9 +127,9 @@ export default oncePerServices(function (services) {
       this._stop = !!(settings && settings.stop);
 
       /**
-       * true, если был вызван метод dispose()
+       * Promise resolve(), если был вызван метод dispose()
        */
-      this._dispose = false;
+      this._dispose = null;
 
       /**
        * Карта зависимостей: ключ - имя сервиса; значение - true, если сервис в состоянии READY
@@ -205,7 +207,7 @@ export default oncePerServices(function (services) {
       return {
         nextRestart: this._failRecoveryInterval,
         isQuickRestart: false,
-      }
+      };
     }
 
     _nextStateStep() {
@@ -356,10 +358,20 @@ export default oncePerServices(function (services) {
 
       switch (this._state) {
         case FAILED: {
+          let res = this._serviceRestartLogic(this._restartCount++);
+          try {
+            schema.serviceRestartLogic_result(res);
+          } catch (error) {
+            this._reportError(error);
+            res = { // чтоб сервис совсем не умер, используем значения по умолчанию
+              nextRestart: this._failRecoveryInterval,
+              isQuickRestart: false,
+            };
+          }
           const {
             nextRestart,
             isQuickRestart,
-          } = this._serviceRestartLogic(this._restartCount++);
+          } = res;
           // после того как закончились попытки quick restart, нельзя вернуться обратно в этот режим
           this._quickRestart = this._restartCount === 1 ? isQuickRestart : (this._quickRestart && isQuickRestart);
 
@@ -370,7 +382,13 @@ export default oncePerServices(function (services) {
         }
         case READY: {
           const serviceRunImpl = this._serviceRun;
-          if (serviceRunImpl) setTimeout(serviceRunImpl.bind(this._serviceImpl), 0);
+          if (serviceRunImpl) setTimeout(async () => {
+            try {
+              await serviceRunImpl.call(this._serviceImpl);
+            } catch (error) {
+              this.criticalFailure(error);
+            }
+          }, 0);
           break;
         }
         case DISPOSED: {
@@ -507,9 +525,14 @@ export default oncePerServices(function (services) {
       }
     }
 
-    serviceMethodWrapper({prototypeOrInstance: serviceClass.prototype, bus, contextRequired: options && options.contextRequired, getService: function () {
-      return this._service;
-    }});
+    serviceMethodWrapper({
+      prototypeOrInstance: serviceClass.prototype,
+      bus,
+      contextRequired: options && options.contextRequired,
+      getService: function () {
+        return this._service;
+      }
+    });
 
     return ServiceImpl;
   }

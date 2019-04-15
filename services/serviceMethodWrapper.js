@@ -82,7 +82,10 @@ export default function serviceMethodWrapper({
             service: service._name,
             method: methodName
           })) {
-            if (service._serviceIsCriticalError(error)) {
+            const isCriticalError = service._serviceIsCriticalError(error);
+            if (!(typeof isCriticalError === 'boolean')) {
+              service.criticalFailure(new Error(`service._serviceIsCriticalError returned not a boolean value: ${isCriticalError}`));
+            } else  if (isCriticalError) {
               service.criticalFailure(error);
             } else {
               service._reportError(error);

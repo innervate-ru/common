@@ -32,4 +32,8 @@ export const ctor_settings = validate.ctor.this({
   failRecoveryInterval: {type: VType.Int().positive()},
 });
 
+export const serviceRestartLogic_result = validate.method.finished('serviceRestartLogic.result', {
+  nextRestart: {required: true, type: VType.Int().zero().positive()}, // время, через которое надо повторить попытку запуска сервиса
+  isQuickRestart: {required: true, type: VType.Boolean()}, // true, если это quick restart
+});
 
