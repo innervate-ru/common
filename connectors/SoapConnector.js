@@ -122,6 +122,18 @@ export default oncePerServices(function (services) {
       });
     }
 
+    async _serviceCheck() {
+      let urlObject = urlApi.parse(this._url);
+      let options = {
+        ...this._httpUser && this._httpPassword && {
+          auth: {
+            username: this._httpUser,
+            password: this._httpPassword,
+          }
+        }
+      };
+    }
+
     async _serviceStop() {
       if (soap.reset) {
         soap.reset();
