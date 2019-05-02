@@ -28,6 +28,8 @@ import {
 
 export const DEFAULT_FAIL_RECOVERY_INTERVAL = 60000;
 
+export const DEFAULT_CHECK_INTERVAL = 60000;
+
 const SERVICE_TAKES_TOO_LONG_INTERVAL = 20000;
 
 const schema = require('./Service.schema');
@@ -76,6 +78,11 @@ export default oncePerServices(function (services) {
       this._failRecoveryInterval = (settings && settings.failRecoveryInterval) || DEFAULT_FAIL_RECOVERY_INTERVAL;
 
       /**
+       * Период в миллисекундах, через который сервис вызывает _serviceCheck.
+       */
+      this._checkInterval = (settings && settings.checkInterval) || DEFAULT_CHECK_INTERVAL;
+
+      /**
        * Причина остановки сервис.  Объект типа Error.
        */
       this._failureReason = null;
@@ -94,7 +101,7 @@ export default oncePerServices(function (services) {
        * Объект-реализация сервиса, опционально может иметь методы реализующие инициализацию, запуск, остановку
        * и диструкцию сервиса.
        */
-      ['_serviceInit', '_serviceCheck', '_serviceStart', '_serviceRun', '_serviceStop', '_serviceDispose', '_serviceIsCriticalError', '_serviceRestartLogic'].forEach(m => {
+      ['_serviceInit', '_servicePrestart', '_serviceCheck', '_serviceStart', '_serviceRun', '_serviceStop', '_serviceDispose', '_serviceIsCriticalError', '_serviceRestartLogic'].forEach(m => {
         if (m in serviceImpl) {
           const method = serviceImpl[m];
           if (!(typeof method === 'function'))
@@ -113,6 +120,18 @@ export default oncePerServices(function (services) {
           }
         } else {
           this._serviceStart = this._serviceCheck;
+        }
+      }
+      if (this._servicePrestart) {
+        if (this._serviceStart) {
+          const servicePrestart = this._servicePrestart;
+          const serviceStart = this._serviceStart;
+          this._serviceStart = async function () {
+            await servicePrestart.call(this);
+            await serviceStart.call(this);
+          }
+        } else {
+          this._serviceStart = this._servicePrestart;
         }
       }
 
@@ -252,13 +271,32 @@ export default oncePerServices(function (services) {
             break;
           case READY:
             this._restartCount = 0;
-            if (!this._isAllDependsAreReady || this._stop || this._failureReason || this._dispose) this._setState(STOPPING, {
-              method: '_serviceStop',
-              failureReason: this._failureReason,
-              nextState: this._failureReason ? FAILED : STOPPED,
-            });
+            if (!this._isAllDependsAreReady || this._stop || this._failureReason || this._dispose) {
+              this._setState(STOPPING, {
+                method: '_serviceStop',
+                failureReason: this._failureReason,
+                nextState: this._failureReason ? FAILED : STOPPED,
+              });
+            } else {
+              if (this._serviceCheck && !this._checkTimer) {
+                const callCheck = async () => {
+                  try {
+                    await this._serviceCheck.call(this._serviceImpl);
+                    this._checkTimer = setTimeout(callCheck, this._checkInterval);
+                  } catch (error) {
+                    delete this._checkTimer;
+                    this.criticalFailure(error);
+                  }
+                };
+                this._checkTimer = setTimeout(callCheck, this._checkInterval);
+              }
+            }
             break;
           case STOPPING:
+            if (this._checkTimer) {
+              clearTimeout(this._checkTimer);
+              delete this._checkTimer;
+            }
             if (this._currentOpPromise.isFulfilled() || this._currentOpPromise.isRejected()) {
               if (this._failureReason) this._setState(FAILED, {failureReason: this._failureReason}); // сохраняем ошибку из-за которой мы вышли или из состояния READY или из STARTING
               else this._setState(STOPPED);
@@ -280,8 +318,8 @@ export default oncePerServices(function (services) {
                     break;
           */
         }
-      } catch (err) {
-        this._reportError(err);
+      } catch (error) {
+        this._reportError(error);
       }
     }
 
@@ -456,7 +494,7 @@ export default oncePerServices(function (services) {
      */
     criticalFailure(error) {
       if (this._state !== READY) throw new Error(`Critical error thrown in wrong state '${this._state}': '${prettyPrint(error)}'`);
-      if (!(error instanceof Error)) error = new Error(`Invalid argument 'error': ${prettyPrint(err)}`);
+      if (!(error instanceof Error)) error = new Error(`Invalid argument 'error': ${prettyPrint(error)}`);
       this._failureReason = error;
       this._reportError(error);
       this._nextStateStep();
@@ -467,7 +505,7 @@ export default oncePerServices(function (services) {
      * @param error Объект типа Error
      */
     _reportError(error) {
-      if (!(error instanceof Error)) error = new Error(`Invalid argument 'error': ${prettyPrint(err)}`);
+      if (!(error instanceof Error)) error = new Error(`Invalid argument 'error': ${prettyPrint(error)}`);
       const errEvent = {
         type: 'service.error',
         service: this._name,

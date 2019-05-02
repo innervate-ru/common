@@ -30,6 +30,7 @@ export const ctor_settings = validate.ctor.this({
     }
   },
   failRecoveryInterval: {type: VType.Int().positive()},
+  checkInterval: {type: VType.Int().positive()},
 });
 
 export const serviceRestartLogic_result = validate.method.finished('serviceRestartLogic.result', {
