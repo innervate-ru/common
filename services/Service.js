@@ -52,7 +52,6 @@ export default oncePerServices(function (services) {
       /**
        * Признак, что включен режим быстроого перезапуска сервиса.
        */
-      // TODO: Сделать реализацию с Promise
       this._quickRestart = null;
 
       /**
@@ -160,9 +159,11 @@ export default oncePerServices(function (services) {
         const dependsOn = uniq(flattenDeep(settings.dependsOn)); // зависимости могут состоять из массивов зависимостей, и элементы могут повторяться
         if (dependsOn.length > 0) {
           const dependsOnTotal = dependsOn.length;
-          const dependsOnMap = this._dependsOn = {};
+          const dependsOnMap = this._dependsOn = Object.create(null);
+          const dependsOnServices = Object.create(null);
           let dependsOnCount = 0;
           dependsOn.forEach(v => {
+            dependsOnServices[v._service.name] = v._service;
             if (dependsOnMap[v._service.name] = (v._service.state === READY)) dependsOnCount++;
           });
 
@@ -186,6 +187,18 @@ export default oncePerServices(function (services) {
                 if (ev.state !== READY) {
                   dependsOnMap[ev.service] = false;
                   dependsOnCount--;
+                  const service = dependsOnServices[ev.service];
+                  if (service._quickRestart) {
+                    if (this._state === READY || this._quickRestart) { // первый сервис, из-за которого остановка или все сервисы до были с quickRestart
+                      if (!this._quickRestart) {
+                        this._quickRestartCreate();
+                      }
+                      service._quickRestart // ловим только, когда quickRestart у базового сервиса не прошёл.  Если он пройдет успешно, то это мы узнаем когда сервис перейдет в READY
+                        .catch(() => {
+                          this._quickRestartReject();
+                        });
+                    }
+                  }
                   if (this._isAllDependsAreReady) {
                     this._isAllDependsAreReady = false;
                     this._nextStateStep();
@@ -195,8 +208,9 @@ export default oncePerServices(function (services) {
                 if (ev.state === READY) {
                   dependsOnMap[ev.service] = true;
                   dependsOnCount++;
-                  if (this._isAllDependsAreReady = (dependsOnCount === dependsOnTotal))
+                  if (this._isAllDependsAreReady = (dependsOnCount === dependsOnTotal)) {
                     this._nextStateStep();
+                  }
                 }
               }
             }
