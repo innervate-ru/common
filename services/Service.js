@@ -356,9 +356,10 @@ export default oncePerServices(function (services) {
         });
         if (!('then' in promise)) throw new Error(`Method must return a promise: ${prettyPrint(method)}`);
 
-        if (testMode && testMode.service)
-          this._testWaitPromise = this._currentOpPromise; // в режиме тестирования this._nextStateStep не вызывается по завершению асинхронного метода - нужно явно вызвать nextStateStep в коде
-        else {
+        if (testMode && testMode.service) {
+          // в режиме тестирования this._nextStateStep не вызывается по завершению асинхронного метода - нужно явно вызвать nextStateStep в коде
+          this._testWaitPromise = this._currentOpPromise;
+        } else {
           const startTime = Date.now();
           const timer = setInterval(() => {
             bus.info({
@@ -371,7 +372,7 @@ export default oncePerServices(function (services) {
           const done = () => {
             clearInterval(timer);
             return this._callNextStateStep();
-          }
+          };
           this._currentOpPromise.then(done).catch(done);
         }
 
@@ -410,7 +411,17 @@ export default oncePerServices(function (services) {
             nextRestart,
             isQuickRestart,
           } = res;
-          // после того как закончились попытки quick restart, нельзя вернуться обратно в этот режим
+
+          if (isQuickRestart) {
+            if (this._restartCount === 1) { // после того как закончились попытки quick restart, нельзя вернуться обратно в этот режим
+              this._quickRestartCreate();
+            }
+          } else {
+            if (this._quickRestart) {
+              this._quickRestartReject();
+            }
+          }
+
           this._quickRestart = this._restartCount === 1 ? isQuickRestart : (this._quickRestart && isQuickRestart);
 
           this._restartTimer = setTimeout(() => {
@@ -419,6 +430,9 @@ export default oncePerServices(function (services) {
           break;
         }
         case READY: {
+          if (this._quickRestart) {
+            this._quickRestartResolve();
+          }
           const serviceRunImpl = this._serviceRun;
           if (serviceRunImpl) setTimeout(async () => {
             try {
@@ -520,7 +534,30 @@ export default oncePerServices(function (services) {
 
     _buildInvalidStateError(error) {
       return new InvalidServiceStateError({service: this.name, state: this.state, error: error})
-    };
+    }
+
+    _quickRestartCreate() {
+      this._quickRestart = new Promise((resolve, reject) => {
+        this._quickRestartResolve = resolve;
+        this._quickRestartReject = reject;
+      });
+    }
+
+    _quickRestartResolve() {
+      const quickRestartResolve = this._quickRestartResolve;
+      this._quickRestart = null;
+      delete this._quickRestartResolve;
+      delete this._quickRestartReject;
+      quickRestartResolve();
+    }
+
+    _quickRestartReject() {
+      const quickRestartReject = this._quickRestartReject;
+      this._quickRestart = null;
+      delete this._quickRestartResolve;
+      delete this._quickRestartReject;
+      quickRestartReject();
+    }
   }
 
   defineProps(Service, {

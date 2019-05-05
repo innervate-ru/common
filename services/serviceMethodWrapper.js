@@ -46,74 +46,95 @@ export default function serviceMethodWrapper({
 
         const newArgs = addContextToArgs(args);
         const service = getService.call(this);
-        if (service.state !== READY) { // проверяем состояние перед операции
-          const error = service._buildInvalidStateError();
-          if (addContextToError(args, newArgs, error, {
-            service: service._name,
-            method: methodName
-          })) service._reportError(error);
-          throw error;
-        }
-        const startTime = Date.now();
-        try {
-          const r = await Promise.resolve(method.call(this, newArgs));
+        let attempts = 1;
 
-          // Если прилетел буффер (файл), убираем его контент
-          if (args && args.params) {
-            Object.keys(args.params).map(paramKey => {
-              if (Buffer.isBuffer(args.params[paramKey])) {
-                args.params[paramKey] = `Buffer (length: ${Buffer.byteLength(args.params[paramKey])})`;
-              }
-            });
+        while (service._quickRestart && await service._quickRestart) {
+
+          if (service.state !== READY) { // проверяем состояние перед операции
+            const error = service._buildInvalidStateError();
+            if (addContextToError(args, newArgs, error, {
+              service: service._name,
+              method: methodName
+            })) service._reportError(error);
+            throw error;
           }
+          const startTime = Date.now();
+          try {
+            const r = await Promise.resolve(method.call(this, newArgs));
 
-          bus.method({
-            type: 'service.method',
-            service: service._name,
-            method: methodName,
-            context: newArgs.context,
-            args: args,
-            duration: Date.now() - startTime,
-          });
-          return r;
-        } catch (error) {
-          if (service.state !== READY) error = service._buildInvalidStateError(error); // Проверяем состояние сервиса после операции, если ошибка.  Когда сервис не в рабочем состоянии, то не стоит анализировать ошибку
-          if (addContextToError(args, newArgs, error, {
-            service: service._name,
-            method: methodName
-          })) {
-            const isCriticalError = service._serviceIsCriticalError(error);
-            if (!(typeof isCriticalError === 'boolean')) {
-              service.criticalFailure(new Error(`service._serviceIsCriticalError returned not a boolean value: ${isCriticalError}`));
-            } else  if (isCriticalError) {
-              service.criticalFailure(error);
-            } else {
-              service._reportError(error);
+            // Если прилетел буффер (файл), убираем его контент
+            if (args && args.params) {
+              Object.keys(args.params).map(paramKey => {
+                if (Buffer.isBuffer(args.params[paramKey])) {
+                  args.params[paramKey] = `Buffer (length: ${Buffer.byteLength(args.params[paramKey])})`;
+                }
+              });
             }
-          }
 
-          if (args && args.params) {
-            Object.keys(args.params).map(paramKey => {
-              if (Buffer.isBuffer(args.params[paramKey])) {
-                args.params[paramKey] = `Buffer (length: ${Buffer.byteLength(args.params[paramKey])})`;
+            // TODO: add duration to monitoring stat
+            const duration = Date.now() - startTime;
+            const evMethod = {
+              type: 'service.method',
+              service: service._name,
+              method: methodName,
+              context: newArgs.context,
+              args: args,
+              duration,
+            };
+            if (attempts > 1) {
+              evMethod.attempts = attempts;
+            }
+            bus.method(evMethod);
+            return r;
+          } catch (error) {
+
+            if (service._quickRestart) {
+              attempts++;
+              continue; // если ошибка во время quick restart, повторяем попытку
+            }
+
+            if (service.state !== READY) error = service._buildInvalidStateError(error); // Проверяем состояние сервиса после операции, если ошибка.  Когда сервис не в рабочем состоянии, то не стоит анализировать ошибку
+            if (addContextToError(args, newArgs, error, {
+              service: service._name,
+              method: methodName
+            })) {
+              const isCriticalError = service._serviceIsCriticalError(error);
+              if (!(typeof isCriticalError === 'boolean')) {
+                service.criticalFailure(new Error(`service._serviceIsCriticalError returned not a boolean value: ${isCriticalError}`));
+              } else if (isCriticalError) {
+                service.criticalFailure(error);
+              } else {
+                service._reportError(error);
               }
-            });
+            }
+
+            if (args && args.params) {
+              Object.keys(args.params).forEach(paramKey => {
+                if (Buffer.isBuffer(args.params[paramKey])) {
+                  args.params[paramKey] = `Buffer (length: ${Buffer.byteLength(args.params[paramKey])})`;
+                }
+              });
+            }
+
+            // TODO: add duration to monitoring stat
+            const duration = Date.now() - startTime;
+            const evMethod = {
+              type: 'service.method',
+              service: service._name,
+              method: methodName,
+              context: newArgs.context,
+              args: args,
+              duration,
+              failed: 1,
+            };
+            if (attempts > 1) {
+              evMethod.attempts = attempts;
+            }
+            bus.method(evMethod);
+            throw error;
           }
-
-          bus.method({
-            type: 'service.method',
-            service: service._name,
-            method: methodName,
-            context: newArgs.context,
-            args: args,
-            duration: Date.now() - startTime,
-            failed: 1,
-          });
-          throw error;
         }
-
       }
-
     }
   }
   prototypeOrInstance.__serviceStateValidationAdded = true;
