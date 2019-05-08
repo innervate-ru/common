@@ -39,7 +39,7 @@ export default function serviceMethodWrapper({
       prototypeOrInstance[methodName] = async function (args) {
 
         if (contextRequired) {
-          if (!(typeof args.context === 'string' && args.context.length > 0)) {
+          if (!(args && typeof args.context === 'string' && args.context.length > 0)) {
             missingArgument('context');
           }
         }
