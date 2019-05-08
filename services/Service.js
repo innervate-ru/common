@@ -113,7 +113,7 @@ export default oncePerServices(function (services) {
         if (this._serviceStart) {
           const serviceCheck = this._serviceCheck;
           const serviceStart = this._serviceStart;
-          this._serviceStart = async function () {
+          this._serviceStart = async () => {
             await serviceCheck.call(this._serviceImpl);
             await serviceStart.call(this._serviceImpl);
           }
@@ -125,7 +125,7 @@ export default oncePerServices(function (services) {
         if (this._serviceStart) {
           const servicePrestart = this._servicePrestart;
           const serviceStart = this._serviceStart;
-          this._serviceStart = async function () {
+          this._serviceStart = async () => {
             await servicePrestart.call(this._serviceImpl);
             await serviceStart.call(this._serviceImpl);
           }
