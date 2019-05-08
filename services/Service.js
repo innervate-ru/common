@@ -228,7 +228,9 @@ export default oncePerServices(function (services) {
 
     /**
      * По умолчанию, сервис после критической ошибки делает две попытки быстрого перезапуска, после чего
-     * перезапуски делаются с шагоом this._failRecoveryInterval (по умолчанию - 60 сек).
+     * перезапуски делаются с шагоом this._failRecoveryInterval (по умолчанию - 60 сек).  Важно: Этот механизм
+     * запускается только если сервис остановлен критической ошибкой.  В случае остановки по причине что остановился сервис
+     * из dependsOn, этот механизм не участвует, сервис стартует сразу когда запущены все dependsOn сервисы.
      */
     _serviceRestartLogic(attempt) {
       if (attempt < 2) {
@@ -435,8 +437,6 @@ export default oncePerServices(function (services) {
               this._quickRestartReject();
             }
           }
-
-          this._quickRestart = this._restartCount === 1 ? isQuickRestart : (this._quickRestart && isQuickRestart);
 
           this._restartTimer = setTimeout(() => {
             this._setState(STOPPED);

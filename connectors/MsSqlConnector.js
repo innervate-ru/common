@@ -11,11 +11,6 @@ const hasOwnProperty = Object.prototype.hasOwnProperty;
 const debug = require('debug')('mssql');
 const schema = require('./MsSqlConnector.schema');
 
-// TODO: + Передавать аргументы просто map'ом, и опция передавать типы отдельным map'ом
-// TODO: Вместо того чтобы дергать отдельные методы, сделать просто метод exec, и передавать в него всё про запрос, включая context, чтоб это клалось в ошибки и логировкалось как параметры запроса
-// TODO: Передавать контекст - сохранять в ошибке все параметры
-// TODO: Добавить в ошибки тип запроса, параметры
-
 /**
  * По каким-то, не до конца понятным, причинам error instaceof ConnectionError не cработал.  Этот метод реализаует
  * duck-typing для проверки что tedious вернул ошибку типа ConnectionError.
@@ -37,7 +32,6 @@ export default oncePerServices(function (services) {
       schema.ctor_settings(this, settings);
 
       const {url, user, password, options, poolConfig} = settings;
-      const {port, database} = options;
 
       this._settings = settings;
 
@@ -47,12 +41,12 @@ export default oncePerServices(function (services) {
     }
 
     _poolError = (error) => {
-      // TODO: Проверить что сюда попадают ошибки от неправильных запросов
-      if (this._service.state === READY)
+      if (this._service.state === READY) { // все ошибки пула, считаем критическими
         this._service.criticalFailure(error);
+      }
     };
 
-    async _serviceStart() {
+    async _serviceInit() {
       const settingsWithoutPassword = {...this._settings};
       delete settingsWithoutPassword.password;
       fixDependsOn(settingsWithoutPassword);
@@ -62,18 +56,36 @@ export default oncePerServices(function (services) {
         serviceType: SERVICE_TYPE,
         settings: settingsWithoutPassword,
       });
+    }
+
+    async _servicePrestart() {
       this._pool = new ConnectionPool(this._poolConfig, this._msSqlConfig);
       this._pool.on('error', this._poolError);
-      return this._exec({ // вызываем private метод, чтоб не сработала защита что состояние не READY
-        query: 'select getdate();',
-        cancel: new Promise((resolve, reject) => {
-          this._cancelStart = resolve;
-        })
-      }); // проверка с  вязи, любая ошибка означает что _serviceStart прошёл не успешно
+    }
+
+    async _serviceCheck() {
+      try {
+        await this._exec({ // вызываем private метод, чтоб не сработала защита что состояние не READY
+          query: 'select getdate();',
+          cancel: new Promise((resolve, reject) => {
+            this._cancelCheck = resolve;
+          })
+        }); // проверка связи, любая ошибка означает что _serviceStart прошёл не успешно
+      } finally {
+        delete this._cancelCheck;
+      }
+    }
+
+    _serviceIsCriticalError(error) {
+      return error.code === 'ESCOKET'; // такая ошибка возникает после потери сетевого соединения
     }
 
     async _serviceStop() {
-      return new Promise((resolve, reject) => {
+      if (this._cancelCheck) {
+        this._cancelCheck();
+        delete this._cancelCheck;
+      }
+      await new Promise((resolve, reject) => {
         this._pool.drain(() => {
           this._pool = null;
           resolve();

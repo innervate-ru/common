@@ -48,7 +48,13 @@ export default function serviceMethodWrapper({
         const service = getService.call(this);
         let attempts = 1;
 
-        while (!service._quickRestart || await service._quickRestart) {
+        while (true) {
+
+          try {
+            service._quickRestart && await service._quickRestart;
+          } catch (error) {
+            // ошибку не обрабатываем, так как при reject выполнится условие ниже service.state !== READY
+          }
 
           if (service.state !== READY) { // проверяем состояние перед операции
             const error = service._buildInvalidStateError();
