@@ -42,6 +42,7 @@ export default oncePerServices(function (services) {
           duration: Date.now() - startTime,
           statusCode: res.statusCode,
           method: req.method,
+          headers: req.headers,
           path,
           query,
         };
@@ -49,11 +50,6 @@ export default oncePerServices(function (services) {
         const hostname = req.hostname;
         if (hostname) {
           httpEvent.hostname = hostname;
-        }
-
-        const userAgent = req.headers['user-agent'];
-        if (userAgent) {
-          httpEvent.userAgent = userAgent;
         }
 
         for (const key in reqContext) {
