@@ -23,7 +23,7 @@ import {
   STOPPED,
   FAILED,
   DISPOSING,
-  DISPOSED
+  DISPOSED,
 } from './Service.states'
 
 export const DEFAULT_FAIL_RECOVERY_INTERVAL = 60000;
@@ -265,6 +265,10 @@ export default oncePerServices(function (services) {
             else if (this._currentOpPromise.isRejected()) this._setState(INITIALIZE_FAILED, {failureReason: this._currentOpPromise.reason()});
             break;
           case STOPPED:
+            if (this._checkTimer) { // если нет метода _serviceStop, то сервис останавливается пропуская состояние STOPPING
+              clearTimeout(this._checkTimer);
+              delete this._checkTimer;
+            }
             if (this._dispose) this._setState(DISPOSING, {method: '_serviceDispose', nextState: DISPOSED});
             else if (this._isAllDependsAreReady && !this._stop) this._setState(STARTING, {
               method: '_serviceStart',
@@ -552,25 +556,28 @@ export default oncePerServices(function (services) {
 
     _quickRestartCreate() {
       this._quickRestart = new Promise((resolve, reject) => {
-        this._quickRestartResolve = resolve;
-        this._quickRestartReject = reject;
+        this._quickRestart_resolve = resolve;
+        this._quickRestart_reject = reject;
+      });
+      this._quickRestart.catch((error) => {
+        this._reportError(error);
       });
     }
 
     _quickRestartResolve() {
-      const quickRestartResolve = this._quickRestartResolve;
+      const quickRestartResolve = this._quickRestart_resolve;
       this._quickRestart = null;
-      delete this._quickRestartResolve;
-      delete this._quickRestartReject;
+      delete this._quickRestart_resolve;
+      delete this._quickRestart_reject;
       quickRestartResolve();
     }
 
     _quickRestartReject() {
-      const quickRestartReject = this._quickRestartReject;
+      const quickRestartReject = this._quickRestart_reject;
       this._quickRestart = null;
-      delete this._quickRestartResolve;
-      delete this._quickRestartReject;
-      quickRestartReject();
+      delete this._quickRestart_resolve;
+      delete this._quickRestart_reject;
+      quickRestartReject(new Error(`Quick restart failed`));
     }
   }
 
