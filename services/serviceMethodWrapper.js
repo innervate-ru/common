@@ -77,8 +77,12 @@ export default function serviceMethodWrapper({
               });
             }
 
-            // TODO: add duration to monitoring stat
             const duration = Date.now() - startTime;
+
+            const durationSec = duration / 1000;
+            service._callAvgCounter(durationSec);
+            service._callMaxCounter(durationSec);
+
             const evMethod = {
               type: 'service.method',
               service: service._name,
@@ -122,8 +126,12 @@ export default function serviceMethodWrapper({
               });
             }
 
-            // TODO: add duration to monitoring stat
             const duration = Date.now() - startTime;
+
+            const durationSec = duration / 1000;
+            service._callAvgCounter(durationSec);
+            service._callMaxCounter(durationSec);
+
             const evMethod = {
               type: 'service.method',
               service: service._name,

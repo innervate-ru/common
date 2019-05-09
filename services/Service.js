@@ -10,6 +10,7 @@ import serviceMethodWrapper from './serviceMethodWrapper'
 import errorDataToEvent from '../errors/errorDataToEvent'
 import shortid from 'shortid'
 import addContextToError from '../context/addContextToError'
+import {addCounter} from '../monitoring/index'
 
 import {
   NOT_INITIALIZED,
@@ -217,6 +218,18 @@ export default oncePerServices(function (services) {
           });
         }
       }
+
+      this._callAvgCounter = addCounter({
+        serviceName: name,
+        name: 'call_duration_avg_seconds',
+        type: 'avg',
+      });
+
+      this._callMaxCounter = addCounter({
+        serviceName: name,
+        name: 'call_duration_max_seconds',
+        type: 'max',
+      });
     }
 
     /**

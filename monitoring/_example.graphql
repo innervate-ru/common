@@ -1,0 +1,39 @@
+query A {
+  monitoring {
+    getServices {
+      name
+      state
+      stop
+      dependenciesReady
+      serviceError
+    }
+  }
+}
+
+query B {
+  monitoring {
+    getService(name: "postgres") {
+      name
+      state
+      stop
+      dependenciesReady
+      serviceError
+    }
+  }
+}
+
+mutation C {
+  monitoring {
+    stopService(name: "postgres") {
+      result
+    }
+  }
+}
+
+mutation D {
+  monitoring {
+    startService(name: "postgres") {
+      result
+    }
+  }
+}
