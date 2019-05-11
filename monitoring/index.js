@@ -40,7 +40,7 @@ export default oncePerServices(function (services) {
       this._countersResetPeriod = options.countersResetPeriod;
     }
 
-    async _serviceStart() {
+    async _serviceInit() {
       setInterval(() => {
         try {
           this._resetCounters();
