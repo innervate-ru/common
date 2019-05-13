@@ -25,7 +25,7 @@ export default oncePerServices(function (services) {
       this._channels._keepAlive.name = `_keepAlive`;
     }
 
-    async _serviceStart() {
+    async _serviceInit() {
       const settingsWithoutPassword = {...this._options};
       delete settingsWithoutPassword.password;
       fixDependsOn(settingsWithoutPassword);
@@ -35,14 +35,27 @@ export default oncePerServices(function (services) {
         serviceType: SERVICE_TYPE,
         settings: settingsWithoutPassword,
       });
+    }
+
+    async _servicePrestart() {
       this._pool = new Pool(this._options);
       this._pool.on('error', (error) => { // сюда приходят только ошибки связанные с разрывом соединения
         if (this._service.state === READY) this._service.criticalFailure(error);
       });
-      let connected;
-      if (this._channels) connected = (await Promise.all(Object.values(this._channels).map(channel => this._fixChannel(channel, true)))).some(v => v === true);
-      if (connected !== true) // если _fixChannel вернет true, значит он успешно подключился к БД, и другая проверка не нужна
-        await this._exec({statement: `select now()::timestamp;`});
+    }
+
+    async _serviceCheck() {
+      await this._exec({statement: `select now()::timestamp;`});
+    }
+
+    _serviceIsCriticalError(error) {
+      return error.code === 'ECONNRESET';
+    }
+
+    async _serviceStart() {
+      if (this._channels) {
+        await Promise.all(Object.values(this._channels).map(channel => this._fixChannel(channel, true)));
+      }
     }
 
     async _serviceStop() {

@@ -6,8 +6,9 @@ import ensureDir from '../utils/ensureDir'
 import promisify from '../utils/promisify'
 
 import urlApi from 'url'
-import soap from 'soap'
+import * as soap from 'soap'
 import SoapErrorException from '../errors/SoapErrorException'
+import request from 'request-promise'
 
 const debug = require('debug')('soap');
 
@@ -55,22 +56,109 @@ export default oncePerServices(function (services) {
       const url = this._url;
       for (const methodName of Object.getOwnPropertyNames(methods)) {
         debug('method: %s', methodName);
-        let methodDesc = methods[methodName];
-        this[methodName] = function (args) {
+        const service = this._service;
+        const method = client[methodName];
+
+        this[methodName] = async function (args) {
           debug('method: %s; args: %j', methodName, args);
-          const service = this._service;
-          if (service.state !== READY) throw this._service._buildInvalidStateError(); // та же логика, как то что добавляет services/serviceMethodWrapper
-          return new Promise(function (resolve, reject) {
-            client[methodName](args, function (err, result) {
-              if (err) reject(new SoapErrorException({url, method: methodName, err}));
-              else resolve(result);
-            })
-          }).catch((error) => {
-            if (service.state !== READY) return Promise.rejected(this._service._buildInvalidStateError(error));
-            return Promise.rejected(error);
-          })
+
+          let attempts = 1;
+
+          while (true) {
+
+            try {
+              service._quickRestart && await service._quickRestart;
+            } catch (error) {
+              // ошибку не обрабатываем, так как при reject выполнится условие ниже service.state !== READY
+            }
+
+            if (service.state !== READY) { // проверяем состояние перед операции
+              const error = service._buildInvalidStateError();
+            }
+
+            const startTime = Date.now();
+
+            try {
+              const r = await new Promise((resolve, reject) => {
+                method(args, function (error, result) {
+                  error ? reject(error) : resolve(result);
+                });
+              });
+
+              const duration = Date.now() - startTime;
+
+              const durationSec = duration / 1000;
+              service._callAvgCounter(durationSec);
+              service._callMaxCounter(durationSec);
+
+              const evMethod = {
+                type: 'service.method',
+                service: service._name,
+                method: methodName,
+                // context: newArgs.context,
+                args: arguments,
+                duration,
+              };
+              if (attempts > 1) {
+                evMethod.attempts = attempts;
+              }
+              bus.method(evMethod);
+
+              return r;
+            } catch (error) {
+              if (service._quickRestart) {
+                attempts++;
+                continue; // если ошибка во время quick restart, повторяем попытку
+              }
+
+              if (service.state !== READY) { // проверяем состояние перед операции
+                const error = service._buildInvalidStateError();
+              }
+
+              const isCriticalError = service._serviceIsCriticalError(error);
+              if (!(typeof isCriticalError === 'boolean')) {
+                service.criticalFailure(new Error(`service._serviceIsCriticalError returned not a boolean value: ${isCriticalError}`));
+              } else if (isCriticalError) {
+                service.criticalFailure(error);
+              } else {
+                service._reportError(error);
+              }
+
+              const duration = Date.now() - startTime;
+
+              const durationSec = duration / 1000;
+              service._callAvgCounter(durationSec);
+              service._callMaxCounter(durationSec);
+
+              const evMethod = {
+                type: 'service.method',
+                service: service._name,
+                method: methodName,
+                // context: newArgs.context,
+                args: args,
+                duration,
+                failed: 1,
+              };
+              if (attempts > 1) {
+                evMethod.attempts = attempts;
+              }
+              bus.method(evMethod);
+
+              throw error;
+            }
+          }
         }
       }
+    }
+
+    _removeMethods() {
+      for (const methodName of Object.getOwnPropertyNames(this)) {
+        if (methodName === 'constructor') continue;
+        if (!methodName.startsWith('_')) {
+          delete this[methodName];
+        }
+      }
+      delete this.__serviceStateValidationAdded;
     }
 
     // TODO: Добавить проверку, что при очередном рестарте не поменялась схема - писать в bus как предупреждение
@@ -86,13 +174,13 @@ export default oncePerServices(function (services) {
         serviceType: SERVICE_TYPE,
         settings: optsWithoutPassword,
       });
-      return new Promise((resolve, reject) => {
+      await new Promise((resolve, reject) => {
         let urlObject = urlApi.parse(this._url);
         let auth = null;
 
         let options = {};
 
-        if(this._options && this._options.soapOptions) {
+        if (this._options && this._options.soapOptions) {
           options = {...this._options.soapOptions};
         }
 
@@ -123,28 +211,28 @@ export default oncePerServices(function (services) {
     }
 
     async _serviceCheck() {
-      let urlObject = urlApi.parse(this._url);
-      let options = {
-        ...this._httpUser && this._httpPassword && {
-          auth: {
-            username: this._httpUser,
-            password: this._httpPassword,
-          }
-        }
-      };
+      // TODO: zork: Запоминать схему, и рестартовать сервис если она поменялась
+      await request({
+        mathod: 'GET',
+        timeout: 20000,
+        uri: this._url,
+      });
+    }
+
+    _serviceIsCriticalError(error) {
+      return !!error && (error.code === 'ENOTFOUND' || error.code === 'ETIMEDOUT' || error.code === 'ECONNREFUSED');
     }
 
     async _serviceStop() {
-      if (soap.reset) {
-        soap.reset();
-      }
+      delete this._connection;
+      this._removeMethods();
     }
 
     async saveDescription(filename = missingArgument('filename')) {
       if (!this.hasOwnProperty('_client')) throw Error('Not initialized');
-      let filenameNormolized = path.resolve(process.cwd(), filename);
-      ensureDir(path.dirname(filenameNormolized));
-      await promisify(fs.writeFile)(filenameNormolized, JSON.stringify(this._connection.describe(), null, 2));
+      const filenameNormalized = path.resolve(process.cwd(), filename);
+      ensureDir(path.dirname(filenameNormalized));
+      await promisify(fs.writeFile)(filenameNormalized, JSON.stringify(this._connection.describe(), null, 2));
     }
   }
 

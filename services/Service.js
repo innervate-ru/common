@@ -27,7 +27,7 @@ import {
   DISPOSED,
 } from './Service.states'
 
-export const DEFAULT_FAIL_RECOVERY_INTERVAL = 60000;
+export const DEFAULT_FAIL_RECOVERY_INTERVAL = 30000;
 
 export const DEFAULT_CHECK_INTERVAL = 60000;
 

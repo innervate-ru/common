@@ -120,6 +120,7 @@ export default function serviceMethodWrapper({
 
             if (args && args.params) {
               Object.keys(args.params).forEach(paramKey => {
+                // TODO: zork: Начать подрезать размер строки
                 if (Buffer.isBuffer(args.params[paramKey])) {
                   args.params[paramKey] = `Buffer (length: ${Buffer.byteLength(args.params[paramKey])})`;
                 }
