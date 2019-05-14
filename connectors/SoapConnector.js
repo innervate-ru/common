@@ -23,12 +23,8 @@ export default oncePerServices(function (services) {
 
     constructor(options) {
       debug('ctor: %O', arguments);
-      schema.config(options, {argument: 'options', copyTo: this});
+      schema.config(options, {argument: 'options'});
       this._options = options;
-      // TODO:  Привести к общему виду.  При переходе с задачи интеграции с 1С на интеграцию с МТС Connect, url -> uri, user -> login
-      this._url = options.uri;
-      this._user = options.login;
-      this._httpUser = options.httpLogin;
     }
 
     _addMethods() {
@@ -53,7 +49,6 @@ export default oncePerServices(function (services) {
         break;
       }
 
-      const url = this._url;
       for (const methodName of Object.getOwnPropertyNames(methods)) {
         debug('method: %s', methodName);
         const service = this._service;
@@ -164,9 +159,29 @@ export default oncePerServices(function (services) {
     // TODO: Добавить проверку, что при очередном рестарте не поменялась схема - писать в bus как предупреждение
     // TODO: Удалять старые методы при restart
 
+    async _serviceCheck() {
+      // TODO: zork: Запоминать схему, и рестартовать сервис если она поменялась
+      const options = {
+        mathod: 'GET',
+        timeout: 20000,
+        uri: this._options.uri,
+      };
+      if (this._options.httpLogin) {
+        options.headers = {
+          Authorization: "Basic " + new Buffer(`${this._options.httpLogin}:${this._options.httpPassword}`).toString("base64"),
+        };
+      }
+      await request(options);
+    }
+
+    _serviceIsCriticalError(error) {
+      return !!error && (error.code === 'ENOTFOUND' || error.code === 'ETIMEDOUT' || error.code === 'ECONNREFUSED');
+    }
+
     async _serviceStart() {
       const optsWithoutPassword = {...this._options};
       delete optsWithoutPassword.password;
+      delete optsWithoutPassword.httpPassword;
       fixDependsOn(optsWithoutPassword);
       bus.info({
         type: 'service.settings',
@@ -175,7 +190,7 @@ export default oncePerServices(function (services) {
         settings: optsWithoutPassword,
       });
       await new Promise((resolve, reject) => {
-        let urlObject = urlApi.parse(this._url);
+        let urlObject = urlApi.parse(this._options.uri);
         let auth = null;
 
         let options = {};
@@ -184,43 +199,29 @@ export default oncePerServices(function (services) {
           options = {...this._options.soapOptions};
         }
 
-        if (this._user) {
-          urlObject.auth = `${this._user}:${this._password}`;
+        if (this._options.login) {
+          urlObject.auth = `${this._options.login}:${this._options.password}`;
         }
 
-        if (this._httpUser) {
-          auth = "Basic " + new Buffer(`${this._httpUser}:${this._httpPassword}`).toString("base64");
+        if (this._options.httpLogin) {
+          auth = "Basic " + new Buffer(`${this._options.httpLogin}:${this._options.httpPassword}`).toString("base64");
           options.wsdl_headers = {Authorization: auth};
         }
 
-        soap.createClient(`${urlApi.format(urlObject)}`, options, (err, client) => {
-          if (err) {
-            debug('client creation failed %O', err);
-            reject(new SoapErrorException({url: this._url, method: 'createClient', err}));
+        soap.createClient(`${urlApi.format(urlObject)}`, options, (error, client) => {
+          if (error) {
+            debug('client creation failed %O', error);
+            reject(new SoapErrorException({url: this._options.uri, method: 'createClient', error}));
           } else {
             debug(`client creation succeeded`);
-            if (this._user) client.setSecurity(new soap.BasicAuthSecurity(this._user, this._password));
-            if (this._httpUser) client.addHttpHeader('Authorization', auth); //http-авторизация
-
+            if (this._options.login) client.setSecurity(new soap.BasicAuthSecurity(this._options.login, this._options.password));
+            if (this._options.httpLogin) client.addHttpHeader('Authorization', auth); // http-авторизация
             this._connection = client;
             this._addMethods();
             resolve();
           }
         });
       });
-    }
-
-    async _serviceCheck() {
-      // TODO: zork: Запоминать схему, и рестартовать сервис если она поменялась
-      await request({
-        mathod: 'GET',
-        timeout: 20000,
-        uri: this._url,
-      });
-    }
-
-    _serviceIsCriticalError(error) {
-      return !!error && (error.code === 'ENOTFOUND' || error.code === 'ETIMEDOUT' || error.code === 'ECONNREFUSED');
     }
 
     async _serviceStop() {
