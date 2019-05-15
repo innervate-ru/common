@@ -108,6 +108,10 @@ export default oncePerServices(function (services) {
             };
             if (service._service._serviceType) ev.serviceType = service._service._serviceType;
             bus.event(ev);
+          } else {
+            // это нужно только когда указан this._startOnly.  Иначе сервис стартует сразу, как его создали - см. код Service.js
+            // нельзя использовать _service.start(), так как он переводит _stop в false
+            service._service._nextStateStep();
           }
         } else {
           const d = dependsOnStoppedServices(services, service._service.dependsOn);
@@ -126,7 +130,7 @@ export default oncePerServices(function (services) {
           }
           else {
             if (this._startOnly) {
-              service._service.start(); // это нужно только когда указан this._startOnly.  Иначе сервис стартует сразу, как его создали - см. код Service.js
+              service._service._nextStateStep(); // это нужно только когда указан this._startOnly.  Иначе сервис стартует сразу, как его создали - см. код Service.js
             }
             this._serviceCountToStartNode++;
           }

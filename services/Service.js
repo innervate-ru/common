@@ -10,6 +10,7 @@ import serviceMethodWrapper from './serviceMethodWrapper'
 import errorDataToEvent from '../errors/errorDataToEvent'
 import shortid from 'shortid'
 import addContextToError from '../context/addContextToError'
+import {addCounter} from '../monitoring/index'
 
 import {
   NOT_INITIALIZED,
@@ -23,12 +24,16 @@ import {
   STOPPED,
   FAILED,
   DISPOSING,
-  DISPOSED
+  DISPOSED,
 } from './Service.states'
 
-export const DEFAULT_FAIL_RECOVERY_INTERVAL = 60000;
+export const DEFAULT_FAIL_RECOVERY_INTERVAL = 30000;
+
+export const DEFAULT_CHECK_INTERVAL = 60000;
 
 const SERVICE_TAKES_TOO_LONG_INTERVAL = 20000;
+
+const schema = require('./Service.schema');
 
 export default oncePerServices(function (services) {
 
@@ -41,21 +46,21 @@ export default oncePerServices(function (services) {
       this._serviceType = SERVICE_TYPE;
 
       /**
-       * Время, когда была выполнена первая операция на сервисе, после запуска.  Нужно, чтобы отслеживать интервал который сервис работает без ошибок.
-       */
-      this._firstOpTime = null;
-
-      /**
        * Счетчик быстрых перезагрузок - когода перезагрузка происходит сразу после ошибки.  Нужно, чтобы при частых быстрых перезагрузках, сервис останавливался в состоянии FAILED.
        */
-      this._quickRestartsCount = 0;
+      this._restartCount = 0;
+
+      /**
+       * Признак, что включен режим быстроого перезапуска сервиса.
+       */
+      this._quickRestart = null;
 
       /**
        * Имя сервиса, состоящие из имени узла (node) и имени сервиса разделенных двоеточием.
        */
       this._name = name;
 
-      require('./Service.schema').ctor_settings(settings, {copyTo: this, argument: 'settings', name: this._name});
+      schema.ctor_settings(settings, {copyTo: this, argument: 'settings', name: this._name});
 
       /**
        * Состояние в котором находится сервис.
@@ -71,6 +76,11 @@ export default oncePerServices(function (services) {
        * Период в миллисекундах, через который сервис пробует перезапуститься после фатальной ошибки, приведшей к переходу в состояние FAIL.
        */
       this._failRecoveryInterval = (settings && settings.failRecoveryInterval) || DEFAULT_FAIL_RECOVERY_INTERVAL;
+
+      /**
+       * Период в миллисекундах, через который сервис вызывает _serviceCheck.
+       */
+      this._checkInterval = (settings && settings.checkInterval) || DEFAULT_CHECK_INTERVAL;
 
       /**
        * Причина остановки сервис.  Объект типа Error.
@@ -91,7 +101,7 @@ export default oncePerServices(function (services) {
        * Объект-реализация сервиса, опционально может иметь методы реализующие инициализацию, запуск, остановку
        * и диструкцию сервиса.
        */
-      ['_serviceInit', '_serviceStart', '_serviceRun', '_serviceStop', '_serviceDispose'].forEach(m => {
+      ['_serviceInit', '_servicePrestart', '_serviceCheck', '_serviceStart', '_serviceRun', '_serviceStop', '_serviceDispose', '_serviceIsCriticalError', '_serviceRestartLogic'].forEach(m => {
         if (m in serviceImpl) {
           const method = serviceImpl[m];
           if (!(typeof method === 'function'))
@@ -99,6 +109,31 @@ export default oncePerServices(function (services) {
           this[m] = method;
         }
       });
+
+      if (this._serviceCheck) {
+        if (this._serviceStart) {
+          const serviceCheck = this._serviceCheck;
+          const serviceStart = this._serviceStart;
+          this._serviceStart = async () => {
+            await serviceCheck.call(this._serviceImpl);
+            await serviceStart.call(this._serviceImpl);
+          }
+        } else {
+          this._serviceStart = this._serviceCheck;
+        }
+      }
+      if (this._servicePrestart) {
+        if (this._serviceStart) {
+          const servicePrestart = this._servicePrestart;
+          const serviceStart = this._serviceStart;
+          this._serviceStart = async () => {
+            await servicePrestart.call(this._serviceImpl);
+            await serviceStart.call(this._serviceImpl);
+          }
+        } else {
+          this._serviceStart = this._servicePrestart;
+        }
+      }
 
       /**
        * true, если сервис или не зависит от других сервисов, или все сервисы от которых зависит этот сервис находятся в состоянии READY
@@ -111,9 +146,9 @@ export default oncePerServices(function (services) {
       this._stop = !!(settings && settings.stop);
 
       /**
-       * true, если был вызван метод dispose()
+       * Promise resolve(), если был вызван метод dispose()
        */
-      this._dispose = false;
+      this._dispose = null;
 
       /**
        * Карта зависимостей: ключ - имя сервиса; значение - true, если сервис в состоянии READY
@@ -125,9 +160,11 @@ export default oncePerServices(function (services) {
         const dependsOn = uniq(flattenDeep(settings.dependsOn)); // зависимости могут состоять из массивов зависимостей, и элементы могут повторяться
         if (dependsOn.length > 0) {
           const dependsOnTotal = dependsOn.length;
-          const dependsOnMap = this._dependsOn = {};
+          const dependsOnMap = this._dependsOn = Object.create(null);
+          const dependsOnServices = Object.create(null);
           let dependsOnCount = 0;
           dependsOn.forEach(v => {
+            dependsOnServices[v._service.name] = v._service;
             if (dependsOnMap[v._service.name] = (v._service.state === READY)) dependsOnCount++;
           });
 
@@ -151,6 +188,18 @@ export default oncePerServices(function (services) {
                 if (ev.state !== READY) {
                   dependsOnMap[ev.service] = false;
                   dependsOnCount--;
+                  const service = dependsOnServices[ev.service];
+                  if (service._quickRestart) {
+                    if (this._state === READY || this._quickRestart) { // первый сервис, из-за которого остановка или все сервисы до были с quickRestart
+                      if (!this._quickRestart) {
+                        this._quickRestartCreate();
+                      }
+                      service._quickRestart // ловим только, когда quickRestart у базового сервиса не прошёл.  Если он пройдет успешно, то это мы узнаем когда сервис перейдет в READY
+                        .catch(() => {
+                          this._quickRestartReject();
+                        });
+                    }
+                  }
                   if (this._isAllDependsAreReady) {
                     this._isAllDependsAreReady = false;
                     this._nextStateStep();
@@ -160,8 +209,9 @@ export default oncePerServices(function (services) {
                 if (ev.state === READY) {
                   dependsOnMap[ev.service] = true;
                   dependsOnCount++;
-                  if (this._isAllDependsAreReady = (dependsOnCount === dependsOnTotal))
+                  if (this._isAllDependsAreReady = (dependsOnCount === dependsOnTotal)) {
                     this._nextStateStep();
+                  }
                 }
               }
             }
@@ -169,9 +219,43 @@ export default oncePerServices(function (services) {
         }
       }
 
-      // TODO: Добавить состояние и логику для быстрой перезагрузке в состоянии READY
-      // TODO: Uptime
-      // TODO: Operations timing
+      this._callAvgCounter = addCounter({
+        serviceName: name,
+        name: 'call_duration_avg_seconds',
+        type: 'avg',
+      });
+
+      this._callMaxCounter = addCounter({
+        serviceName: name,
+        name: 'call_duration_max_seconds',
+        type: 'max',
+      });
+    }
+
+    /**
+     * По умолчанию, все ошибки считаются не критическими.
+     */
+    _serviceIsCriticalError(error) {
+      return false;
+    }
+
+    /**
+     * По умолчанию, сервис после критической ошибки делает две попытки быстрого перезапуска, после чего
+     * перезапуски делаются с шагоом this._failRecoveryInterval (по умолчанию - 60 сек).  Важно: Этот механизм
+     * запускается только если сервис остановлен критической ошибкой.  В случае остановки по причине что остановился сервис
+     * из dependsOn, этот механизм не участвует, сервис стартует сразу когда запущены все dependsOn сервисы.
+     */
+    _serviceRestartLogic(attempt) {
+      if (attempt < 2) {
+        return {
+          nextRestart: 0,
+          isQuickRestart: true,
+        }
+      }
+      return {
+        nextRestart: this._failRecoveryInterval,
+        isQuickRestart: false,
+      };
     }
 
     _nextStateStep() {
@@ -194,6 +278,10 @@ export default oncePerServices(function (services) {
             else if (this._currentOpPromise.isRejected()) this._setState(INITIALIZE_FAILED, {failureReason: this._currentOpPromise.reason()});
             break;
           case STOPPED:
+            if (this._checkTimer) { // если нет метода _serviceStop, то сервис останавливается пропуская состояние STOPPING
+              clearTimeout(this._checkTimer);
+              delete this._checkTimer;
+            }
             if (this._dispose) this._setState(DISPOSING, {method: '_serviceDispose', nextState: DISPOSED});
             else if (this._isAllDependsAreReady && !this._stop) this._setState(STARTING, {
               method: '_serviceStart',
@@ -215,14 +303,33 @@ export default oncePerServices(function (services) {
             });
             break;
           case READY:
-            this._firstOpTime = null;
-            if (!this._isAllDependsAreReady || this._stop || this._failureReason || this._dispose) this._setState(STOPPING, {
-              method: '_serviceStop',
-              failureReason: this._failureReason,
-              nextState: this._failureReason ? FAILED : STOPPED,
-            });
+            this._restartCount = 0;
+            if (!this._isAllDependsAreReady || this._stop || this._failureReason || this._dispose) {
+              this._setState(STOPPING, {
+                method: '_serviceStop',
+                failureReason: this._failureReason,
+                nextState: this._failureReason ? FAILED : STOPPED,
+              });
+            } else {
+              if (this._serviceCheck && !this._checkTimer) {
+                const callCheck = async () => {
+                  try {
+                    await this._serviceCheck.call(this._serviceImpl);
+                    this._checkTimer = setTimeout(callCheck, this._checkInterval);
+                  } catch (error) {
+                    delete this._checkTimer;
+                    this.criticalFailure(error);
+                  }
+                };
+                this._checkTimer = setTimeout(callCheck, this._checkInterval);
+              }
+            }
             break;
           case STOPPING:
+            if (this._checkTimer) {
+              clearTimeout(this._checkTimer);
+              delete this._checkTimer;
+            }
             if (this._currentOpPromise.isFulfilled() || this._currentOpPromise.isRejected()) {
               if (this._failureReason) this._setState(FAILED, {failureReason: this._failureReason}); // сохраняем ошибку из-за которой мы вышли или из состояния READY или из STARTING
               else this._setState(STOPPED);
@@ -244,8 +351,8 @@ export default oncePerServices(function (services) {
                     break;
           */
         }
-      } catch (err) {
-        this._reportError(err);
+      } catch (error) {
+        this._reportError(error);
       }
     }
 
@@ -282,9 +389,10 @@ export default oncePerServices(function (services) {
         });
         if (!('then' in promise)) throw new Error(`Method must return a promise: ${prettyPrint(method)}`);
 
-        if (testMode && testMode.service)
-          this._testWaitPromise = this._currentOpPromise; // в режиме тестирования this._nextStateStep не вызывается по завершению асинхронного метода - нужно явно вызвать nextStateStep в коде
-        else {
+        if (testMode && testMode.service) {
+          // в режиме тестирования this._nextStateStep не вызывается по завершению асинхронного метода - нужно явно вызвать nextStateStep в коде
+          this._testWaitPromise = this._currentOpPromise;
+        } else {
           const startTime = Date.now();
           const timer = setInterval(() => {
             bus.info({
@@ -297,7 +405,7 @@ export default oncePerServices(function (services) {
           const done = () => {
             clearInterval(timer);
             return this._callNextStateStep();
-          }
+          };
           this._currentOpPromise.then(done).catch(done);
         }
 
@@ -322,14 +430,48 @@ export default oncePerServices(function (services) {
 
       switch (this._state) {
         case FAILED: {
+          let res = this._serviceRestartLogic(this._restartCount++);
+          try {
+            schema.serviceRestartLogic_result(res);
+          } catch (error) {
+            this._reportError(error);
+            res = { // чтоб сервис совсем не умер, используем значения по умолчанию
+              nextRestart: this._failRecoveryInterval,
+              isQuickRestart: false,
+            };
+          }
+          const {
+            nextRestart,
+            isQuickRestart,
+          } = res;
+
+          if (isQuickRestart) {
+            if (this._restartCount === 1) { // после того как закончились попытки quick restart, нельзя вернуться обратно в этот режим
+              this._quickRestartCreate();
+            }
+          } else {
+            if (this._quickRestart) {
+              this._quickRestartReject();
+            }
+          }
+
           this._restartTimer = setTimeout(() => {
             this._setState(STOPPED);
-          }, this._failRecoveryInterval);
+          }, nextRestart);
           break;
         }
         case READY: {
+          if (this._quickRestart) {
+            this._quickRestartResolve();
+          }
           const serviceRunImpl = this._serviceRun;
-          if (serviceRunImpl) setTimeout(serviceRunImpl.bind(this._serviceImpl), 0);
+          if (serviceRunImpl) setTimeout(async () => {
+            try {
+              await serviceRunImpl.call(this._serviceImpl);
+            } catch (error) {
+              this.criticalFailure(error);
+            }
+          }, 0);
           break;
         }
         case DISPOSED: {
@@ -380,10 +522,6 @@ export default oncePerServices(function (services) {
       this._nextStateStep();
     }
 
-    touch() {
-      if (this._firstOpTime === null) this._firstOpTime = Date.now();
-    }
-
     /**
      * Разборка сервиса.  Возвращает Promise, который будет resolved, когда состояние будет DISPOSED.
      */
@@ -401,7 +539,7 @@ export default oncePerServices(function (services) {
      */
     criticalFailure(error) {
       if (this._state !== READY) throw new Error(`Critical error thrown in wrong state '${this._state}': '${prettyPrint(error)}'`);
-      if (!(error instanceof Error)) error = new Error(`Invalid argument 'error': ${prettyPrint(err)}`);
+      if (!(error instanceof Error)) error = new Error(`Invalid argument 'error': ${prettyPrint(error)}`);
       this._failureReason = error;
       this._reportError(error);
       this._nextStateStep();
@@ -412,7 +550,7 @@ export default oncePerServices(function (services) {
      * @param error Объект типа Error
      */
     _reportError(error) {
-      if (!(error instanceof Error)) error = new Error(`Invalid argument 'error': ${prettyPrint(err)}`);
+      if (!(error instanceof Error)) error = new Error(`Invalid argument 'error': ${prettyPrint(error)}`);
       const errEvent = {
         type: 'service.error',
         service: this._name,
@@ -427,7 +565,33 @@ export default oncePerServices(function (services) {
 
     _buildInvalidStateError(error) {
       return new InvalidServiceStateError({service: this.name, state: this.state, error: error})
-    };
+    }
+
+    _quickRestartCreate() {
+      this._quickRestart = new Promise((resolve, reject) => {
+        this._quickRestart_resolve = resolve;
+        this._quickRestart_reject = reject;
+      });
+      this._quickRestart.catch((error) => {
+        this._reportError(error);
+      });
+    }
+
+    _quickRestartResolve() {
+      const quickRestartResolve = this._quickRestart_resolve;
+      this._quickRestart = null;
+      delete this._quickRestart_resolve;
+      delete this._quickRestart_reject;
+      quickRestartResolve();
+    }
+
+    _quickRestartReject() {
+      const quickRestartReject = this._quickRestart_reject;
+      this._quickRestart = null;
+      delete this._quickRestart_resolve;
+      delete this._quickRestart_reject;
+      quickRestartReject(new Error(`Quick restart failed`));
+    }
   }
 
   defineProps(Service, {
@@ -470,9 +634,14 @@ export default oncePerServices(function (services) {
       }
     }
 
-    serviceMethodWrapper({prototypeOrInstance: serviceClass.prototype, bus, contextRequired: options && options.contextRequired, getService: function () {
-      return this._service;
-    }});
+    serviceMethodWrapper({
+      prototypeOrInstance: serviceClass.prototype,
+      bus,
+      contextRequired: options && options.contextRequired,
+      getService: function () {
+        return this._service;
+      }
+    });
 
     return ServiceImpl;
   }
