@@ -1,5 +1,4 @@
-export default function (serviceName, name) {
-  const fixedName = serviceName.replace(/\//g, '_');
+export default function (name, options) {
   let sum = 0;
   let count = 0;
   const counter = function (v) {
@@ -8,8 +7,7 @@ export default function (serviceName, name) {
       count++;
     }
   };
-  counter.counterName = `${fixedName}_${name}`;
-  counter.initValue = 0;
+  counter.counterName = name;
   const get = counter.get = function () {
     const v = count ? sum / count : 0; // количество событий в минуту
     return Math.round(v * 100) / 100; // точность до процента

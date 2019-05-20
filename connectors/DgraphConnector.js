@@ -31,7 +31,7 @@ export default oncePerServices(function (services) {
 
       bus.info({
         type: 'service.settings',
-        service: this._service.get('name'),
+        service: this._service.name,
         serviceType: SERVICE_TYPE,
         url: this._url,
         debug: this._debug,

@@ -10,7 +10,7 @@ import serviceMethodWrapper from './serviceMethodWrapper'
 import errorDataToEvent from '../errors/errorDataToEvent'
 import shortid from 'shortid'
 import addContextToError from '../context/addContextToError'
-import {addCounter} from '../monitoring/index'
+import {addService, addCounter} from '../monitoring/index'
 
 import {
   NOT_INITIALIZED,
@@ -219,6 +219,27 @@ export default oncePerServices(function (services) {
         }
       }
 
+      addService({serviceName: name});
+
+      this._isReadyCounter = addCounter({
+        serviceName: name,
+        name: 'is_ready',
+        type: 'value',
+        value: 0,
+      });
+
+      this._failedTimesCounter = addCounter({
+        serviceName: name,
+        name: 'failed_times',
+        type: 'times',
+      });
+
+      this._callTimes = addCounter({
+        serviceName: name,
+        name: 'call_times',
+        type: 'times',
+      });
+
       this._callAvgCounter = addCounter({
         serviceName: name,
         name: 'call_duration_avg_seconds',
@@ -278,6 +299,7 @@ export default oncePerServices(function (services) {
             else if (this._currentOpPromise.isRejected()) this._setState(INITIALIZE_FAILED, {failureReason: this._currentOpPromise.reason()});
             break;
           case STOPPED:
+            this._isReadyCounter(0);
             if (this._checkTimer) { // если нет метода _serviceStop, то сервис останавливается пропуская состояние STOPPING
               clearTimeout(this._checkTimer);
               delete this._checkTimer;
@@ -303,6 +325,7 @@ export default oncePerServices(function (services) {
             });
             break;
           case READY:
+            this._isReadyCounter(1);
             this._restartCount = 0;
             if (!this._isAllDependsAreReady || this._stop || this._failureReason || this._dispose) {
               this._setState(STOPPING, {
@@ -326,6 +349,7 @@ export default oncePerServices(function (services) {
             }
             break;
           case STOPPING:
+            this._isReadyCounter(0);
             if (this._checkTimer) {
               clearTimeout(this._checkTimer);
               delete this._checkTimer;
@@ -336,6 +360,7 @@ export default oncePerServices(function (services) {
             }
             break;
           case FAILED: // будет переведен в состояние STOPPED после restartInterval (см. setTimeout в setFailed() выше)
+            this._isReadyCounter(0);
             if (this._dispose) this._setState(DISPOSING, {method: '_serviceDispose', nextState: DISPOSED});
             else if (this._stop) this._setState(STOPPED);
             break;
@@ -430,6 +455,7 @@ export default oncePerServices(function (services) {
 
       switch (this._state) {
         case FAILED: {
+          this._failedTimesCounter();
           let res = this._serviceRestartLogic(this._restartCount++);
           try {
             schema.serviceRestartLogic_result(res);

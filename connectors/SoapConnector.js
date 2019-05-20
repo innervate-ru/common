@@ -185,7 +185,7 @@ export default oncePerServices(function (services) {
       fixDependsOn(optsWithoutPassword);
       bus.info({
         type: 'service.settings',
-        service: this._service.get('name'),
+        service: this._service.name,
         serviceType: SERVICE_TYPE,
         settings: optsWithoutPassword,
       });
