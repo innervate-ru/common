@@ -1,11 +1,8 @@
 import configAPI from 'config'
 import oncePerServices from '../services/oncePerServices'
 import defineProps from '../utils/defineProps'
-import {READY, FAILED} from "../services/Service.states";
 import {missingArgument} from '../validation/index'
 import {missingService} from '../services/index'
-
-const hasOwnProperty = Object.prototype.hasOwnProperty;
 
 // export const name = require('../services/serviceName').default(__filename);
 export const name = 'monitoring'; // так как сервис в common, то имя задаем явно
@@ -21,6 +18,8 @@ const counterBuilders = {
 };
 
 let _isRunning = false;
+const _labels = Object.create(null);
+let _labelsStr = '';
 const _svcList = [];
 let _svcCounters = Object.create(null);
 let _prevSvcCounters = Object.create(null);
@@ -58,7 +57,7 @@ export default oncePerServices(function (services) {
         if (_svcCounters[n]) {
           _svcCounters[n].forEach(c => {
             const cnt = _prevSvcCounters[c.counterName];
-            res.push(`${c.counterName} ${typeof cnt === 'function' ? cnt() : cnt}`);
+            res.push(`${c.counterName}${_labelsStr} ${typeof cnt === 'function' ? cnt() : cnt}`);
           })
         }
       });
@@ -135,6 +134,18 @@ function formatService(service = missingArgument("service")) {
     dependenciesReady: service._isAllDependsAreReady,
     serviceError: service._failureReason && service._failureReason.message,
   };
+}
+
+export function addLabel(args) {
+  schema.addLabelFunction_args(args);
+  const {name, value} = args;
+  if (value === undefined) {
+    delete _labels[name];
+  } else {
+    _labels[name] = value;
+  }
+  const s = Object.entries(_labels).map(v => `${v[0]}="${v[1]}"`).join(',')
+  _labelsStr = s.length > 0 ? `{${s}}` : '';
 }
 
 export function addService(args) {
