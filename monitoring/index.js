@@ -21,8 +21,9 @@ let _isRunning = false;
 const _labels = Object.create(null);
 let _labelsStr = '';
 const _svcList = [];
-let _svcCounters = Object.create(null);
-let _prevSvcCounters = Object.create(null);
+
+const _svcCounters = Object.create(null);
+const _prevSvcCounters = Object.create(null);
 
 export default oncePerServices(function (services) {
 
@@ -162,10 +163,14 @@ export function addCounter(args) {
   if (!builder) {
     throw new Error(`Unknown counter type: ${type}`);
   }
-  const counter = builder(`${fixedName}_${name}`, options);
+  const counterName = `${fixedName}_${name}`;
+  const counter = builder(counterName, options);
   if (!_svcCounters[serviceName]) {
     _svcCounters[serviceName] = [counter];
   } else {
+    if (_svcCounters[serviceName].find(v => v.counterName === counterName)) {
+      throw new Error(`Counter '${counterName}' already exists`);
+    }
     _svcCounters[serviceName].push(counter);
   }
   _prevSvcCounters[counter.counterName] = () => counter.get(); // в первом периоде, возвращается текущее значение

@@ -326,7 +326,6 @@ export default oncePerServices(function (services) {
             break;
           case READY:
             this._isReadyCounter(1);
-            this._restartCount = 0;
             if (!this._isAllDependsAreReady || this._stop || this._failureReason || this._dispose) {
               this._setState(STOPPING, {
                 method: '_serviceStop',
@@ -487,6 +486,7 @@ export default oncePerServices(function (services) {
           break;
         }
         case READY: {
+          this._restartCount = 0;
           if (this._quickRestart) {
             this._quickRestartResolve();
           }
@@ -495,6 +495,7 @@ export default oncePerServices(function (services) {
             try {
               await serviceRunImpl.call(this._serviceImpl);
             } catch (error) {
+              this._restartCount = 10000; // в случае ошибки в коде _serviceRun, это исключает quick restart, котоорый может привести к непрерывным перезапускам
               this.criticalFailure(error);
             }
           }, 0);
