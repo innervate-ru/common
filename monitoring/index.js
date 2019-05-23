@@ -27,6 +27,14 @@ const _prevSvcCounters = Object.create(null);
 
 export default oncePerServices(function (services) {
 
+  const {
+    bus,
+  } = services;
+
+  bus.once('webserver.started', () => {
+    _isRunning = true;
+  });
+
   class Monitoring {
 
     constructor(options) {
@@ -117,9 +125,7 @@ export default oncePerServices(function (services) {
     }
   });
 
-  return new (require('../services/index').Service(services)(Monitoring, {contextRequired: true}))(name, {
-    ...configAPI.get('monitoring'),
-  });
+  return new (require('../services/index').Service(services)(Monitoring, {contextRequired: true}))(name, configAPI.get('monitoring'));
 });
 
 /**
