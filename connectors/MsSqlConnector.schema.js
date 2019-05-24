@@ -1,8 +1,8 @@
-import {VType, validate} from '../validation'
+import {VType, validateThisServiceSettings, validate} from '../validation'
 
 const hasOwnProperty = Object.prototype.hasOwnProperty;
 
-export const ctor_settings = validate.service.finished({
+export const ctor_settings = validateThisServiceSettings({
   stop: {type: VType.Boolean()},
   description: {type: VType.String()},
   url: {type: VType.String().notEmpty(), required: true},
@@ -26,6 +26,7 @@ export const ctor_settings = validate.service.finished({
       acquireTimeout: {type: VType.Int().positive()},
     },
   },
+  _final: true,
 });
 
 export const connection_args = validate.method.this('args', {

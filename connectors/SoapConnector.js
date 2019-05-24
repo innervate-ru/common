@@ -21,10 +21,9 @@ export default oncePerServices(function (services) {
 
   class Soap {
 
-    constructor(options) {
-      debug('ctor: %O', arguments);
-      schema.config(options, {argument: 'options'});
-      this._options = options;
+    constructor(settings) {
+      schema.ctor_settings(this, settings);
+      this._settings = settings;
     }
 
     _addMethods() {
@@ -164,11 +163,11 @@ export default oncePerServices(function (services) {
       const options = {
         mathod: 'GET',
         timeout: 20000,
-        uri: this._options.uri,
+        uri: this._settings.uri,
       };
-      if (this._options.httpLogin) {
+      if (this._settings.httpLogin) {
         options.headers = {
-          Authorization: "Basic " + new Buffer(`${this._options.httpLogin}:${this._options.httpPassword}`).toString("base64"),
+          Authorization: "Basic " + new Buffer(`${this._settings.httpLogin}:${this._settings.httpPassword}`).toString("base64"),
         };
       }
       await request(options);
@@ -178,8 +177,8 @@ export default oncePerServices(function (services) {
       return !!error && (error.code === 'ENOTFOUND' || error.code === 'ETIMEDOUT' || error.code === 'ECONNREFUSED');
     }
 
-    async _serviceStart() {
-      const optsWithoutPassword = {...this._options};
+    async _serviceInit() {
+      const optsWithoutPassword = {...this._settings};
       delete optsWithoutPassword.password;
       delete optsWithoutPassword.httpPassword;
       fixDependsOn(optsWithoutPassword);
@@ -189,33 +188,36 @@ export default oncePerServices(function (services) {
         serviceType: SERVICE_TYPE,
         settings: optsWithoutPassword,
       });
+    }
+
+    async _serviceStart() {
       await new Promise((resolve, reject) => {
-        let urlObject = urlApi.parse(this._options.uri);
+        let urlObject = urlApi.parse(this._settings.uri);
         let auth = null;
 
         let options = {};
 
-        if (this._options && this._options.soapOptions) {
-          options = {...this._options.soapOptions};
+        if (this._settings && this._settings.soapOptions) {
+          options = {...this._settings.soapOptions};
         }
 
-        if (this._options.login) {
-          urlObject.auth = `${this._options.login}:${this._options.password}`;
+        if (this._settings.login) {
+          urlObject.auth = `${this._settings.login}:${this._settings.password}`;
         }
 
-        if (this._options.httpLogin) {
-          auth = "Basic " + new Buffer(`${this._options.httpLogin}:${this._options.httpPassword}`).toString("base64");
+        if (this._settings.httpLogin) {
+          auth = "Basic " + new Buffer(`${this._settings.httpLogin}:${this._settings.httpPassword}`).toString("base64");
           options.wsdl_headers = {Authorization: auth};
         }
 
         soap.createClient(`${urlApi.format(urlObject)}`, options, (error, client) => {
           if (error) {
             debug('client creation failed %O', error);
-            reject(new SoapErrorException({url: this._options.uri, method: 'createClient', error}));
+            reject(new SoapErrorException({url: this._settings.uri, method: 'createClient', error}));
           } else {
             debug(`client creation succeeded`);
-            if (this._options.login) client.setSecurity(new soap.BasicAuthSecurity(this._options.login, this._options.password));
-            if (this._options.httpLogin) client.addHttpHeader('Authorization', auth); // http-авторизация
+            if (this._settings.login) client.setSecurity(new soap.BasicAuthSecurity(this._settings.login, this._settings.password));
+            if (this._settings.httpLogin) client.addHttpHeader('Authorization', auth); // http-авторизация
             this._connection = client;
             this._addMethods();
             resolve();
