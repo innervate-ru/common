@@ -1,4 +1,4 @@
-import {missingArgument, invalidArgument} from '../validation'
+import {missingArgument} from '../validation'
 import prettyPrint from '../utils/prettyPrint'
 import {oncePerServices, serviceMethodWrapper, fixDependsOn, READY} from '../services'
 import defineProps from '../utils/defineProps'
@@ -28,15 +28,10 @@ export default oncePerServices(function (services) {
     _pool = null;
 
     constructor(settings) {
-
       schema.ctor_settings(this, settings);
-
       const {url, user, password, options, poolConfig} = settings;
-
       this._settings = settings;
-
       this._msSqlConfig = {server: url, userName: user, password, options};
-
       this._poolConfig = poolConfig;
     }
 
@@ -85,12 +80,8 @@ export default oncePerServices(function (services) {
         this._cancelCheck();
         delete this._cancelCheck;
       }
-      await new Promise((resolve, reject) => {
-        this._pool.drain(() => {
-          this._pool = null;
-          resolve();
-        });
-      });
+      this._pool.drain();
+      delete this._pool;
     }
 
     async connection(args) {
@@ -153,7 +144,11 @@ export default oncePerServices(function (services) {
     }
   }
 
-  serviceMethodWrapper({prototypeOrInstance: MsSqlConnector.prototype, bus, getService: function() { return this._service; }});
+  serviceMethodWrapper({
+    prototypeOrInstance: MsSqlConnector.prototype, bus, getService: function () {
+      return this._service;
+    }
+  });
 
   defineProps(MsSqlConnector, {
     msSqlConfig: {
@@ -275,7 +270,11 @@ export default oncePerServices(function (services) {
     }
   }
 
-  serviceMethodWrapper({prototypeOrInstance: Connection.prototype, bus, getService: function() { return this._connector._service; }});
+  serviceMethodWrapper({
+    prototypeOrInstance: Connection.prototype, bus, getService: function () {
+      return this._connector._service;
+    }
+  });
 
   MsSqlConnector.SERVICE_TYPE = SERVICE_TYPE;
 

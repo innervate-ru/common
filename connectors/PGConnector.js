@@ -15,30 +15,30 @@ export default oncePerServices(function (services) {
 
   class PGConnector {
 
-    constructor(options) {
-      schema.ctor_settings(this, options);
-      const {debugWithFakeTimer, ...rest} = options;
+    constructor(settings) {
+      schema.ctor_settings(this, settings);
+      const {debugWithFakeTimer, ...rest} = settings;
       this._testTimer = pgTestTime(testMode && testMode.postgres);
-      this._options = rest;
+      this._settings = rest;
       this._channels = Object.create(null);
       this._channels._keepAlive = Object.create(null);
       this._channels._keepAlive.name = `_keepAlive`;
     }
 
     async _serviceInit() {
-      const settingsWithoutPassword = {...this._options};
+      const settingsWithoutPassword = {...this._settings};
       delete settingsWithoutPassword.password;
       fixDependsOn(settingsWithoutPassword);
       bus.info({
         type: 'service.settings',
-        service: this._service.get('name'),
+        service: this._service.name,
         serviceType: SERVICE_TYPE,
         settings: settingsWithoutPassword,
       });
     }
 
     async _servicePrestart() {
-      this._pool = new Pool(this._options);
+      this._pool = new Pool(this._settings);
       this._pool.on('error', (error) => { // сюда приходят только ошибки связанные с разрывом соединения
         if (this._service.state === READY) this._service.criticalFailure(error);
       });
@@ -59,10 +59,9 @@ export default oncePerServices(function (services) {
     }
 
     async _serviceStop() {
-      await Promise.all([
-        this._pool.end(),
-        ...Object.values(this._channels).map(channel => this._fixChannel(channel, false)),
-      ]);
+      this._pool.end();
+      delete this._pool;
+      Object.values(this._channels).forEach(channel => { this._fixChannel(channel, false); });
     }
 
     async connection() {
@@ -145,7 +144,7 @@ export default oncePerServices(function (services) {
 
       if (doListen) {
         if (!channel.client) {
-          const client = channel.client = new Client(this._options);
+          const client = channel.client = new Client(this._settings);
           client.on('error', (error) => { // сюда приходят только ошибки связанные с разрывом соединения
             if (this._service.state === READY) this._service.criticalFailure(error);
           });
