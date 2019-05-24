@@ -1,9 +1,9 @@
-import {VType, validate} from '../validation'
+import {VType, validateThisServiceSettings, validate} from '../validation'
 
 // TODO: не работает проверка правильности названия канала, надо разобраться
 const postgresChannelName = v => { return /^"?[a-z0-9_]+"?$/.test(v) ? true : 'invalid postgres channel name'; }; // Тут важно вернуть через return.  Если без return и скобок, то в ES6 возвращает всегда true
 
-export const ctor_settings = validate.service.finished({
+export const ctor_settings = validateThisServiceSettings({
   stop: {type: VType.Boolean()},
   context: {type: VType.String()},
   description: {type: VType.String()},
@@ -14,9 +14,9 @@ export const ctor_settings = validate.service.finished({
   database: {type: VType.String().notEmpty(), required: true},
   max: {type: VType.Int().positive()},
   idleTimeoutMillis: {type: VType.Int().positive()},
-  // TODO: Посмотреть в код pg, выписать все опции
-
   debugWithFakeTimer: {type: VType.Boolean()},
+  // TODO: Посмотреть в код pg, выписать все опции
+  _final: false,
 });
 
 export const exec_args = validate.method.finished('args', {
