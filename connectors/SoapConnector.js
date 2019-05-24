@@ -216,6 +216,10 @@ export default oncePerServices(function (services) {
           options.wsdl_headers = {Authorization: auth};
         }
 
+        if (this._settings.token) {
+          auth = `Bearer ${this._settings.token}`;
+        }
+
         soap.createClient(`${urlApi.format(urlObject)}`, options, (error, client) => {
           if (error) {
             debug('client creation failed %O', error);
@@ -223,7 +227,7 @@ export default oncePerServices(function (services) {
           } else {
             debug(`client creation succeeded`);
             if (this._settings.login) client.setSecurity(new soap.BasicAuthSecurity(this._settings.login, this._settings.password));
-            if (this._settings.httpLogin) client.addHttpHeader('Authorization', auth); // http-авторизация
+            if (auth) client.addHttpHeader('Authorization', auth); // http-авторизация
             this._connection = client;
             this._addMethods();
             resolve();
