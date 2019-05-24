@@ -8,6 +8,7 @@ export const ctor_settings = validateThisServiceSettings({
   stop: {type: VType.Boolean()},
   description: {type: VType.String()},
   uri: {type: VType.String().notEmpty(), required: true},
+  token: {type: VType.String().notEmpty(), required: false},
   login: {type: VType.String().notEmpty(), required: false},
   password: {type: VType.String().notEmpty(), required: false},
   httpLogin: {type: VType.String().notEmpty(), required: false},

@@ -170,6 +170,11 @@ export default oncePerServices(function (services) {
           Authorization: "Basic " + new Buffer(`${this._settings.httpLogin}:${this._settings.httpPassword}`).toString("base64"),
         };
       }
+      if (this._settings.token) {
+        options.headers = {
+          Authorization: `Bearer ${this._settings.token}`,
+        };
+      }
       await request(options);
     }
 
@@ -179,6 +184,7 @@ export default oncePerServices(function (services) {
 
     async _serviceInit() {
       const optsWithoutPassword = {...this._settings};
+      delete optsWithoutPassword.token;
       delete optsWithoutPassword.password;
       delete optsWithoutPassword.httpPassword;
       fixDependsOn(optsWithoutPassword);
