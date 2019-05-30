@@ -3,13 +3,15 @@ import prettyPrint from '../utils/prettyPrint'
 import {oncePerServices, serviceMethodWrapper, fixDependsOn, READY} from '../services'
 import defineProps from '../utils/defineProps'
 import ConnectionPool from 'tedious-connection-pool'
-import {Request, ConnectionError} from 'tedious'
+import {Connection, Request, ConnectionError} from 'tedious'
 import {stringToTediousTypeMap, tediouseTypeByValue} from './MsSqlConnector.types'
 import addPrefixToErrorMessage from '../utils/addPrefixToErrorMessage'
 
 const hasOwnProperty = Object.prototype.hasOwnProperty;
 const debug = require('debug')('mssql');
 const schema = require('./MsSqlConnector.schema');
+
+const SERVICE_CHECK_TIMEOUT = 5000; // timeout с которым открывает соединение с БД, когда сервис ещё не запущен
 
 /**
  * По каким-то, не до конца понятным, причинам error instaceof ConnectionError не cработал.  Этот метод реализаует
@@ -37,6 +39,9 @@ export default oncePerServices(function (services) {
 
     _poolError = (error) => {
       if (this._service.state === READY) { // все ошибки пула, считаем критическими
+        if (this._cancelCheck) {
+          this._cancelCheck();
+        }
         this._service.criticalFailure(error);
       }
     };
@@ -53,22 +58,46 @@ export default oncePerServices(function (services) {
       });
     }
 
-    async _servicePrestart() {
-      this._pool = new ConnectionPool(this._poolConfig, this._msSqlConfig);
-      this._pool.on('error', this._poolError);
+    async _serviceCheck() {
+
+      const check = async () => {
+        try {
+          await this._exec({ // вызываем private метод, чтоб не сработала защита что состояние не READY
+            query: 'select getdate();',
+            cancel: new Promise((resolve, reject) => {
+              this._cancelCheck = resolve;
+            })
+          }); // проверка связи, любая ошибка означает что _serviceStart прошёл не успешно
+        } finally {
+          delete this._cancelCheck;
+        }
+      }
+
+      if (this._pool) {
+        await check();
+      } else {
+        await new Promise(async (resolve, reject) => {
+          this._pool = new ConnectionPool(this._poolConfig, {
+            ...this._msSqlConfig,
+            options: {...this._msSqlConfig.options, requestTimeout: SERVICE_CHECK_TIMEOUT}, // создаем временный пул, с коротким timeout'ом
+          });
+          this._pool.on('error', (error) => {
+            reject(error);
+          });
+          try {
+            await check();
+          } finally {
+            this._pool.drain();
+            delete this._pool;
+            resolve();
+          }
+        })
+      }
     }
 
-    async _serviceCheck() {
-      try {
-        await this._exec({ // вызываем private метод, чтоб не сработала защита что состояние не READY
-          query: 'select getdate();',
-          cancel: new Promise((resolve, reject) => {
-            this._cancelCheck = resolve;
-          })
-        }); // проверка связи, любая ошибка означает что _serviceStart прошёл не успешно
-      } finally {
-        delete this._cancelCheck;
-      }
+    async _serviceStart() {
+      this._pool = new ConnectionPool(this._poolConfig, this._msSqlConfig);
+      this._pool.on('error', this._poolError);
     }
 
     _serviceIsCriticalError(error) {
@@ -80,8 +109,10 @@ export default oncePerServices(function (services) {
         this._cancelCheck();
         delete this._cancelCheck;
       }
-      this._pool.drain();
-      delete this._pool;
+      if (this._pool) {
+        this._pool.drain();
+        delete this._pool;
+      }
     }
 
     async connection(args) {
@@ -89,7 +120,7 @@ export default oncePerServices(function (services) {
       let res = new Promise((resolve, reject) => {
         this._pool.acquire((error, connection) => {
           if (error) this._rejectWithError(reject, error);
-          else resolve(new Connection(this, connection));
+          else resolve(new MsSqlConnectorConnection(this, connection));
         });
       });
       if (args) {
@@ -163,7 +194,7 @@ export default oncePerServices(function (services) {
     },
   });
 
-  class Connection {
+  class MsSqlConnectorConnection {
 
     constructor(connector, connection) {
       this._connector = connector;
@@ -271,7 +302,7 @@ export default oncePerServices(function (services) {
   }
 
   serviceMethodWrapper({
-    prototypeOrInstance: Connection.prototype, bus, getService: function () {
+    prototypeOrInstance: MsSqlConnectorConnection.prototype, bus, getService: function () {
       return this._connector._service;
     }
   });
