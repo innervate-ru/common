@@ -1,11 +1,8 @@
 import configAPI from 'config'
 import oncePerServices from '../services/oncePerServices'
 import defineProps from '../utils/defineProps'
-import {READY, FAILED} from "../services/Service.states";
 import {missingArgument} from '../validation/index'
 import {missingService} from '../services/index'
-
-const hasOwnProperty = Object.prototype.hasOwnProperty;
 
 // export const name = require('../services/serviceName').default(__filename);
 export const name = 'monitoring'; // так как сервис в common, то имя задаем явно
@@ -13,25 +10,30 @@ export const name = 'monitoring'; // так как сервис в common, то 
 const schema = require('./index.schema');
 
 const counterBuilders = {
+  value: require('./_value').default,
   times: require('./_counterTimes').default,
   avg: require('./_counterAvg').default,
   max: require('./_counterMax').default,
-  avgPerMinue: require('./_counterAvgPerMinute').default,
+  timesPerMinute: require('./_counterTimesPerMinute').default,
 };
 
 let _isRunning = false;
+const _labels = Object.create(null);
+let _labelsStr = '';
 const _svcList = [];
-let _svcCounters = Object.create(null);
-let _prevSvcCounters = Object.create(null);
 
-let _svc = _prevSvc = Object.create(null);
-let _svcFail = _prevSvcFail = Object.create(null);
-
-// в первый период текущие счетчики, равны счетчикам за предыдущий период.  Функциональные счётчики остаются в своем начальном значении
-let _prevSvc = _svc;
-let _prevSvcFail = _svcFail;
+const _svcCounters = Object.create(null);
+const _prevSvcCounters = Object.create(null);
 
 export default oncePerServices(function (services) {
+
+  const {
+    bus,
+  } = services;
+
+  bus.once('webserver.started', () => {
+    _isRunning = true;
+  });
 
   class Monitoring {
 
@@ -51,15 +53,6 @@ export default oncePerServices(function (services) {
     }
 
     _resetCounters() {
-      const prevSvc = _prevSvc;
-      _prevSvc = _svc;
-      _prevSvcFail = _svcFail;
-      _svc = Object.create(null);
-      _svcFail = Object.create(null);
-      _svcList.forEach((s) => {
-        _svc[s] = prevSvc[s];
-        _svcFail[s] = 0;
-      });
       Object.values(_svcCounters).forEach(s => {
         s.forEach(c => {
           _prevSvcCounters[c.counterName] = c.getAndReset();
@@ -70,12 +63,10 @@ export default oncePerServices(function (services) {
     async reportCounters() {
       const res = [];
       _svcList.forEach(n => {
-        const fixedName = n.replace(/\//g, '_');
-        res.push(`${fixedName}_is_ready ${_prevSvc[n]}`);
-        res.push(`${fixedName}_failed_times ${_prevSvcFail[n]}`);
         if (_svcCounters[n]) {
           _svcCounters[n].forEach(c => {
-            res.push(`${c.counterName} ${_prevSvcCounters[c.counterName]}`);
+            const cnt = _prevSvcCounters[c.counterName];
+            res.push(`${c.counterName}${_labelsStr} ${typeof cnt === 'function' ? cnt() : cnt}`);
           })
         }
       });
@@ -134,9 +125,7 @@ export default oncePerServices(function (services) {
     }
   });
 
-  return new (require('../services/index').Service(services)(Monitoring, {contextRequired: true}))(name, {
-    ...configAPI.get('monitoring'),
-  });
+  return new (require('../services/index').Service(services)(Monitoring, {contextRequired: true}))(name, configAPI.get('monitoring'));
 });
 
 /**
@@ -154,45 +143,42 @@ function formatService(service = missingArgument("service")) {
   };
 }
 
+export function addLabel(args) {
+  schema.addLabelFunction_args(args);
+  const {name, value} = args;
+  if (value === undefined) {
+    delete _labels[name];
+  } else {
+    _labels[name] = value;
+  }
+  const s = Object.entries(_labels).map(v => `${v[0]}="${v[1]}"`).join(',')
+  _labelsStr = s.length > 0 ? `{${s}}` : '';
+}
+
+export function addService(args) {
+  schema.addServiceFunction_args(args);
+  const {serviceName} = args;
+  _svcList.push(serviceName);
+}
+
 export function addCounter(args) {
   schema.addCounterFunction_args(args);
-  const {serviceName, name, type} = args;
+  const {serviceName, name, type, ...options} = args;
+  const fixedName = serviceName.replace(/\//g, '_');
   const builder = counterBuilders[type];
   if (!builder) {
     throw new Error(`Unknown counter type: ${type}`);
   }
-  const counter = builder(serviceName, name);
+  const counterName = `${fixedName}_${name}`;
+  const counter = builder(counterName, options);
   if (!_svcCounters[serviceName]) {
     _svcCounters[serviceName] = [counter];
   } else {
+    if (_svcCounters[serviceName].find(v => v.counterName === counterName)) {
+      throw new Error(`Counter '${counterName}' already exists`);
+    }
     _svcCounters[serviceName].push(counter);
   }
-  _prevSvcCounters[counter.counterName] = counter.initValue;
+  _prevSvcCounters[counter.counterName] = () => counter.get(); // в первом периоде, возвращается текущее значение
   return counter;
-}
-
-export function monitoringHook(ev, bus) {
-  if (ev.type === 'webserver.started') {
-    _isRunning = true;
-  }
-  if (ev.type === 'service.state') {
-    if (!hasOwnProperty.call(_svc, ev.service)) { // регистрируем в списке сервис, если видим его первый раз
-      _svcList.push(ev.service);
-      _svc[ev.service] = 0;
-      _svcFail[ev.service] = 0;
-    }
-    switch (ev.state) {
-      case READY: {
-        _svc[ev.service] = 1;
-        break;
-      }
-      case FAILED: {
-        _svcFail[ev.service]++;
-        // break; // fallthru чтобы записать что сервис остановлен
-      }
-      default: {
-        _svc[ev.service] = 0;
-      }
-    }
-  }
 }

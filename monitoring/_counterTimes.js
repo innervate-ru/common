@@ -1,5 +1,4 @@
-export default function (serviceName, name) {
-  const fixedName = serviceName.replace(/\//g, '_');
+export default function (name, options) {
   let times = 0;
   const counter = function (v) {
     if (typeof v === 'number') {
@@ -8,14 +7,13 @@ export default function (serviceName, name) {
       times++;
     }
   };
-  counter.counterName = `${fixedName}_${name}`;
-  const initValue = counter.initValue = 0;
+  counter.counterName = name;
   const get = counter.get = function () {
     return times;
   };
   counter.getAndReset = function () {
     let v = get();
-    times = initValue;
+    times = 0;
     return v;
   };
   return counter;

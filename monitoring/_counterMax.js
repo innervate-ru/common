@@ -1,5 +1,4 @@
-export default function (serviceName, name) {
-  const fixedName = serviceName.replace(/\//g, '_');
+export default function (name, options) {
   let max = 0;
   const counter = function (v) {
     if (typeof v === 'number') {
@@ -8,8 +7,7 @@ export default function (serviceName, name) {
       }
     }
   };
-  counter.counterName = `${fixedName}_${name}`;
-  const initValue = counter.initValue = 0;
+  counter.counterName = name;
   const get = counter.get = function () {
     return Math.round(max * 100) / 100; // точность до процента
   };

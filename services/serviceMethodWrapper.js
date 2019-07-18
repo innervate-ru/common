@@ -65,6 +65,7 @@ export default function serviceMethodWrapper({
             throw error;
           }
           const startTime = Date.now();
+          service._callTimes();
           try {
             const r = await Promise.resolve(method.call(this, newArgs));
 
