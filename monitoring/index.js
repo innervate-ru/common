@@ -182,3 +182,7 @@ export function addCounter(args) {
   _prevSvcCounters[counter.counterName] = () => counter.get(); // в первом периоде, возвращается текущее значение
   return counter;
 }
+
+export function testResetCounters() {
+  Object.keys(_svcCouters).forEach(k => { delete _svcCounters[k]; });
+}
