@@ -184,5 +184,5 @@ export function addCounter(args) {
 }
 
 export function testResetCounters() {
-  Object.keys(_svcCouters).forEach(k => { delete _svcCounters[k]; });
+  Object.keys(_svcCounters).forEach(k => { delete _svcCounters[k]; });
 }
