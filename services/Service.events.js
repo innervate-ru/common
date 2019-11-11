@@ -58,7 +58,7 @@ export default oncePerServices(function defineEvents({bus = missingService('bus'
           serviceType: {type: VType.String().notEmpty()},
           settings: {type: VType.Object()}, // TODO: Check that all values are serializable to JSON
         }),
-        toString: ev => `${ev.service}: settings: '${prettyPrint(ev.settings)}'`,
+        toString: ev => `${ev.service}: settings: ${prettyPrint(ev.settings)}`,
       },
       // service.method
       {
