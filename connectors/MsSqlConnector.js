@@ -152,8 +152,7 @@ export default oncePerServices(function (services) {
       let connection = await this._connection(args);
       try {
         return await connection._exec(args);
-      }
-      finally {
+      } finally {
         connection._end();
       }
     }
@@ -170,8 +169,7 @@ export default oncePerServices(function (services) {
         if (this._service.get('state') === READY) this._service.criticalFailure(error);
         // ошибка связи во время выполнения запроса - возвращаем InvalidServiceStateError, так же как и когда заранее известно, что связи нет
         reject(this._service._buildInvalidStateError(error));
-      }
-      else reject(error);
+      } else reject(error);
     }
   }
 
@@ -211,7 +209,7 @@ export default oncePerServices(function (services) {
      *    - offset - строка, начиная с которой загружаются строки
      *    - limit - строка, до которой включительно загружаются строки
      *    - cancel - promise, который если становится resolved, то прерывает выполнение запроса
-     * @returns {Promise} {rows - полученные данные; hasNext - есть ли дальше строки, при указании limit}
+     * @returns {Promise} {rows - полученные данные; hasNext - есть ли дальше строки, при указании limit; returnValues - объект содержит параметры  OUTPUT}
      */
     exec(args) {
       return this._innerExec(args);
@@ -232,12 +230,13 @@ export default oncePerServices(function (services) {
         let columns = null;
         let res = [];
         let hasNext = false;
+        let returnValues = {};
 
         let request = new Request(query || procedure, (error, rowCount) => {
           if (error && error.code !== 'ECANCEL') {
             this._connector._rejectWithError(reject, error);
           } else {
-            resolve({rows: res, hasNext, columns});
+            resolve({rows: res, hasNext, columns, returnValues});
           }
         });
 
@@ -247,12 +246,14 @@ export default oncePerServices(function (services) {
             for (paramName in params) {
               const paramValue = params[paramName];
               let tedType;
+              let output = false;
               if (paramsDef && hasOwnProperty.call(paramsDef, paramName)) {
                 const def = paramsDef[paramName];
                 if (typeof def === 'object') { // когда заданы дополнительные свойства
                   const {type, length, precision, scale} = def; // TODO: Добавить валидацию
                   if (!hasOwnProperty.call(stringToTediousTypeMap, type)) throw new Error(`Unknown type: ${prettyPrint(type)}`);
                   tedType = stringToTediousTypeMap[type];
+                  if (def.output) output = true;
                 } else if (typeof def === 'string') {
                   if (!hasOwnProperty.call(stringToTediousTypeMap, def)) throw new Error(`Unknown type: ${prettyPrint(def)}`);
                   tedType = stringToTediousTypeMap[def];
@@ -260,10 +261,13 @@ export default oncePerServices(function (services) {
               } else {
                 tedType = tediouseTypeByValue(paramValue);
               }
-              request.addParameter(paramName, tedType, paramValue);
+              if (!output) {
+                request.addParameter(paramName, tedType, paramValue);
+              } else {
+                request.addOutputParameter(paramName, tedType);
+              }
             }
-          }
-          catch (error) {
+          } catch (error) {
             addPrefixToErrorMessage(`Parameter '${paramName}'`, error);
           }
         }
@@ -282,6 +286,9 @@ export default oncePerServices(function (services) {
               hasNext = true;
             }
           rowIndex++;
+        });
+        request.on('returnValue', (paramName, value, metadata) => {
+          returnValues[paramName] = value;
         });
 
         // request.on('doneProc', function () {
