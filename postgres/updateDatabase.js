@@ -4,6 +4,7 @@ import shortid from 'shortid'
 import 'moment-duration-format';
 import errorDataToEvent from '../errors/errorDataToEvent';
 import prettyError from '../utils/prettyError';
+import buildFullErrorMessage from '../utils/buildFullErrorMessage';
 
 (async function start() {
 
@@ -33,12 +34,9 @@ import prettyError from '../utils/prettyError';
     // TODO: Process args
     // TODO: Think of watching files
 
-    evolutions.process({context});
+    await evolutions.process({context});
 
   } catch (error) {
-
-    // if (manager) await manager.dispose();
-
     if (bus) {
       const errEvent = {
         context,

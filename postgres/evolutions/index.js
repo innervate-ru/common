@@ -1,11 +1,9 @@
 import fs from 'fs';
 import path from 'path';
-import configAPI from 'config'
 import {Client as PGClient} from 'pg'
 import oncePerServices from '../../services/oncePerServices'
 import listFiles from '../../utils/listFiles'
 import {fixDependsOn} from "../../services/index";
-import addPrefixToErrorMessage from "../../utils/addPrefixToErrorMessage";
 
 const readFile = Promise.promisify(fs.readFile);
 
@@ -50,7 +48,7 @@ export default oncePerServices(function (services) {
       // TODO: Think of watch
       // TODO: Make color table output
 
-      const isNewDB = await this._checkAndCreateDB();
+      const isNewDB = await this._checkAndCreateDB({context});
       this._client = new PGClient(this._settings);
       await this._client.connect();
       try {
@@ -62,9 +60,9 @@ export default oncePerServices(function (services) {
             service: SERVICE_NAME,
             settings: this._settingsWithoutPassword,
           });
-          await this._createScriptsTable();
+          await this._createScriptsTable({context});
         } else {
-          scripts = await this._loadScripts();
+          scripts = await this._loadScripts({context});
           if (!scripts) {
             bus.error({
               context,
@@ -76,9 +74,25 @@ export default oncePerServices(function (services) {
           }
         }
 
-        const files = await this._loadSQLFiles();
+        const files = await this._loadSQLFiles({context});
 
-        await this._applyFiles({context, files});
+        try {
+          await this._applyFiles({context, files, scripts});
+        } catch (err) {
+          if (err.hasOwnProperty('filename')) {
+            bus.error({
+              context,
+              type: 'evolutions.sqlError',
+              service: SERVICE_NAME,
+              errorMsg: err.message,
+              filename: err.filename,
+              scriptId: err.scriptId,
+              line: err.line,
+            });
+          } else {
+            throw err;
+          }
+        }
 
         // const diff = this._compareFiles({files, scripts});
 
@@ -87,7 +101,7 @@ export default oncePerServices(function (services) {
       }
     }
 
-    async _loadSQLFiles() {
+    async _loadSQLFiles({context}) {
       return (await Promise.all([
         Promise.all((await listFiles(this._schemaDir)).map(async (v) => ({
           schema: true,
@@ -101,7 +115,7 @@ export default oncePerServices(function (services) {
       ])).flatMap(v => v);
     }
 
-    async _checkAndCreateDB() {
+    async _checkAndCreateDB({context}) {
       const client = new PGClient({
         ...this._settings,
         database: 'postgres',
@@ -118,7 +132,7 @@ export default oncePerServices(function (services) {
       }
     }
 
-    async _loadScripts() {
+    async _loadScripts({context}) {
       try {
         return (await this._client.query(`SELECT * FROM __scripts ORDER BY id;`)).rows;
       } catch (err) {
@@ -127,7 +141,7 @@ export default oncePerServices(function (services) {
       }
     }
 
-    async _createScriptsTable() {
+    async _createScriptsTable({context}) {
       await this._client.query(`
 CREATE TABLE __scripts (
   id INT NOT NULL,
@@ -139,33 +153,143 @@ CREATE TABLE __scripts (
 CREATE UNIQUE INDEX ON __scripts (id);`);
     }
 
-    async _applyFiles({context, files}) {
-      const list = files.map((file, i) => {
+    async _applyFiles({context, files, scripts, dev}) {
+      let changeStart = 0;
+      for (; changeStart < scripts.length && changeStart < files.length; changeStart++) {
+        const file = files[changeStart];
+        const script = scripts[changeStart];
+        if (file.filebody !== script.sql) break;
+      }
+      // TODO: Check for locked files
+      for (let i = scripts.length; i-- > changeStart;) {
+        const script = scripts[i];
+        await this._transaction({
+          context, body: async () => {
+            const updown = Evolutions.parseSQL(script.sql);
+            try {
+              await this._client.query(updown.downs);
+            } catch (err) {
+              if (err.hasOwnProperty('position')) {
+                const lines = updown.ups.substr(0, err.position).match(/\r?\n/g);
+                err.filename = script.filename;
+                err.sctiptId = script.id;
+                err.line = updown.downsLine + 1 + (lines ? lines.length : 0);
+              }
+              throw err;
+            }
+            await this._client.query(updown.downs);
+            await this._client.query(`DELETE FROM __scripts WHERE id = $1`, [script.id]);
+          }
+        });
+      }
+      for (let i = changeStart; i < files.length; i++) {
+        const file = files[i];
+        let updown;
         try {
-          return {
-            id: i + 1,
-            ...file,
-            ...Evolutions.parseSQL(file.filebody),
-          };
+          updown = Evolutions.parseSQL(file.filebody);
         } catch (err) {
-          addPrefixToErrorMessage(`File '${file.filename}'`, err);
-        }
-      });
-      for (const updown of list) {
-        try {
-          await this._client.query(`BEGIN`);
-          await this._client.query(updown.ups);
-          await this._client.query(`INSERT INTO __scripts(id, filename, locked, sql) VALUES ($1, $2, $3, $4)`, [
-            updown.id,
-            updown.filename,
-            false,
-            updown.filebody,
-          ]);
-          await this._client.query(`COMMIT`);
-        } catch (err) {
-          await this._client.query(`ROLLBACK`);
+          err.filename = file.filename;
           throw err;
         }
+        // накатываем ups и откатываем downs.  При первой попытке выводим ошибки.  При второй считаем что в
+        // скрипте ошибка, которую должен исправить пользователь.
+        for (let attempt = 0; ; attempt++) {
+          let isError = false;
+          await this._transaction({
+            context, body: async () => {
+              try {
+                await this._client.query(updown.ups);
+              } catch (err) {
+                if (err.hasOwnProperty('position')) {
+                  const lines = updown.ups.substr(0, err.position).match(/\r?\n/g);
+                  err.filename = file.filename;
+                  err.line = updown.upsLine + 1 + (lines ? lines.length : 0);
+                  if (attempt > 0) throw err;
+                  isError = true;
+                  bus.error({
+                    context,
+                    type: 'evolutions.sqlError',
+                    service: SERVICE_NAME,
+                    errorMsg: err.message,
+                    filename: err.filename,
+                    line: err.line,
+                  });
+                } else {
+                  throw err;
+                }
+              }
+            }
+          });
+          await this._transaction({
+            context, body: async () => {
+              try {
+                await this._client.query(updown.downs);
+              } catch (err) {
+                if (err.hasOwnProperty('position')) {
+                  const lines = updown.downs.substr(0, err.position).match(/\r?\n/g);
+                  err.filename = file.filename;
+                  err.line = updown.upsLine + 1 + (lines ? lines.length : 0);
+                  if (attempt > 0) throw err;
+                  isError = true;
+                  bus.error({
+                    context,
+                    type: 'evolutions.sqlError',
+                    service: SERVICE_NAME,
+                    errorMsg: err.message,
+                    filename: err.filename,
+                    line: err.line,
+                  });
+                } else {
+                  throw err;
+                }
+              }
+            }
+          });
+          if (!isError) break;
+        }
+        await this._transaction({
+          context, body: async () => {
+            try {
+              await this._client.query(updown.ups);
+            } catch (err) {
+              if (err.hasOwnProperty('position')) {
+                const lines = updown.ups.substr(0, err.position).match(/\r?\n/g);
+                err.filename = file.filename;
+                err.line = updown.upsLine + 1 + (lines ? lines.length : 0);
+                throw err;
+              }
+            }
+            if (dev && updown.dev) {
+              try {
+                await this._client.query(updown.dev);
+              } catch (err) {
+                if (err.hasOwnProperty('position')) {
+                  const lines = updown.ups.substr(0, err.position).match(/\r?\n/g);
+                  err.filename = file.filename;
+                  err.line = updown.devLine + 1 + (lines ? lines.length : 0);
+                }
+                throw err;
+              }
+            }
+            await this._client.query(`INSERT INTO __scripts(id, filename, locked, sql) VALUES ($1, $2, $3, $4)`, [
+              i,
+              file.filename,
+              false, // TODO: true, is prod mode and its schema
+              file.filebody,
+            ]);
+          }
+        });
+      }
+    }
+
+    async _transaction({context, body}) {
+      try {
+        await this._client.query(`BEGIN`);
+        await body();
+        await this._client.query(`COMMIT`);
+      } catch (err) {
+        await this._client.query(`ROLLBACK`);
+        throw err;
       }
     }
 
@@ -184,6 +308,7 @@ CREATE UNIQUE INDEX ON __scripts (id);`);
       let s = -1; // 0 - !Ups; 1 - !Downs; 2 - !Dev
       let startLine;
       const lines = filebody.split(/\r?\n/);
+
       function saveBlock(end) {
         if (s >= 0) {
           res[['ups', 'downs', 'dev'][s]] = lines.slice(startLine + 1, end).join('\n');
@@ -191,18 +316,19 @@ CREATE UNIQUE INDEX ON __scripts (id);`);
         }
         startLine = end;
       }
+
       lines.forEach((line, i) => {
         if (/^\s*--\s*!\s*up[s]?\s*$/i.test(line)) {
           saveBlock(i);
-          if (res.hasOwnProperty('ups')) throw new Error(`Duplicated '-- !Ups' at line ${i + 1}`);
+          if (res.hasOwnProperty('ups')) throw new Error(`line ${i + 1}: duplicated '-- !Ups'`);
           s = 0;
         } else if (/^\s*--\s*!\s*down[s]?\s*$/i.test(line)) {
           saveBlock(i);
-          if (res.hasOwnProperty('downs')) throw new Error(`Duplicated '-- !Downs' at line ${i + 1}`);
+          if (res.hasOwnProperty('downs')) throw new Error(`line ${i + 1}: duplicated '-- !Downs'`);
           s = 1;
         } else if (/^\s*--\s*!\s*dev\s*$/i.test(line)) {
           saveBlock(i);
-          if (res.hasOwnProperty('dev')) throw new Error(`Duplicated '-- !Dev' at line ${i + 1}`);
+          if (res.hasOwnProperty('dev')) throw new Error(`line ${i + 1}: duplicated '-- !Dev'`);
           s = 2;
         }
       });
@@ -210,11 +336,11 @@ CREATE UNIQUE INDEX ON __scripts (id);`);
       const hasUps = res.hasOwnProperty('ups');
       const hasDowns = res.hasOwnProperty('downs');
       if (!hasUps && !hasDowns) {
-        throw new Error(`Missing '-- !Ups' and '-- !Downs' sections`);
+        throw new Error(`мissing '-- !Ups' and '-- !Downs' sections`);
       } else if (!hasUps) {
-        throw new Error(`Missing '-- !Ups' section`);
+        throw new Error(`мissing '-- !Ups' section`);
       } else if (!hasDowns) {
-        throw new Error(`Missing '-- !Downs' section`);
+        throw new Error(`мissing '-- !Downs' section`);
       }
       return res;
     }
