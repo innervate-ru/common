@@ -29,7 +29,10 @@ import buildFullErrorMessage from '../utils/buildFullErrorMessage';
 
     const Evolutions = require('./evolutions').default(consoleAndBusServicesOnly)
 
-    const evolutions = new Evolutions(configAPI.get('evolutions'));
+    const evolutions = new Evolutions({
+      ...configAPI.get('postgres'),
+      ...(configAPI.has('evolutions') ? configAPI.get('evolutions') : {}),
+    });
 
     // TODO: Process args
     // TODO: Think of watching files

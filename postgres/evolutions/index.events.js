@@ -30,5 +30,13 @@ export default oncePerServices(function defineEvents({ bus = missingService('bus
       })),
       toString: (ev) => `${ev.service}: '${ev.filename}'${ev.scriptId ? ` (scriptId: ${ev.scriptId})` : ''}${ev.line !== undefined ? `: line ${ev.line}` : ''}: ${ev.errorMsg}`,
     },
+    {
+      kind: 'info',
+      type: 'evolutions.change',
+      validate: validateEventFactory(Object.assign({
+        _extends: BaseEvent,
+      })),
+      toString: (ev) => `${ev.service}: '${ev.filename}': ${ev.change} file`,
+    },
   ]);
 })

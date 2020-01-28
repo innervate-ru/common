@@ -76,8 +76,13 @@ export default oncePerServices(function (services) {
 
         const files = await this._loadSQLFiles({context});
 
+        if (!this._compareFiles({context, files, scripts})) {
+          return;
+        }
+
         try {
-          await this._applyFiles({context, files, scripts});
+          const dev = process.env.NODE_ENV === 'development';
+          await this._applyFiles({context, dev, files, scripts});
         } catch (err) {
           if (err.hasOwnProperty('filename')) {
             bus.error({
@@ -93,8 +98,6 @@ export default oncePerServices(function (services) {
             throw err;
           }
         }
-
-        // const diff = this._compareFiles({files, scripts});
 
       } finally {
         await this._client.end();
@@ -122,7 +125,7 @@ export default oncePerServices(function (services) {
       });
       await client.connect();
       try {
-        await client.query(`create database ${this._settings.database};`);
+        await client.query(`CREATE DATABASE ${this._settings.database};`);
         return true;
       } catch (err) {
         // database exists
@@ -134,7 +137,7 @@ export default oncePerServices(function (services) {
 
     async _loadScripts({context}) {
       try {
-        return (await this._client.query(`SELECT * FROM __scripts ORDER BY id;`)).rows;
+        return (await this._client.query(`SELECT * FROM __scripts ORDER BY index;`)).rows;
       } catch (err) {
         if (err.code === '42P01') return; // table does not exists
         throw err;
@@ -144,13 +147,14 @@ export default oncePerServices(function (services) {
     async _createScriptsTable({context}) {
       await this._client.query(`
 CREATE TABLE __scripts (
-  id INT NOT NULL,
+  index INT NOT NULL,
   filename VARCHAR(1024) NOT NULL,
   locked BOOLEAN NOT NULL DEFAULT FALSE,
   sql TEXT NOT NULL,
-  applied_at TIMESTAMP NOT NULL DEFAULT now()
+  applied_at TIMESTAMP
 );
-CREATE UNIQUE INDEX ON __scripts (id);`);
+CREATE UNIQUE INDEX ON __scripts (filename);
+CREATE UNIQUE INDEX ON __scripts (index);`);
     }
 
     async _applyFiles({context, files, scripts, dev}) {
@@ -158,43 +162,52 @@ CREATE UNIQUE INDEX ON __scripts (id);`);
       for (; changeStart < scripts.length && changeStart < files.length; changeStart++) {
         const file = files[changeStart];
         const script = scripts[changeStart];
-        if (file.filebody !== script.sql) break;
+        if (script.applied_at === null || file.filename !== script.filename || file.filebody !== script.sql) break;
       }
       // TODO: Check for locked files
-      for (let i = scripts.length; i-- > changeStart;) {
-        const script = scripts[i];
-        await this._transaction({
-          context, body: async () => {
-            const updown = Evolutions.parseSQL(script.sql);
+      await this._transaction({
+        context, body: async () => {
+          for (let i = scripts.length; i-- > changeStart;) {
+            const script = scripts[i];
             try {
-              await this._client.query(updown.downs);
-            } catch (err) {
-              if (err.hasOwnProperty('position')) {
-                const lines = updown.ups.substr(0, err.position).match(/\r?\n/g);
-                err.filename = script.filename;
-                err.sctiptId = script.id;
-                err.line = updown.downsLine + 1 + (lines ? lines.length : 0);
+              if (script.applied_at !== null) {
+                const updown = Evolutions.parseSQL(script.sql);
+                try {
+                  await this._client.query(updown.downs);
+                } catch (err) {
+                  if (err.hasOwnProperty('position')) {
+                    const lines = updown.ups.substr(0, err.position).match(/\r?\n/g);
+                    err.line = updown.downsLine + 1 + (lines ? lines.length : 0);
+                  }
+                  throw err;
+                }
               }
+              await this._client.query(`DELETE FROM __scripts WHERE index = $1`, [script.index]);
+            } catch (err) {
+              err.filename = script.filename;
+              err.sctiptId = script.id;
               throw err;
             }
-            await this._client.query(updown.downs);
-            await this._client.query(`DELETE FROM __scripts WHERE id = $1`, [script.id]);
           }
-        });
-      }
+        }
+      });
+      await this._transaction({
+        context, body: async () => {
+          for (let i = changeStart; i < files.length; i++) {
+            const file = files[i];
+            await this._client.query(`INSERT INTO __scripts(index, filename, sql) VALUES ($1, $2, $3)`, [
+              i,
+              file.filename,
+              file.filebody,
+            ]);
+          }
+        }
+      });
       for (let i = changeStart; i < files.length; i++) {
         const file = files[i];
         let updown;
         try {
           updown = Evolutions.parseSQL(file.filebody);
-        } catch (err) {
-          err.filename = file.filename;
-          throw err;
-        }
-        // накатываем ups и откатываем downs.  При первой попытке выводим ошибки.  При второй считаем что в
-        // скрипте ошибка, которую должен исправить пользователь.
-        for (let attempt = 0; ; attempt++) {
-          let isError = false;
           await this._transaction({
             context, body: async () => {
               try {
@@ -202,83 +215,51 @@ CREATE UNIQUE INDEX ON __scripts (id);`);
               } catch (err) {
                 if (err.hasOwnProperty('position')) {
                   const lines = updown.ups.substr(0, err.position).match(/\r?\n/g);
-                  err.filename = file.filename;
                   err.line = updown.upsLine + 1 + (lines ? lines.length : 0);
-                  if (attempt > 0) throw err;
-                  isError = true;
-                  bus.error({
-                    context,
-                    type: 'evolutions.sqlError',
-                    service: SERVICE_NAME,
-                    errorMsg: err.message,
-                    filename: err.filename,
-                    line: err.line,
-                  });
-                } else {
-                  throw err;
+                  err.message = `before '!Downs': ${err.message}`;
                 }
+                throw err;
               }
-            }
-          });
-          await this._transaction({
-            context, body: async () => {
               try {
                 await this._client.query(updown.downs);
               } catch (err) {
                 if (err.hasOwnProperty('position')) {
                   const lines = updown.downs.substr(0, err.position).match(/\r?\n/g);
-                  err.filename = file.filename;
-                  err.line = updown.upsLine + 1 + (lines ? lines.length : 0);
-                  if (attempt > 0) throw err;
-                  isError = true;
-                  bus.error({
-                    context,
-                    type: 'evolutions.sqlError',
-                    service: SERVICE_NAME,
-                    errorMsg: err.message,
-                    filename: err.filename,
-                    line: err.line,
-                  });
-                } else {
-                  throw err;
+                  err.line = updown.downsLine + 1 + (lines ? lines.length : 0);
                 }
-              }
-            }
-          });
-          if (!isError) break;
-        }
-        await this._transaction({
-          context, body: async () => {
-            try {
-              await this._client.query(updown.ups);
-            } catch (err) {
-              if (err.hasOwnProperty('position')) {
-                const lines = updown.ups.substr(0, err.position).match(/\r?\n/g);
-                err.filename = file.filename;
-                err.line = updown.upsLine + 1 + (lines ? lines.length : 0);
                 throw err;
               }
-            }
-            if (dev && updown.dev) {
               try {
-                await this._client.query(updown.dev);
+                await this._client.query(updown.ups);
               } catch (err) {
                 if (err.hasOwnProperty('position')) {
                   const lines = updown.ups.substr(0, err.position).match(/\r?\n/g);
-                  err.filename = file.filename;
-                  err.line = updown.devLine + 1 + (lines ? lines.length : 0);
+                  err.line = updown.upsLine + 1 + (lines ? lines.length : 0);
+                  err.message = `after '!Downs': ${err.message}`;
                 }
                 throw err;
               }
+              if (dev && updown.dev) {
+                try {
+                  await this._client.query(updown.dev);
+                } catch (err) {
+                  if (err.hasOwnProperty('position')) {
+                    const lines = updown.dev.substr(0, err.position).match(/\r?\n/g);
+                    err.line = updown.devLine + 1 + (lines ? lines.length : 0);
+                  }
+                  throw err;
+                }
+              }
+              await this._client.query(`UPDATE __scripts SET locked = $2, applied_at = now() WHERE index = $1`, [
+                i,
+                false // TODO: true, is prod mode and its schema
+              ]);
             }
-            await this._client.query(`INSERT INTO __scripts(id, filename, locked, sql) VALUES ($1, $2, $3, $4)`, [
-              i,
-              file.filename,
-              false, // TODO: true, is prod mode and its schema
-              file.filebody,
-            ]);
-          }
-        });
+          });
+        } catch (err) {
+          err.filename = file.filename;
+          throw err;
+        }
       }
     }
 
@@ -293,8 +274,48 @@ CREATE UNIQUE INDEX ON __scripts (id);`);
       }
     }
 
-    _compareFiles({files, scripts}) {
-      // TODO:
+    _compareFiles({context, files, scripts}) {
+      let changed = false;
+      files.forEach(file => {
+        const script = scripts.find(v => v.filename === file.filename);
+        if (script) {
+          if (script.sql !== file.filebody) {
+            changed = true;
+            bus.info({
+              context,
+              type: 'evolutions.change',
+              service: SERVICE_NAME,
+              change: 'changed',
+              filename: file.filename,
+            });
+          }
+        } else {
+          changed = true;
+          bus.info({
+            context,
+            type: 'evolutions.change',
+            service: SERVICE_NAME,
+            change: 'new',
+            filename: file.filename,
+          });
+        }
+      });
+      scripts.forEach(script => {
+        if (script.applied_at === null) {
+          changed = true;
+        }
+        if (!files.find(v => v.filename === script.filename)) {
+          changed = true;
+          bus.info({
+            context,
+            type: 'evolutions.change',
+            service: SERVICE_NAME,
+            change: 'removed',
+            filename: script.filename,
+          });
+        }
+      })
+      return changed;
     }
 
     /**
