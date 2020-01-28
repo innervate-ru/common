@@ -1,9 +1,11 @@
-import fs from 'fs';
-import path from 'path';
+import fs from 'fs'
+import path from 'path'
+import readline from 'readline'
 import {Client as PGClient} from 'pg'
 import oncePerServices from '../../services/oncePerServices'
 import listFiles from '../../utils/listFiles'
-import {fixDependsOn} from "../../services/index";
+import {fixDependsOn} from "../../services/index"
+import chalk from 'chalk'
 
 const readFile = Promise.promisify(fs.readFile);
 
@@ -23,11 +25,17 @@ export default oncePerServices(function (services) {
 
   class Evolutions {
 
-    constructor(settings) {
-      pgSchema.ctor_settings(this, settings);
-      this._settings = settings;
-      this._schemaDir = path.resolve(process.cwd(), 'db/evolutions/schema');
-      this._codeDir = path.resolve(process.cwd(), 'db/evolutions/code');
+    async process(args) {
+      schema.process_args(args);
+      const {context, postgres, silent, lock, dev, schemaDir, codeDir} = args;
+
+      pgSchema.ctor_settings(this, postgres);
+      this._settings = postgres;
+      this._schemaDir = path.resolve(process.cwd(), schemaDir || 'db/evolutions/schema');
+      this._codeDir = path.resolve(process.cwd(), codeDir || 'db/evolutions/code');
+      this._silent = !!silent;
+      this._lock = !!lock;
+      this._dev = !!dev;
 
       this._settingsWithoutPassword = {...this._settings};
       delete this._settingsWithoutPassword.password;
@@ -38,28 +46,15 @@ export default oncePerServices(function (services) {
         serviceType: SERVICE_TYPE,
         settings: this._settingsWithoutPassword,
       });
-    }
-
-    async process(args) {
-      schema.process_args(args);
-      const {context} = args;
-
-      // TODO: arg - lock in production
-      // TODO: Think of watch
-      // TODO: Make color table output
 
       const isNewDB = await this._checkAndCreateDB({context});
+      if (isNewDB === undefined) return true;
+
       this._client = new PGClient(this._settings);
       await this._client.connect();
       try {
         let scripts = [];
         if (isNewDB) {
-          bus.info({
-            context,
-            type: 'evolutions.dbCreated',
-            service: SERVICE_NAME,
-            settings: this._settingsWithoutPassword,
-          });
           await this._createScriptsTable({context});
         } else {
           scripts = await this._loadScripts({context});
@@ -76,29 +71,89 @@ export default oncePerServices(function (services) {
 
         const files = await this._loadSQLFiles({context});
 
-        if (!this._compareFiles({context, files, scripts})) {
-          return;
-        }
+        let applyChangesToProd = false;
 
-        try {
-          const dev = process.env.NODE_ENV === 'development';
-          await this._applyFiles({context, dev, files, scripts});
-        } catch (err) {
-          if (err.hasOwnProperty('filename')) {
-            bus.error({
+        if (!this._compareFiles({context, files, scripts})) {
+          bus.info({
+            context,
+            type: 'evolutions.upToDate',
+            service: SERVICE_NAME,
+          });
+        } else {
+          if (this._lock) {
+            if (!(applyChangesToProd = this._silent || await new Promise((resolve) => {
+              const rl = readline.createInterface({
+                input: process.stdin,
+                output: process.stdout
+              });
+              rl.question(chalk.yellow('Do you want to apply those changes to the production database? '), (answer) => {
+                resolve(/^(y(es)?|true)$/i.test(answer.trim()));
+                rl.close();
+              });
+            }))) return;
+          }
+
+          try {
+            await this._applyFiles({context, files, scripts});
+            bus.info({
               context,
-              type: 'evolutions.sqlError',
+              type: 'evolutions.applied',
               service: SERVICE_NAME,
-              errorMsg: err.message,
-              filename: err.filename,
-              scriptId: err.scriptId,
-              line: err.line,
             });
-          } else {
+          } catch (err) {
+            if (err.hasOwnProperty('filename')) {
+              bus.error({
+                context,
+                type: 'evolutions.sqlError',
+                service: SERVICE_NAME,
+                errorMsg: err.message,
+                filename: err.filename,
+                scriptId: err.scriptId,
+                line: err.line,
+              });
+              return true;
+            } else if (err.code === 'locked') {
+              bus.error({
+                context,
+                type: 'evolutions.locked',
+                service: SERVICE_NAME,
+                errorMsg: err.message,
+                filename: err.filename,
+              });
+              return true;
+            }
             throw err;
           }
         }
 
+        if (this._lock) {
+          let i;
+          for (i = files.length; i-- > 0;) {
+            const file = files[i];
+            if (file.schema) break;
+          }
+
+          const res = await this._client.query(`SELECT index FROM __scripts WHERE index <= $1 AND NOT locked`, [i]);
+          if (res.rowCount > 0) {
+            if (applyChangesToProd || this._silent || await new Promise((resolve) => {
+              const rl = readline.createInterface({
+                input: process.stdin,
+                output: process.stdout
+              });
+              rl.question(chalk.yellow('Do you want to lock a current database schema? '), (answer) => {
+                resolve(/^(y(es)?|true)$/i.test(answer.trim()));
+                rl.close();
+              });
+            })) {
+              await this._client.query(`UPDATE __scripts SET locked = true WHERE index <= $1 AND NOT locked`, [i]);
+              bus.info({
+                context,
+                type: 'evolutions.schemaLocked',
+                service: SERVICE_NAME,
+              });
+            }
+          }
+        }
       } finally {
         await this._client.end();
       }
@@ -125,11 +180,28 @@ export default oncePerServices(function (services) {
       });
       await client.connect();
       try {
-        await client.query(`CREATE DATABASE ${this._settings.database};`);
-        return true;
-      } catch (err) {
-        // database exists
-        if (!err.code || err.code !== '42P04') throw err;
+        const res = await client.query(`SELECT datname FROM pg_catalog.pg_database WHERE datname = $1`, [this._settings.database]);
+        if (res.rowCount === 0) {
+          if (!(this._silent || await new Promise((resolve) => {
+            const rl = readline.createInterface({
+              input: process.stdin,
+              output: process.stdout
+            });
+            rl.question(chalk.yellow(`Do you want to create a new database '${this._settings.database}'? `), (answer) => {
+              resolve(/^(y(es)?|true)$/i.test(answer.trim()));
+              rl.close();
+            });
+          }))) return;
+          await client.query(`CREATE DATABASE ${this._settings.database};`);
+          bus.info({
+            context,
+            type: 'evolutions.dbCreated',
+            service: SERVICE_NAME,
+            settings: this._settingsWithoutPassword,
+          });
+          return true;
+        }
+        return false;
       } finally {
         await client.end();
       }
@@ -157,14 +229,21 @@ CREATE UNIQUE INDEX ON __scripts (filename);
 CREATE UNIQUE INDEX ON __scripts (index);`);
     }
 
-    async _applyFiles({context, files, scripts, dev}) {
+    async _applyFiles({context, files, scripts}) {
       let changeStart = 0;
       for (; changeStart < scripts.length && changeStart < files.length; changeStart++) {
         const file = files[changeStart];
         const script = scripts[changeStart];
         if (script.applied_at === null || file.filename !== script.filename || file.filebody !== script.sql) break;
       }
-      // TODO: Check for locked files
+      for (let i = scripts.length; i-- > changeStart;) {
+        const script = scripts[i];
+        if (script.locked) {
+          const err = new Error(`cannot update database. it is locked until '${script.filename}'`);
+          err.code = 'locked';
+          throw err;
+        }
+      }
       await this._transaction({
         context, body: async () => {
           for (let i = scripts.length; i-- > changeStart;) {
@@ -239,7 +318,7 @@ CREATE UNIQUE INDEX ON __scripts (index);`);
                 }
                 throw err;
               }
-              if (dev && updown.dev) {
+              if (this._dev && updown.dev) {
                 try {
                   await this._client.query(updown.dev);
                 } catch (err) {
@@ -250,10 +329,7 @@ CREATE UNIQUE INDEX ON __scripts (index);`);
                   throw err;
                 }
               }
-              await this._client.query(`UPDATE __scripts SET locked = $2, applied_at = now() WHERE index = $1`, [
-                i,
-                false // TODO: true, is prod mode and its schema
-              ]);
+              await this._client.query(`UPDATE __scripts SET applied_at = now() WHERE index = $1`, [i]);
             }
           });
         } catch (err) {
@@ -314,7 +390,7 @@ CREATE UNIQUE INDEX ON __scripts (index);`);
             filename: script.filename,
           });
         }
-      })
+      });
       return changed;
     }
 
@@ -367,5 +443,7 @@ CREATE UNIQUE INDEX ON __scripts (index);`);
     }
   }
 
-  return Evolutions;
+  return function process(options) {
+    return new Evolutions().process(options);
+  };
 });

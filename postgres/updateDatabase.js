@@ -27,17 +27,15 @@ import buildFullErrorMessage from '../utils/buildFullErrorMessage';
     const eventLoader = require('../services/defineEvents').default(consoleAndBusServicesOnly);
     await eventLoader(path.join(process.cwd(), 'src'));
 
-    const Evolutions = require('./evolutions').default(consoleAndBusServicesOnly)
-
-    const evolutions = new Evolutions({
-      ...configAPI.get('postgres'),
-      ...(configAPI.has('evolutions') ? configAPI.get('evolutions') : {}),
+    await require('./evolutions').default(consoleAndBusServicesOnly)({
+      postgres: {
+        ...configAPI.get('postgres'),
+        ...(configAPI.has('evolutions') ? configAPI.get('evolutions') : {}),
+      },
+      lock: process.env.NODE_ENV === 'production',
+      dev: process.env.NODE_ENV === 'development',
+      // silent: true,
     });
-
-    // TODO: Process args
-    // TODO: Think of watching files
-
-    await evolutions.process({context});
 
   } catch (error) {
     if (bus) {
