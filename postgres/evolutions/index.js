@@ -5,7 +5,6 @@ import {Client as PGClient} from 'pg'
 import oncePerServices from '../../services/oncePerServices'
 import listFiles from '../../utils/listFiles'
 import {fixDependsOn} from "../../services/index"
-import chalk from 'chalk'
 
 const readFile = Promise.promisify(fs.readFile);
 
@@ -81,16 +80,9 @@ export default oncePerServices(function (services) {
           });
         } else {
           if (this._lock) {
-            if (!(applyChangesToProd = this._silent || await new Promise((resolve) => {
-              const rl = readline.createInterface({
-                input: process.stdin,
-                output: process.stdout
-              });
-              rl.question(chalk.yellow('Do you want to apply those changes to the production database? '), (answer) => {
-                resolve(/^(y(es)?|true)$/i.test(answer.trim()));
-                rl.close();
-              });
-            }))) return;
+            if (!(applyChangesToProd = await this._ask(`Do you want to apply those changes to the production database?`))) {
+              return;
+            }
           }
 
           try {
@@ -135,16 +127,7 @@ export default oncePerServices(function (services) {
 
           const res = await this._client.query(`SELECT index FROM __scripts WHERE index <= $1 AND NOT locked`, [i]);
           if (res.rowCount > 0) {
-            if (applyChangesToProd || this._silent || await new Promise((resolve) => {
-              const rl = readline.createInterface({
-                input: process.stdin,
-                output: process.stdout
-              });
-              rl.question(chalk.yellow('Do you want to lock a current database schema? '), (answer) => {
-                resolve(/^(y(es)?|true)$/i.test(answer.trim()));
-                rl.close();
-              });
-            })) {
+            if (applyChangesToProd || await this._ask(`Do you want to lock a current database schema?`)) {
               await this._client.query(`UPDATE __scripts SET locked = true WHERE index <= $1 AND NOT locked`, [i]);
               bus.info({
                 context,
@@ -182,16 +165,9 @@ export default oncePerServices(function (services) {
       try {
         const res = await client.query(`SELECT datname FROM pg_catalog.pg_database WHERE datname = $1`, [this._settings.database]);
         if (res.rowCount === 0) {
-          if (!(this._silent || await new Promise((resolve) => {
-            const rl = readline.createInterface({
-              input: process.stdin,
-              output: process.stdout
-            });
-            rl.question(chalk.yellow(`Do you want to create a new database '${this._settings.database}'? `), (answer) => {
-              resolve(/^(y(es)?|true)$/i.test(answer.trim()));
-              rl.close();
-            });
-          }))) return;
+          if (!(await this._ask(`Do you want to create a new database '${this._settings.database}'?`))) {
+            return;
+          }
           await client.query(`CREATE DATABASE ${this._settings.database};`);
           bus.info({
             context,
@@ -337,6 +313,19 @@ CREATE UNIQUE INDEX ON __scripts (index);`);
           throw err;
         }
       }
+    }
+
+    async _ask(question) {
+      return this._silent || await new Promise((resolve) => {
+        const rl = readline.createInterface({
+          input: process.stdin,
+          output: process.stdout
+        });
+        rl.question(bus._warn(`${question} `), (answer) => {
+          resolve(/^(y(es)?|true)$/i.test(answer.trim()));
+          rl.close();
+        });
+      })
     }
 
     async _transaction({context, body}) {

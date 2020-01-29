@@ -24,7 +24,6 @@ const hasOwnProperty = Object.prototype.hasOwnProperty;
 const realConsole = console;
 
 const noColor = (s) => s;
-let logError = noColor, logWarn = noColor, logInfo = noColor, logEvent = noColor;
 
 let graylog = null, graylogCount = 0, graylogStopResolve;
 let graylogBackup = null;
@@ -187,12 +186,12 @@ export default function (services = {}) {
     if (!hasOwnProperty.call(ev, 'type')) throw new Error(`Missing option 'type'`);
     const type = ev.type;
     if (!hasOwnProperty.call(config, type))
-      realConsole.warn(logWarn(`Not registered event type '${type}': ${prettyPrint(ev)}`));
+      realConsole.warn(this._warn(`Not registered event type '${type}': ${prettyPrint(ev)}`));
     else {
       const evConfig = config[type];
       if (hasOwnProperty.call(evConfig, 'validate'))
         evConfig.validate(ev, validateArgumentEvOptions);
-      if (evConfig.kind !== method) realConsole.warn(logWarn(`Event of kind '${evConfig.kind}' reported thru '${method}': ${prettyPrint(ev)}`));
+      if (evConfig.kind !== method) realConsole.warn(this._warn(`Event of kind '${evConfig.kind}' reported thru '${method}': ${prettyPrint(ev)}`));
       return evConfig;
     }
   }
@@ -215,12 +214,14 @@ export default function (services = {}) {
       if (!(color === undefined || typeof color === 'boolean')) invalidArgument('color', color);
       if (!(listeners === undefined || listeners === null || Array.isArray(listeners))) invalidArgument('listeners', listeners);
 
+      this._error = this._warn = this._info = this._event = noColor;
+
       if (color) {
         const chalk = require('chalk');
-        logError = chalk.red;
-        logWarn = chalk.yellow;
-        logInfo = chalk.blue;
-        logEvent = chalk.cyan;
+        this._error = chalk.red;
+        this._warn = chalk.yellow;
+        this._info = chalk.blue;
+        this._event = chalk.cyan;
       }
 
       graylogListeners = listeners;
@@ -278,10 +279,10 @@ export default function (services = {}) {
 
     on(evType, cb) {
       if (testMode && testMode.bus) {
-        if (!hasOwnProperty.call(this._config, evType)) realConsole.warn(logWarn(`event of type '${evType}' is not registered`));
+        if (!hasOwnProperty.call(this._config, evType)) realConsole.warn(this._warn(`event of type '${evType}' is not registered`));
       } else {
         if (!hasOwnProperty.call(this._config, evType)) {
-          realConsole.warn(logWarn(new Error(`event of type '${evType}' is not registered`).stack));
+          realConsole.warn(this._warn(new Error(`event of type '${evType}' is not registered`).stack));
         }
       }
       super.on(evType, cb);
@@ -351,7 +352,7 @@ export default function (services = {}) {
       ev.level = CRITICAL_ERROR;
       this.emitEvent(ev);
       const evm = addMessageField(ev, evConfig, this._alterToString);
-      if (CRITICAL_ERROR <= this._clevel && evm) console.error(logError(evm.message));
+      if (CRITICAL_ERROR <= this._clevel && evm) console.error(this._error(evm.message));
       graylogSend(evm || ev, this);
     }
 
@@ -365,7 +366,7 @@ export default function (services = {}) {
       ev.level = ERROR;
       this.emitEvent(ev);
       const evm = addMessageField(ev, evConfig, this._alterToString);
-      if (ERROR <= this._clevel && evm) console.error(logError(evm.message));
+      if (ERROR <= this._clevel && evm) console.error(this._error(evm.message));
       graylogSend(evm || ev, this);
     }
 
@@ -379,7 +380,7 @@ export default function (services = {}) {
       this.emitEvent(ev);
       ev.level = WARN;
       const evm = addMessageField(ev, evConfig, this._alterToString);
-      if (WARN <= this._clevel && evm) console.warn(logWarn(evm.message));
+      if (WARN <= this._clevel && evm) console.warn(this._warn(evm.message));
       graylogSend(evm || ev, this);
     }
 
@@ -393,7 +394,7 @@ export default function (services = {}) {
       ev.level = INFO;
       this.emitEvent(ev);
       const evm = addMessageField(ev, evConfig, this._alterToString);
-      if (INFO <= this._clevel && evm) console.info(logInfo(evm.message));
+      if (INFO <= this._clevel && evm) console.info(this._info(evm.message));
       graylogSend(evm || ev, this);
     }
 
@@ -435,7 +436,7 @@ export default function (services = {}) {
       ev.level = EVENT;
       this.emitEvent(ev);
       const evm = addMessageField(ev, evConfig, this._alterToString);
-      if (EVENT <= this._clevel && evm) console.info(logEvent(evm.message));
+      if (EVENT <= this._clevel && evm) console.info(this._event(evm.message));
       graylogSend(evm || ev, this);
     }
 
