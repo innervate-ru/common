@@ -321,7 +321,7 @@ CREATE UNIQUE INDEX ON __scripts (index);`);
           input: process.stdin,
           output: process.stdout
         });
-        rl.question(bus._warn(`${question} `), (answer) => {
+        rl.question(bus._warn(`${question} [y/N] `), (answer) => {
           resolve(/^(y(es)?|true)$/i.test(answer.trim()));
           rl.close();
         });

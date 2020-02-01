@@ -16,8 +16,13 @@ export default async function(dir) {
 }
 
 async function list(dir) {
-  return readDir(dir).map(async (filename) => {
-    const fullpath = path.join(dir, filename);
-    return (await stat(fullpath)).isDirectory() ? await list(fullpath) : fullpath;
-  });
+  return readDir(dir).reduce((res, filename) => {
+    if (!filename.startsWith('.')) {
+      res.push(async (filename) => {
+        const fullpath = path.join(dir, filename);
+        return (await stat(fullpath)).isDirectory() ? await list(fullpath) : fullpath;
+      });
+    }
+    return res;
+  }, []);
 }

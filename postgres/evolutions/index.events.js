@@ -20,7 +20,7 @@ export default oncePerServices(function defineEvents({ bus = missingService('bus
       validate: validateEventFactory(Object.assign({
         _extends: BaseEvent,
       })),
-      toString: (ev) => `${ev.service}: server '${ev.settings.host}:${ev.settings.port}': database '${ev.settings.database}': has no __scripts table. Cannot be updated`,
+      toString: (ev) => `${ev.service}: server '${ev.settings.host}:${ev.settings.port}': database '${ev.settings.database}': has no __scripts table. Cannot be updated, since this DB was not created by this utility`,
     },
     {
       kind: 'error',
