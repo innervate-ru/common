@@ -4,7 +4,7 @@ import path from 'path';
 const readDir = Promise.promisify(fs.readdir);
 const stat = Promise.promisify(fs.stat);
 
-export default async function(dir) {
+export default async function listFiles(dir) {
   dir = path.resolve(process.cwd(), dir);
   try {
     return (await list(dir)).flatMap(v => v).sort();
@@ -16,13 +16,13 @@ export default async function(dir) {
 }
 
 async function list(dir) {
-  return readDir(dir).reduce((res, filename) => {
+  return Promise.all((await readDir(dir)).reduce((res, filename) => {
     if (!filename.startsWith('.')) {
-      res.push(async (filename) => {
-        const fullpath = path.join(dir, filename);
-        return (await stat(fullpath)).isDirectory() ? await list(fullpath) : fullpath;
-      });
+      const fullpath = path.join(dir, filename);
+      res.push((async () => {
+        return (await stat(fullpath)).isDirectory() ? list(fullpath) : fullpath;
+      })());
     }
     return res;
-  }, []);
+  }, []));
 }
