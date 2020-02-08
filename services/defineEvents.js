@@ -1,5 +1,5 @@
 import missingService from '../services/missingService'
-import {missingArgument, invalidArgument} from '../utils/arguments'
+import {missingArgument, invalidArgument} from '../validation/arguments'
 
 import fs from 'fs'
 import path from 'path'

@@ -1,4 +1,4 @@
-import {missingArgument} from '../utils/arguments'
+import {missingArgument} from '../validation/arguments'
 
 export default class InvalidServiceStateException extends Error {
   constructor({state = missingArgument('state')})

@@ -1,4 +1,4 @@
-import {missingArgument} from '../utils/arguments'
+import {missingArgument} from '../validation/arguments'
 
 import fs from 'fs'
 import path from 'path'

@@ -1,4 +1,4 @@
-import missingArgument from '../utils/arguments'
+import missingArgument from '../validation/arguments'
 
 export default class SoapErrorException extends Error {
   constructor({url = missingArgument('url'), method = missingArgument('method'), err = missingArgument('err')}) {

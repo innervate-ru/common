@@ -1,6 +1,6 @@
 import path from 'path';
 import configAPI from 'config';
-import shortid from 'shortid'
+import nanoid from 'nanoid'
 import 'moment-duration-format';
 import errorDataToEvent from '../errors/errorDataToEvent';
 import prettyError from '../utils/prettyError';
@@ -10,7 +10,7 @@ import buildFullErrorMessage from '../utils/buildFullErrorMessage';
 
   let bus, nodeName;
 
-  const context = shortid();
+  const context = nanoid();
 
   try {
     nodeName = `${configAPI.get('node')}/updateDatabase`;

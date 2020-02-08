@@ -1,17 +1,17 @@
 import {invalidArgument} from '../validation'
 
-import shortid from 'shortid'
+import nanoid from 'nanoid'
 
 const hasOwnProperty = Object.prototype.hasOwnProperty;
 
 /**
- * Если в args нет поля context, добавляет его, с уникальным значением shortid, и возвращает объект с новыми параметрами.
+ * Если в args нет поля context, добавляет его, с уникальным значением nanoid, и возвращает объект с новыми параметрами.
  */
 export default function addContextToArgs(args) {
 
   if (args === undefined || args === null) {
     const newArgs = Object.create(null);
-    newArgs.context = shortid();
+    newArgs.context = nanoid();
     return newArgs;
   }
 
@@ -20,6 +20,6 @@ export default function addContextToArgs(args) {
   if (typeof args.context === 'string') return args;
 
   const newArgs = Object.assign(Object.create(null), args);
-  newArgs.context = shortid();
+  newArgs.context = nanoid();
   return newArgs;
 };

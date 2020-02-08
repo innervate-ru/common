@@ -1,6 +1,6 @@
 import test from 'ava'
 import sinon from 'sinon'
-import {missingArgument, invalidArgument} from '../utils/arguments'
+import {missingArgument, invalidArgument} from '../validation/arguments'
 import {SchemaBuilder, LevelBuilder} from './index'
 
 test(`Если схема пустая, во время build() происходит ошибка`, async t => {

@@ -1,4 +1,4 @@
-import {missingArgument, invalidArgument} from '../utils/arguments'
+import {missingArgument, invalidArgument} from '../validation/arguments'
 import sortBy from 'lodash/sortBy'
 import TypeBuilder from './TypeBuilder'
 import wrapResolver from './wrapResolver'

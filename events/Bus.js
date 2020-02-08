@@ -1,6 +1,6 @@
 import os from 'os'
 import EventEmitter from 'events'
-import {missingArgument, invalidArgument} from '../utils/arguments'
+import {missingArgument, invalidArgument} from '../validation/arguments'
 import configAPI from 'config'
 import prettyPrint from '../utils/prettyPrint'
 import defineProps from '../utils/defineProps'

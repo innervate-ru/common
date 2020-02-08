@@ -1,7 +1,7 @@
 import {oncePerServices} from "../services";
 import onHeaders from 'on-headers'
 import requestIp from 'request-ip'
-import shortid from 'shortid'
+import nanoid from 'nanoid'
 
 const hasOwnProperty = Object.prototype.hasOwnProperty;
 
@@ -20,7 +20,7 @@ export default oncePerServices(function (services) {
       const ip = requestIp.getClientIp(req);
       const service = (options && options.service) || 'express';
       req.context = {
-        reqId: shortid(),
+        reqId: nanoid(),
         userIp: ip.startsWith('::ffff:') ? ip.substr(7) : ip, // удаляем префикс ipV6 для ipV4 адресов
       };
       onHeaders(res, function () {

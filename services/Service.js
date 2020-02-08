@@ -1,4 +1,4 @@
-import {invalidArgument} from '../utils/arguments'
+import {invalidArgument} from '../validation/arguments'
 import oncePerServices from './oncePerServices'
 import defineProps from '../utils/defineProps'
 import prettyPrint from '../utils/prettyPrint'
