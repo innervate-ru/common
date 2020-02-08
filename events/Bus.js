@@ -347,7 +347,7 @@ export default function (services = {}) {
      */
     criticalError(ev) {
       if (!(arguments.length === 1)) throw new Error(`Invalid number of arguments: ${prettyPrint(arguments)}`);
-      const evConfig = checkEvent('error', ev, this._config);
+      const evConfig = checkEvent.call(this, 'error', ev, this._config);
       ev = wrapEvent.call(this, ev);
       ev.level = CRITICAL_ERROR;
       this.emitEvent(ev);
@@ -361,7 +361,7 @@ export default function (services = {}) {
      */
     error(ev) {
       if (!(arguments.length === 1)) throw new Error(`Invalid number of arguments: ${prettyPrint(arguments)}`);
-      const evConfig = checkEvent('error', ev, this._config);
+      const evConfig = checkEvent.call(this, 'error', ev, this._config);
       ev = wrapEvent.call(this, ev);
       ev.level = ERROR;
       this.emitEvent(ev);
@@ -375,7 +375,7 @@ export default function (services = {}) {
      */
     warn(ev) {
       if (!(arguments.length === 1)) throw new Error(`Invalid number of arguments: ${prettyPrint(arguments)}`);
-      const evConfig = checkEvent('warn', ev, this._config);
+      const evConfig = checkEvent.call(this, 'warn', ev, this._config);
       ev = wrapEvent.call(this, ev);
       this.emitEvent(ev);
       ev.level = WARN;
@@ -389,7 +389,7 @@ export default function (services = {}) {
      */
     info(ev) {
       if (!(arguments.length === 1)) throw new Error(`Invalid number of arguments: ${prettyPrint(arguments)}`);
-      const evConfig = checkEvent('info', ev, this._config);
+      const evConfig = checkEvent.call(this, 'info', ev, this._config);
       ev = wrapEvent.call(this, ev);
       ev.level = INFO;
       this.emitEvent(ev);
@@ -403,7 +403,7 @@ export default function (services = {}) {
      */
     action(ev) {
       if (!(arguments.length === 1)) throw new Error(`Invalid number of arguments: ${prettyPrint(arguments)}`);
-      const evConfig = checkEvent('action', ev, this._config);
+      const evConfig = checkEvent.call(this, 'action', ev, this._config);
       ev = wrapEvent.call(this, ev);
       ev.level = ACTION;
       this.emitEvent(ev);
@@ -417,7 +417,7 @@ export default function (services = {}) {
      */
     command(ev) {
       if (!(arguments.length === 1)) throw new Error(`Invalid number of arguments: ${prettyPrint(arguments)}`);
-      const evConfig = checkEvent('command', ev, this._config);
+      const evConfig = checkEvent.call(this, 'command', ev, this._config);
       ev = wrapEvent.call(this, ev);
       ev.level = COMMAND;
       this.emitEvent(ev);
@@ -431,7 +431,7 @@ export default function (services = {}) {
      */
     event(ev) {
       if (!(arguments.length === 1)) throw new Error(`Invalid number of arguments: ${prettyPrint(arguments)}`);
-      const evConfig = checkEvent('event', ev, this._config);
+      const evConfig = checkEvent.call(this, 'event', ev, this._config);
       ev = wrapEvent.call(this, ev);
       ev.level = EVENT;
       this.emitEvent(ev);
@@ -445,7 +445,7 @@ export default function (services = {}) {
      */
     method(ev) {
       if (!(arguments.length === 1)) throw new Error(`Invalid number of arguments: ${prettyPrint(arguments)}`);
-      const evConfig = checkEvent('method', ev, this._config);
+      const evConfig = checkEvent.call(this, 'method', ev, this._config);
       ev = wrapEvent.call(this, ev);
       ev.level = METHOD;
       this.emitEvent(ev);

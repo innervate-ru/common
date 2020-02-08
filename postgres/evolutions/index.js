@@ -1,12 +1,13 @@
 import fs from 'fs'
 import path from 'path'
 import readline from 'readline'
+import {promisify} from 'util'
 import {Client as PGClient} from 'pg'
 import oncePerServices from '../../services/oncePerServices'
 import listFiles from '../../utils/listFiles'
 import {fixDependsOn} from "../../services/index"
 
-const readFile = Promise.promisify(fs.readFile);
+const readFile = promisify(fs.readFile);
 
 const SERVICE_TYPE = require('../../connectors/PGConnector.serviceType').SERVICE_TYPE;
 const SERVICE_NAME = 'postgres/evolutions'

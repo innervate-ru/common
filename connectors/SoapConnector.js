@@ -3,7 +3,7 @@ import path from 'path'
 import {missingArgument} from '../validation'
 import {oncePerServices, missingService, fixDependsOn, READY} from '../services'
 import ensureDir from '../utils/ensureDir'
-import promisify from '../utils/promisify'
+import {promisify} from 'util'
 
 import urlApi from 'url'
 import * as soap from 'soap'

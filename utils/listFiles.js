@@ -1,8 +1,9 @@
 import fs from 'fs';
 import path from 'path';
+import {promisify} from 'util'
 
-const readDir = Promise.promisify(fs.readdir);
-const stat = Promise.promisify(fs.stat);
+const readDir = promisify(fs.readdir);
+const stat = promisify(fs.stat);
 
 export default async function listFiles(dir) {
   dir = path.resolve(process.cwd(), dir);

@@ -188,12 +188,7 @@ export default oncePerServices(function (services) {
 
       const {statement, params} = args;
 
-      return new Promise((resolve, reject) => {
-        this._client.query(statement, params, function (err, results) {
-          if (err) reject(err);
-          else resolve(results);
-        });
-      });
+      return this._client.query(statement, params);
     }
 
     async sendMessage(args) {
@@ -210,7 +205,7 @@ export default oncePerServices(function (services) {
       });
     }
 
-    async end() {
+    end() {
       this._done();
       this._done = null;
     }

@@ -44,7 +44,8 @@ export default class LevelBuilder {
     if (!(builder instanceof LevelBuilder || typeof builder === 'function')) invalidArgument('builder', builder);
     this._builders.push(builder);
     if (this._done) { // добавление билдера в момент, когда уже this.build() вызван
-      if (this._done.isFulfilled) throw new Error(`Invalid state: this.build() is already completed, and it's too later to add a new builder`);
+      // TODO: Fix this
+      // if (this._done.isFulfilled) throw new Error(`Invalid state: this.build() is already completed, and it's too later to add a new builder`);
       builder.build(this._builderArgs).then(_builderFinished);
     }
     return this;
