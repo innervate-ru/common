@@ -1,5 +1,5 @@
 import {missingArgument, invalidArgument} from './arguments'
-import isPromise from 'is-promise'
+import makeLikeBluebirdPromise from '../utils/makeLikeBluebirdPromise'
 
 const END_PROMISE = new Promise(function (resolve) {
   resolve(undefined);
@@ -29,9 +29,9 @@ export default function readAheadQueue({
     }
     if (queue.length === 0) {
       if (theEnd) return;
-      return prevPromise = loadNext({context});
+      return prevPromise = makeLikeBluebirdPromise(loadNext({context}));
     } else {
-      if (queue[queue.length - 1].isFulfilled()) queue.push(loadNext({context}));
+      if (queue[queue.length - 1].isFulfilled()) queue.push(makeLikeBluebirdPromise(loadNext({context})));
       return prevPromise = queue.shift();
     }
   };
@@ -45,7 +45,7 @@ export default function readAheadQueue({
         theEnd = true;
         resolve(undefined);
       }
-      if (!isPromise(r)) {
+      if (!('then' in r)) {
         reject(new Error(`'func' must return either a Promise or undefined: ${r}`));
         return;
       }

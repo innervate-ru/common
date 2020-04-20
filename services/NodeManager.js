@@ -28,6 +28,9 @@ export default oncePerServices(function (services) {
 
     constructor(options) {
       schema.ctor_options(this, options);
+
+      this._context = options.context;
+
       if (Array.isArray(options.startOnly) && options.startOnly.length > 0) {
         this._startOnly = options.startOnly.reduce((a, v) => { a[v] = true; return a; }, Object.create(null));
       }
@@ -50,6 +53,7 @@ export default oncePerServices(function (services) {
                   if (state === FAILED || state === WAITING_FAILED_TO_START_SERVICE) failedServices.push(serviceName);
                 }
                 const ev = {
+                  context: this._context,
                   type: 'nodemanager.started',
                   service: 'nodeManager',
                   startDuration: Date.now() - startTime,
@@ -70,7 +74,6 @@ export default oncePerServices(function (services) {
       Object.assign(this._services = Object.create(null), services);
       this._services.manager = this;
       if (options.services) {
-
         this.add(options.services);
       }
     }
@@ -100,6 +103,7 @@ export default oncePerServices(function (services) {
         if (service._service._stop) {
           if (!this._startOnly) {
             const ev = {
+              context: this._context,
               type: 'service.state',
               service: service._service._name,
               state: service._service._state,
@@ -118,6 +122,7 @@ export default oncePerServices(function (services) {
           if (d) {
             if (!this._startOnly) {
               const ev = {
+                context: this._context,
                 type: 'service.state',
                 service: service._service._name,
                 state: service._service._state,
@@ -141,6 +146,7 @@ export default oncePerServices(function (services) {
     reportHealth() {
       setTimeout(() => this.reportHealth(), REPORT_HEALTH_INTERVAL);
       const ev = Object.create(null);
+      ev.context = this._context;
       ev.type = 'nodemanager.health';
       ev.service = 'nodeManager';
       for (let serviceName in this._services) {
@@ -172,6 +178,11 @@ export default oncePerServices(function (services) {
   }
 
   defineProps(NodeManager, {
+    context: {
+      get() {
+        return bus._context;
+      }
+    },
     name: {
       get() {
         return bus.node;

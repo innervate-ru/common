@@ -44,7 +44,7 @@ export const exec_args = validate.method.finished('options', {
   params: {null: true, type: VType.Object()}, // значения параметров в виде map'а
   offset: {null: true, type: VType.Int().zero().positive()}, // строка, начиная с которой загружаются строки
   limit: {null: true, type: VType.Int().positive()}, // сколько строк загружается
-  context: {null: true, type: VType.String().notEmpty()}, // shortid контектса
+  context: {null: true, type: VType.String().notEmpty()}, // nanoid контектса
   _validate: (context, value, message, validateOptions) => {
     let cnt = 0;
     if (hasOwnProperty.call(value, 'query')) ++cnt;

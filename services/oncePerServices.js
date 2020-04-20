@@ -1,4 +1,4 @@
-import {missingArgument, invalidArgument} from '../utils/arguments'
+import {missingArgument, invalidArgument} from '../validation/arguments'
 
 const cache = new WeakMap();
 

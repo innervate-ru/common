@@ -1,14 +1,14 @@
-import {invalidArgument} from '../utils/arguments'
+import {invalidArgument} from '../validation/arguments'
 import oncePerServices from './oncePerServices'
 import defineProps from '../utils/defineProps'
 import prettyPrint from '../utils/prettyPrint'
+import makeLikeBluebirdPromise from '../utils/makeLikeBluebirdPromise'
 import InvalidServiceStateError from './InvalidServiceStateError'
 import flattenDeep from 'lodash/flattenDeep'
 import uniq from 'lodash/uniq'
 import omit from 'lodash/omit';
 import serviceMethodWrapper from './serviceMethodWrapper'
 import errorDataToEvent from '../errors/errorDataToEvent'
-import shortid from 'shortid'
 import addContextToError from '../context/addContextToError'
 import {addService, addCounter} from '../monitoring/index'
 
@@ -175,6 +175,7 @@ export default oncePerServices(function (services) {
               if (this._state === WAITING_OTHER_SERVICES_TO_START_OR_FAIL && (ev.state === FAILED || ev.state === WAITING_FAILED_TO_START_SERVICE)) {
                 this._state = WAITING_FAILED_TO_START_SERVICE;
                 const ev2 = {
+                  context: manager.context,
                   type: 'service.state',
                   service: this._name,
                   state: this._state,
@@ -404,13 +405,13 @@ export default oncePerServices(function (services) {
         this._state = newState;
 
         const args = Object.create(null);
-        args.context = shortid();
+        args.context = manager.context;
 
-        const promise = this._currentOpPromise = methodImpl.call(this._serviceImpl, args).catch(async (error) => {
+        const promise = this._currentOpPromise = makeLikeBluebirdPromise(methodImpl.call(this._serviceImpl, args).catch(async (error) => {
           addContextToError(args, args, error, {service: this._name, method});
           this._reportError(error);
           throw error;
-        });
+        }));
         if (!('then' in promise)) throw new Error(`Method must return a promise: ${prettyPrint(method)}`);
 
         if (testMode && testMode.service) {
@@ -420,6 +421,7 @@ export default oncePerServices(function (services) {
           const startTime = Date.now();
           const timer = setInterval(() => {
             bus.info({
+              context: manager.context,
               type: 'service.takesTooLong',
               service: this.name,
               method,

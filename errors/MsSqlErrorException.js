@@ -1,9 +1,9 @@
-import throwIfMissing from 'throw-if-missingArgument'
+import {missingArgument} from '../validation/arguments'
 
 export default class MsSqlErrorException extends Error {
   constructor({
-    err = throwIfMissing('err')
-  }) {
+                err = missingArgument('err')
+              }) {
 
     super(`MSSQL error: err: ${err}`);
   }

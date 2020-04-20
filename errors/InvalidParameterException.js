@@ -1,4 +1,4 @@
-import {missingArgument} from '../utils/arguments'
+import {missingArgument} from '../validation/arguments'
 
 export default class InvalidParameterException extends Error {
   constructor({

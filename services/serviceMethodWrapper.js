@@ -1,4 +1,4 @@
-import {missingArgument, invalidArgument} from '../utils/arguments'
+import {missingArgument, invalidArgument} from '../validation/arguments'
 import prettyPrint from '../utils/prettyPrint'
 import {READY} from './Service.states'
 import addContextToArgs from '../context/addContextToArgs'

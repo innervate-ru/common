@@ -1,4 +1,4 @@
-import {missingArgument, invalidArgument} from '../utils/arguments'
+import {missingArgument, invalidArgument} from '../validation/arguments'
 import prettyPrint from '../utils/prettyPrint'
 import sortBy from 'lodash/sortBy'
 import TypeBuilder from './TypeBuilder'

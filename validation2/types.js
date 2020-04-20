@@ -11,7 +11,7 @@
  */
 
 import util from 'util'
-import {missingArgument, invalidArgument} from '../utils/arguments'
+import {missingArgument, invalidArgument} from '../validation/arguments'
 import prettyPrint from '../utils/prettyPrint'
 import uniq from 'lodash/uniq'
 

@@ -1,4 +1,4 @@
-import {missingArgument} from '../utils/arguments'
+import {missingArgument} from '../validation/arguments'
 
 export default function(queries = missingArgument('queries')) {
   let cnt = 0;

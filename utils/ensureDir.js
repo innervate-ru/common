@@ -1,7 +1,7 @@
 import fs from 'fs'
+import {promisify} from 'util'
 
 import {missingArgument} from './arguments'
-import promisify from './promisify'
 
 const fsStat = promisify(fs.stat);
 const fsMkdir = promisify(fs.mkdir);

@@ -1,6 +1,6 @@
 import {makeExecutableSchema} from "graphql-tools";
 import {oncePerServices, missingService} from "../../common/services";
-import {missingArgument} from "../../common/utils/arguments";
+import {missingArgument} from "../../common/validation/arguments";
 import {SchemaBuilder} from "../../common/graphql";
 
 export default oncePerServices(function (services = missingArgument("services")) {
