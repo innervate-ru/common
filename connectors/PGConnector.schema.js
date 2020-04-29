@@ -21,6 +21,7 @@ export const ctor_settings = validateThisServiceSettings({
 
 export const exec_args = validate.method.finished('args', {
   context: {type: VType.String()},
+  name: {type: VType.String().notEmpty()},
   statement: {required: true, type: VType.String().notEmpty()},
   params: {type: VType.Array()},
   _final: true,

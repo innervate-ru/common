@@ -186,9 +186,9 @@ export default oncePerServices(function (services) {
 
       args = this._testTimer(args);
 
-      const {statement, params} = args;
+      const {name, statement, params} = args;
 
-      return this._client.query(statement, params);
+      return this._client.query({name, text: statement, values: params});
     }
 
     async sendMessage(args) {
@@ -200,6 +200,7 @@ export default oncePerServices(function (services) {
       if (typeof message === 'object') message = JSON.stringify(message);
 
       await this._exec({
+        name: `SsGKGTqr2H2TF5XQkcr4y`,
         statement: `select pg_notify($1, $2);`,
         params: [channel, message],
       });
