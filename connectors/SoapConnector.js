@@ -213,7 +213,6 @@ export default oncePerServices(function (services) {
 
         if (this._settings.login) {
           auth = "Basic " + new Buffer(`${this._settings.login}:${this._settings.password}`).toString("base64");
-          console.info(216, auth)
           options.wsdl_headers = {Authorization: auth};
         }
 
