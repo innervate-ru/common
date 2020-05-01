@@ -179,9 +179,9 @@ export default oncePerServices(function (services) {
         timeout: 20000,
         uri: this._settings.uri,
       };
-      if (this._settings.httpLogin) {
+      if (this._settings.login) {
         options.headers = {
-          Authorization: "Basic " + new Buffer(`${this._settings.httpLogin}:${this._settings.httpPassword}`).toString("base64"),
+          Authorization: "Basic " + new Buffer(`${this._settings.login}:${this._settings.password}`).toString("base64"),
         };
       }
       if (this._settings.token) {
@@ -200,7 +200,7 @@ export default oncePerServices(function (services) {
       const optsWithoutPassword = {...this._settings};
       delete optsWithoutPassword.token;
       delete optsWithoutPassword.password;
-      delete optsWithoutPassword.httpPassword;
+      delete optsWithoutPassword.password;
       fixDependsOn(optsWithoutPassword);
       bus.info({
         type: 'service.settings',
@@ -225,8 +225,8 @@ export default oncePerServices(function (services) {
           urlObject.auth = `${this._settings.login}:${this._settings.password}`;
         }
 
-        if (this._settings.httpLogin) {
-          auth = "Basic " + new Buffer(`${this._settings.httpLogin}:${this._settings.httpPassword}`).toString("base64");
+        if (this._settings.login) {
+          auth = "Basic " + new Buffer(`${this._settings.login}:${this._settings.password}`).toString("base64");
           options.wsdl_headers = {Authorization: auth};
         }
 
