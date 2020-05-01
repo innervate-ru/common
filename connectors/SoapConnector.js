@@ -9,6 +9,8 @@ import urlApi from 'url'
 import * as soap from 'soap'
 import SoapErrorException from '../errors/SoapErrorException'
 import request from 'request-promise'
+import addContextToError from "../context/addContextToError";
+import addContextToArgs from "../context/addContextToArgs";
 
 const debug = require('debug')('soap');
 
@@ -51,10 +53,19 @@ export default oncePerServices(function (services) {
       for (const methodName of Object.getOwnPropertyNames(methods)) {
         debug('method: %s', methodName);
         const service = this._service;
+        const contextRequired = service._contextRequired;
         const method = client[methodName];
+
+        const fixArgs = this._fixArgsBuilder ? this._fixArgsBuilder({methodName}) : function(args) { const {context, ...rest} = args; return rest; }
 
         this[methodName] = async function (args) {
           debug('method: %s; args: %j', methodName, args);
+
+          if (contextRequired) {
+            if (!(args && typeof args.context === 'string' && args.context.length > 0)) {
+              missingArgument('context');
+            }
+          }
 
           let attempts = 1;
 
@@ -66,15 +77,22 @@ export default oncePerServices(function (services) {
               // ошибку не обрабатываем, так как при reject выполнится условие ниже service.state !== READY
             }
 
-            if (service.state !== READY) { // проверяем состояние перед операции
+            const newArgs = addContextToArgs(args);
+
+            if (service.state !== READY) { // проверяем состояние перед операцией
               const error = service._buildInvalidStateError();
+              if (addContextToError(args, newArgs, error, {
+                service: service._name,
+                method: methodName
+              })) service._reportError(error);
+              throw error;
             }
 
             const startTime = Date.now();
 
             try {
               const r = await new Promise((resolve, reject) => {
-                method(args, function (error, result) {
+                method(fixArgs(newArgs), function (error, result) {
                   error ? reject(error) : resolve(result);
                 });
               });
@@ -226,6 +244,21 @@ export default oncePerServices(function (services) {
             reject(new SoapErrorException({url: this._settings.uri, method: 'createClient', error}));
           } else {
             debug(`client creation succeeded`);
+            if (debug.enabled) {
+              // client.on('request', (xml, eid) => {
+              //   debug(`.on('request', %s, %s)`, xml, eid);
+              //   console.info(251)
+              // });
+              client.on('message', (message, eid) => {
+                debug(`.on('message', %s, %s)`, message, eid);
+              });
+              client.on('soapError', (error, eid) => {
+                debug(`.on('soapError', %s, %s)`, error, eid);
+              });
+              // client.on('response', (body, response, eid) => {
+              //   debug(`.on('response', %s, %s, %s)`, body, response, eid);
+              // });
+            }
             if (this._settings.login) client.setSecurity(new soap.BasicAuthSecurity(this._settings.login, this._settings.password));
             if (auth) client.addHttpHeader('Authorization', auth); // http-авторизация
             this._connection = client;
