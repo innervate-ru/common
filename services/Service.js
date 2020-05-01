@@ -653,12 +653,15 @@ export default oncePerServices(function (services) {
 
   return function (serviceClass, options) {
 
+    const contextRequired = options && options.contextRequired;
+
     // Делаем класс наследник, который добавляем в объект свойство _service
     class ServiceImpl extends serviceClass {
       constructor(name, settings) {
         if (!(typeof name === 'string' && name.length > 0)) invalidArgument('name', name);
         super(omit(settings, ['dependsOn'])); // не передаем dependsOn, так как это ломает сериализацию параметров при выводе в graylog
         this._service = new Service(name, this, serviceClass.SERVICE_TYPE, settings);
+        this._service._contextRequired = contextRequired;
         if (!(testMode && testMode.service) && !manager._startOnly) this._service._nextStateStep();
       }
     }
@@ -666,7 +669,7 @@ export default oncePerServices(function (services) {
     serviceMethodWrapper({
       prototypeOrInstance: serviceClass.prototype,
       bus,
-      contextRequired: options && options.contextRequired,
+      contextRequired,
       getService: function () {
         return this._service;
       }
