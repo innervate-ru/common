@@ -9,7 +9,6 @@ import urlApi from 'url'
 import * as soap from 'soap'
 import SoapErrorException from '../errors/SoapErrorException'
 import request from 'request-promise'
-import addContextToError from "../context/addContextToError";
 
 const debug = require('debug')('soap');
 
@@ -54,16 +53,8 @@ export default oncePerServices(function (services) {
         const service = this._service;
         const method = client[methodName];
 
-        const fixArgs = this._fixArgsBuild ? this._fixArgsBuild({methodName}) : function(args) { const {context, ...rest} = args; return rest; }
-
         this[methodName] = async function (args) {
           debug('method: %s; args: %j', methodName, args);
-
-          if (contextRequired) {
-            if (!(args && typeof args.context === 'string' && args.context.length > 0)) {
-              missingArgument('context');
-            }
-          }
 
           let attempts = 1;
 
@@ -75,20 +66,15 @@ export default oncePerServices(function (services) {
               // ошибку не обрабатываем, так как при reject выполнится условие ниже service.state !== READY
             }
 
-            if (service.state !== READY) { // проверяем состояние перед операцией
+            if (service.state !== READY) { // проверяем состояние перед операции
               const error = service._buildInvalidStateError();
-              if (addContextToError(args, newArgs, error, {
-                service: service._name,
-                method: methodName
-              })) service._reportError(error);
-              throw error;
             }
 
             const startTime = Date.now();
 
             try {
               const r = await new Promise((resolve, reject) => {
-                method(fixArgs(args), function (error, result) {
+                method(args, function (error, result) {
                   error ? reject(error) : resolve(result);
                 });
               });
