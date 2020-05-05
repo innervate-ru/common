@@ -185,7 +185,7 @@ export default oncePerServices(function (services) {
       };
       if (this._settings.httpLogin) {
         options.headers = {
-          Authorization: "Basic " + new Buffer(`${this._settings.httpLogin}:${this._settings.httpPassword}`).toString("base64"),
+          Authorization: "Basic " + Buffer.from(`${this._settings.httpLogin}:${this._settings.httpPassword}`).toString("base64"),
         };
       }
       if (this._settings.token) {
@@ -230,7 +230,7 @@ export default oncePerServices(function (services) {
         }
 
         if (this._settings.httpLogin) {
-          auth = "Basic " + new Buffer(`${this._settings.httpLogin}:${this._settings.httpPassword}`).toString("base64");
+          auth = "Basic " + Buffer.from(`${this._settings.httpLogin}:${this._settings.httpPassword}`).toString("base64");
           options.wsdl_headers = {Authorization: auth};
         }
 

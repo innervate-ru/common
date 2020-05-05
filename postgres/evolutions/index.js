@@ -10,7 +10,7 @@ import {fixDependsOn} from "../../services/index"
 const readFile = promisify(fs.readFile);
 
 const SERVICE_TYPE = require('../../connectors/PGConnector.serviceType').SERVICE_TYPE;
-const SERVICE_NAME = 'postgres/evolutions'
+const SERVICE_NAME = 'postgres/evolutions';
 
 export const name = require('../../services/serviceName').default(__filename);
 

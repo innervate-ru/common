@@ -4,7 +4,6 @@ import nanoid from 'nanoid'
 import 'moment-duration-format';
 import errorDataToEvent from '../errors/errorDataToEvent';
 import prettyError from '../utils/prettyError';
-import buildFullErrorMessage from '../utils/buildFullErrorMessage';
 
 (async function start() {
 

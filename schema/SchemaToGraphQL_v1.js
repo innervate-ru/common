@@ -24,15 +24,15 @@ function getOffsetWithDefault(cursor, defaultOffset) {
 }
 
 function cursorToOffset(cursor) {
-  return parseInt(new Buffer(cursor, 'base64').toString('utf8').substring(ARRAY_PREFIX.length), 10);
+  return parseInt(Buffer.from(cursor, 'base64').toString('utf8').substring(ARRAY_PREFIX.length), 10);
 }
 
 function offsetToCursor(offset) {
-  return new Buffer(ARRAY_PREFIX + offset, 'utf8').toString('base64');
+  return Buffer.from(ARRAY_PREFIX + offset, 'utf8').toString('base64');
 }
 
 function toGlobalId(type, id) {
-  return new Buffer([type, id].join(':'), 'utf8').toString('base64');
+  return Buffer.from([type, id].join(':'), 'utf8').toString('base64');
 }
 
 /////////////

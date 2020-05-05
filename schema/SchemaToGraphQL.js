@@ -28,11 +28,11 @@ function cursorToOffset(cursor) {
 }
 
 function offsetToCursor(offset) {
-  return new Buffer(ARRAY_PREFIX + offset, 'utf8').toString('base64');
+  return Buffer.from(ARRAY_PREFIX + offset, 'utf8').toString('base64');
 }
 
 function toGlobalId(type, id) {
-  return new Buffer([type, id].join(':'), 'utf8').toString('base64');
+  return Buffer.from([type, id].join(':'), 'utf8').toString('base64');
 }
 
 /////////////
