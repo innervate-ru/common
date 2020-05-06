@@ -50,6 +50,8 @@ export default oncePerServices(function (services) {
         break;
       }
 
+      this._soapMethods = methods;
+
       for (const methodName of Object.getOwnPropertyNames(methods)) {
         debug('method: %s', methodName);
         const service = this._service;

@@ -19,7 +19,6 @@ export default oncePerServices(function (services) {
   const {bus = missingService('bus')} = services;
 
   class NodeManager {
-
     _serviceCountToStartNode = 0;
     _serviceStarted = 0;
     _startedPromise = new Promise((resolve, reject) => {
