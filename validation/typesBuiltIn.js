@@ -13,6 +13,7 @@ export default function (typesExport) {
   addType('Null', v => v === null);
 
   addType('String', v => typeof v === 'string');
+  addType('Decimal', v => /^(\d+\.?\d{0,9}|\.\d{1,9})$/.test(v));
   addType('Int', v => Number.isInteger(v));
   addType('Float', v => typeof v === 'number' && !isNaN(v));
   addType('Boolean', v => typeof v === 'boolean');
