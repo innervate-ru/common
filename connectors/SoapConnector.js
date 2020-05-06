@@ -58,9 +58,10 @@ export default oncePerServices(function (services) {
         const contextRequired = service._contextRequired;
         const method = client[methodName];
 
-        const fixArgs = this._fixArgsBuilder ? this._fixArgsBuilder({methodName}) : function(args) { const {context, ...rest} = args; return rest; }
+        const fixArgs = this._fixArgsBuilder ? this._fixArgsBuilder({methodName}) : function(args) { const {context, ...rest} = args; return rest; };
+        const fixResult = this._fixResultBuilder ? this._fixResultBuilder({methodName}) : function (result) { return result; };
 
-        this[methodName] = async function (args) {
+          this[methodName] = async function (args) {
           debug('method: %s; args: %j', methodName, args);
 
           if (contextRequired) {
@@ -95,7 +96,7 @@ export default oncePerServices(function (services) {
             try {
               const r = await new Promise((resolve, reject) => {
                 method(fixArgs(newArgs), function (error, result) {
-                  error ? reject(error) : resolve(result);
+                  error ? reject(error) : resolve(fixResult(result));
                 });
               });
 

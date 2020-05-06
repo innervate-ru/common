@@ -14,9 +14,10 @@ export default function (typesExport) {
 
   addType('String', v => typeof v === 'string');
   addType('Int', v => Number.isInteger(v));
-  addType('Float', v => typeof v == 'number' && !isNaN(v));
-  addType('Boolean', v => typeof v == 'boolean');
-  addType('Object', v => typeof v === 'object' && !Array.isArray(v));
+  addType('Float', v => typeof v === 'number' && !isNaN(v));
+  addType('Boolean', v => typeof v === 'boolean');
+  addType('Date', v => v instanceof Date);
+  addType('Object', v => typeof v === 'object' && v !== null && !Array.isArray(v));
   addType('Function', v => typeof v === 'function');
   addType('Promise', v => v => typeof v === 'object' && v !== null && 'then' in v);
 
