@@ -1,6 +1,8 @@
 import {missingArgument, invalidArgument} from './arguments'
 import iso8601Validator from 'iso8601-validator'
 
+const guidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-5][0-9a-f]{3}-[089ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+
 export default function (typesExport) {
 
   const {VType, addType, addSubvalidator, addTypeAdvanced} = typesExport;
@@ -106,6 +108,7 @@ export default function (typesExport) {
   addSubvalidator(VType.String(), 'notEmpty', v => v.length > 0 ? true : 'empty string');
   addSubvalidator(VType.String(), 'noSpaces', v => /^\S*$/.test(v) ? true : 'contains spaces');
   addSubvalidator(VType.String(), 'iso8601', v => iso8601Validator.test(v) ? true : 'not ISO8601 date/time');
+  addSubvalidator(VType.String(), 'guid', v => guidRegex.test(v) ? true : 'not GUID');
 
   addSubvalidator(VType.Int(), 'zero', v => v === 0 ? true : 'not zero');
   addSubvalidator(VType.Int(), 'positive', v => v > 0 ? true : 'not positive');
