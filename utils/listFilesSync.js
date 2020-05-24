@@ -4,7 +4,7 @@ import path from 'path';
 export default function listFilesSync(dir) {
   dir = path.resolve(process.cwd(), dir);
   try {
-    return list(dir).flatMap(v => v).sort();
+    return list(dir).flat(Number.MAX_SAFE_INTEGER).sort();
   } catch (err) {
     if (err.code !== 'ENOENT') throw err;
     throw new Error(`Missing dir: ${dir}`)

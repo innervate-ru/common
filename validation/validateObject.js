@@ -31,7 +31,7 @@ export function validateObjectFactory({
   if (!(unexpectedField === undefined || unexpectedField === null || typeof unexpectedField == 'function')) throw new Error(`Invalid argument 'unexpectedField': ${prettyPrint(unexpectedField)}`);
   if (!(typeof invalidFieldValue == 'function')) throw new Error(`Invalid argument 'invalidFieldValue': ${prettyPrint(invalidFieldValue)}`);
   if (!(resultWrapper === undefined || resultWrapper === null || typeof resultWrapper == 'function')) throw new Error(`Invalid argument 'resultWrapper: ${resultWrapper}'`);
-  if (copyFields && validateExtends) throw new Error(`copyFields and validateExtends optioins are not working together`);
+  if (copyFields && validateExtends) throw new Error(`copyFields and validateExtends options are not working together`);
 
   /**
    * Метод применяющий метод валидации для конкретного поля объекта.

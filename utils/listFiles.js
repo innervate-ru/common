@@ -8,7 +8,7 @@ const stat = promisify(fs.stat);
 export default async function listFiles(dir) {
   dir = path.resolve(process.cwd(), dir);
   try {
-    return (await list(dir)).flatMap(v => v).sort();
+    return (await list(dir)).flat(Number.MAX_SAFE_INTEGER).sort();
   } catch (err) {
     // throw err;
     if (err.code !== 'ENOENT') throw err;
