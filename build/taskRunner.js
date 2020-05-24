@@ -18,7 +18,7 @@ class Task {
     this.watch = watch;
   }
 
-  _watch() {
+  _watch(delay) {
     this.watch && this.watch(debounce(() => {
       const t = Date.now();
       let level = this;
@@ -27,7 +27,7 @@ class Task {
         level = level.parent;
       }
       startOver();
-    }, 250, {maxWait: 30 * 1000}));
+    }, delay || 250, {maxWait: 30 * 1000}));
   }
 
   _run() {
@@ -54,11 +54,12 @@ class Task {
   }
 }
 
-function runTasks({watch, tasks}) {
+function runTasks({watch, tasks, delay}) {
 
   if (!('_run' in tasks)) throw new Error(`Invalid argument 'tasks': ${tasks}`);
 
-  if (watch) tasks._watch();
+
+  if (watch) tasks._watch(delay);
 
   const blockProcessTimer = setTimeout(() => {
   }, 0x7FFFFFFF);
@@ -70,8 +71,11 @@ function runTasks({watch, tasks}) {
     }
     restartTasks = false;
     return tasks._run()
+      .then(() => {
+        process.exitCode = 0;
+      })
       .catch((err) => {
-        // console.error(err);
+        process.exitCode = 1;
       })
       .then(() => {
         if (restartTasks) startOver();
@@ -90,8 +94,8 @@ function parallel(tasks) {
   const task = {
     lastRun: null,
     working: false,
-    _watch() {
-      tasks.forEach(v => { v._watch(); })
+    _watch(delay) {
+      tasks.forEach(v => { v._watch(delay); })
     },
     _run(prevLastRun) {
       if (this.working) return;
@@ -130,8 +134,8 @@ function serial(tasks) {
   const task = {
     lastRun: null,
     working: false,
-    _watch() {
-      tasks.forEach(v => { v._watch(); })
+    _watch(delay) {
+      tasks.forEach(v => { v._watch(delay); })
     },
     _run() {
       if (this.working) return;
