@@ -250,7 +250,6 @@ export default oncePerServices(function (services) {
             if (debug.enabled) {
               // client.on('request', (xml, eid) => {
               //   debug(`.on('request', %s, %s)`, xml, eid);
-              //   console.info(251)
               // });
               client.on('message', (message, eid) => {
                 debug(`.on('message', %s, %s)`, message, eid);

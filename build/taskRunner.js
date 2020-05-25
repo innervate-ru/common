@@ -142,7 +142,7 @@ function serial(tasks) {
       this.working = true;
       const prevUpdateTime = this.updateTime
       return (new Promise((resolve, reject) => {
-        return _serial(tasks, resolve, reject)
+        return _serial.call(this, tasks, resolve, reject)
       }))
         .then(() => {
           if (!restartTasks && prevUpdateTime === this.updateTime) this.lastRun = Date.now(); // there was NO a watch event while task was running
@@ -179,7 +179,7 @@ function _serial(tasks, resolve, reject) {
           resolve();
           return;
         }
-        _serial(tasks, resolve, reject);
+        _serial.call(this, tasks, resolve, reject);
       },
       (err) => {
         reject(err);
