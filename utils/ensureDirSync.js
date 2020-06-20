@@ -7,7 +7,7 @@ import {missingArgument} from '../validation/arguments'
 const fsStat = promisify(fs.stat);
 const fsMkdir = promisify(fs.mkdir);
 
-export default async function (dir = missingArgument('dir')) {
+export default function (dir = missingArgument('dir')) {
   dir = path.resolve(process.cwd(), dir);
   try {
     if (!fs.statSync(dir).isDirectory())
