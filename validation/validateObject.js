@@ -626,9 +626,6 @@ export const validateEventFactory = validateObjectFactory({
   invalidFieldValue: messageInvalidFieldValue,
   validateExtends: true,
   resultWrapper: (validateFunc, factoryOptions) => {
-
-    const fields = validateFunc.fields;
-
     if (factoryOptions && factoryOptions.throwException)
       return function (value, validateOptions) {
         let message = validateFunc(value, validateOptions);
@@ -654,9 +651,6 @@ export const validateStructureFactory = validateObjectFactory({
   invalidFieldValue: messageInvalidFieldValue,
   validateExtends: true,
   resultWrapper: (validateFunc, factoryOptions) => {
-
-    const fields = validateFunc.fields;
-
     if (factoryOptions && factoryOptions.throwException)
       return function (value, validateOptions) {
         let message = validateFunc(value, validateOptions);
