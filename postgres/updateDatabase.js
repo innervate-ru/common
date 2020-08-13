@@ -5,7 +5,7 @@ import 'moment-duration-format';
 import errorDataToEvent from '../errors/errorDataToEvent';
 import prettyError from '../utils/prettyError';
 
-(async function start() {
+export default (async function start() {
 
   let bus, nodeName;
 
@@ -26,15 +26,23 @@ import prettyError from '../utils/prettyError';
     const eventLoader = require('../services/defineEvents').default(consoleAndBusServicesOnly);
     await eventLoader(path.join(process.cwd(), 'src'));
 
-    await require('./evolutions').default(consoleAndBusServicesOnly)({
-      postgres: {
-        ...configAPI.get('postgres'),
-        ...(configAPI.has('evolutions') ? configAPI.get('evolutions') : {}),
-      },
+    const evolutions = configAPI.has('evolutions') ? configAPI.get('evolutions') : {};
+
+    const postgres = {...configAPI.get('postgres')};
+    postgres.user = postgres.user || evolutions.user;
+    postgres.password = postgres.password || evolutions.password;
+
+    const params = {
+      postgres,
       lock: process.env.NODE_ENV === 'production',
       dev: process.env.NODE_ENV === 'development',
-      // silent: true,
-    });
+      silent: evolutions.hasOwnProperty('silent') ? evolutions.silent : true,
+    };
+
+    if (evolutions.schemaDir) params.schemaDir = evolutions.schemaDir;
+    if (evolutions.codeDir) params.codeDir = evolutions.codeDir;
+
+    await require('./evolutions').default(consoleAndBusServicesOnly)(params);
 
   } catch (error) {
     if (bus) {

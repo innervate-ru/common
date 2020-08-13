@@ -1,6 +1,7 @@
 import configAPI from 'config';
 import {oncePerServices, missingService, missingExport, serviceName} from '../services/index';
 import express from 'express'
+import {STARTING, READY} from '../services/Service.states'
 
 const key = configAPI.get('monitoring.key');
 
@@ -43,6 +44,26 @@ export default oncePerServices(function (services) {
       async function (req, res, next) {
         res.sendStatus(monitoring.isRunning ? 200 : 503);// TODO: get services
       });
+
+    /**
+     * Возвращает 200, если статус сервиса
+     * равен READY
+     */
+    router.get(`/status`, logger, checkKey,
+      async function (req, res, next) {
+        const {service} = req.query;
+
+        if(!monitoring.isRunning || !service)
+          res.sendStatus(503);
+
+        const _service = await monitoring.getService(service);
+
+        if(!_service)
+          res.sendStatus(404);
+
+        res.sendStatus(_service.status === READY ? 200 : 503);
+      });
+
 
     /**
      * Возвращает данные в формате Prometheus по счетчикам (https://prometheus.io/docs/instrumenting/writing_exporters/).
