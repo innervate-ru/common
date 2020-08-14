@@ -239,7 +239,7 @@ export function validateObjectFactory({
         }
         if (value !== undefined && value !== null) {
           if (!(typeof value === 'object' && value !== null && !Array.isArray(value)))
-            throw new Error(`Invalid argument '${(validateOptions && validateOptions.argument) || 'value'}': ${prettyPrint(value)}`);
+            throw new Error(`${validateOptions && validateOptions.argument ? `Invalid argument  '${validateOptions.argument}': ` : ''}${prettyPrint(value)}`);
         }
         return innerValidateFunc(value, validateOptions);
       }
@@ -562,8 +562,11 @@ export const validateAndCopyOptionsFactory = validateObjectFactory({
   resultWrapper: (validateFunc) => {
     return function (value, validateOptions) {
       const message = validateFunc(value, validateOptions);
-      if (message)
-        throw new Error(`${validateOptions && validateOptions.name ? `${validateOptions.name}: ` : ``}Invalid argument '${(validateOptions && validateOptions.argument) || 'value'}': ${message.join('; ')}`);
+      if (message) {
+        const err = new Error(`${validateOptions && validateOptions.name ? `${validateOptions.name}: ` : ``}${validateOptions && validateOptions.argument ? `Invalid argument  '${validateOptions.argument}': ` : ''}${message.join('; ')}`);
+        err.code = 'validate';
+        throw err;
+      }
     }
   },
 });
@@ -581,8 +584,11 @@ export const validateFullAndCopyOptionsFactory = validateObjectFactory({
   resultWrapper: (validateFunc) => {
     return function (value, validateOptions) {
       const message = validateFunc(value, validateOptions);
-      if (message)
-        throw new Error(`${validateOptions && validateOptions.name ? `${validateOptions.name}: ` : ``}Invalid argument '${(validateOptions && validateOptions.argument) || 'value'}': ${message.join('; ')}`);
+      if (message) {
+        const err = new Error(`${validateOptions && validateOptions.name ? `${validateOptions.name}: ` : ``}${validateOptions && validateOptions.argument ? `Invalid argument  '${validateOptions.argument}': ` : ''}${message.join('; ')}`);
+        err.code = 'validate';
+        throw err;
+      }
     }
   },
 });
@@ -597,8 +603,11 @@ export const validateOptionsFactory = validateObjectFactory({
   // notPureData: true,
   resultWrapper: (validateFunc) => function (value, validateOptions) {
     const message = validateFunc(value, validateOptions);
-    if (message)
-      throw new Error(`${validateOptions && validateOptions.name ? `${validateOptions.name}: ` : ``}Invalid argument '${(validateOptions && validateOptions.argument) || 'value'}': ${message.join('; ')}`);
+    if (message) {
+      const err = new Error(`${validateOptions && validateOptions.name ? `${validateOptions.name}: ` : ``}${validateOptions && validateOptions.argument ? `Invalid argument  '${validateOptions.argument}': ` : ''}${message.join('; ')}`);
+      err.code = 'validate';
+      throw err;
+    }
   },
 });
 
@@ -612,8 +621,11 @@ export const validateFullOptionsFactory = validateObjectFactory({
   // notPureData: true,
   resultWrapper: (validateFunc) => function (value, validateOptions) {
     const message = validateFunc(value, validateOptions);
-    if (message)
-      throw new Error(`${validateOptions && validateOptions.name ? `${validateOptions.name}: ` : ``}Invalid argument '${(validateOptions && validateOptions.argument) || 'value'}': ${message.join('; ')}`);
+    if (message) {
+      const err = new Error(`${validateOptions && validateOptions.name ? `${validateOptions.name}: ` : ``}${validateOptions && validateOptions.argument ? `Invalid argument  '${validateOptions.argument}': ` : ''}${message.join('; ')}`);
+      err.code = 'validate';
+      throw err;
+    }
   },
 });
 
@@ -716,9 +728,9 @@ export const validateFinishedServiceSettings = function (schema = missingArgumen
 
 export const validateThisClassMethodArgsBuilder = function (schema = missingArgument('schema')) {
   const validate = validateOptionsFactory(schema);
-  const res = function (argumentName = missingArgument('argumentName')) {
-    if (!(typeof argumentName === 'string' && argumentName.length > 0)) invalidArgument('argumentName');
-    const options = {argument: argumentName};
+  const res = function (argumentName) {
+    if (!(argumentName === undefined || (typeof argumentName === 'string' && argumentName.length > 0))) invalidArgument('argumentName', argumentName);
+    const options = argumentName ? {argument: argumentName} : undefined;
     const res2 = function (value) { validate(value, options); }
     Object.setPrototypeOf(res2, validate); // чтобы были доступны данные схемы, необходимые для _extends
     return res2;
@@ -727,15 +739,15 @@ export const validateThisClassMethodArgsBuilder = function (schema = missingArgu
   return res;
 };
 
-export const validateThisClassMethodArgs = function (argumentName = missingArgument('argumentName'), schema = missingArgument('schema')) {
+export const validateThisClassMethodArgs = function (argumentName, schema = missingArgument('schema')) {
   return validateThisClassMethodArgsBuilder(schema)(argumentName);
 };
 
 export const validateFinishedMethodArgsBuilder = function (schema = missingArgument('schema')) {
   const validate = validateFullOptionsFactory(schema);
-  const res = function (argumentName = missingArgument('argumentName')) {
-    if (!(typeof argumentName === 'string' && argumentName.length > 0)) invalidArgument('argumentName');
-    const options = {argument: argumentName};
+  const res = function (argumentName) {
+    if (!(argumentName === undefined || (typeof argumentName === 'string' && argumentName.length > 0))) invalidArgument('argumentName', argumentName);
+    const options = argumentName ? {argument: argumentName} : undefined;
     const res2 = function (value) { validate(value, options); };
     Object.setPrototypeOf(res2, validate); // чтобы были доступны данные схемы, необходимые для _extends
     return res2;
@@ -744,7 +756,7 @@ export const validateFinishedMethodArgsBuilder = function (schema = missingArgum
   return res;
 };
 
-export const validateFinishedMethodArgs = function (argumentName = missingArgument('argumentName'), schema = missingArgument('schema')) {
+export const validateFinishedMethodArgs = function (argumentName, schema = missingArgument('schema')) {
   return validateThisClassMethodArgsBuilder(schema)(argumentName);
 };
 
