@@ -96,7 +96,7 @@ export default oncePerServices(function (services) {
             try {
               const r = await new Promise((resolve, reject) => {
                 method(fixArgs(newArgs), function (error, result) {
-                  error ? reject(error) : resolve(fixResult(result));
+                  error ? reject(error) : resolve(fixResult(result, args.context));
                 });
               });
 
