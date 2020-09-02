@@ -12,8 +12,8 @@ export default function buildFullErrorMessage(error = missingArgument('error')) 
 
   if (!(typeof error === 'object' && error !== null && !Array.isArray(error))) invalidArgument('error', error);
 
-  let contextId;
-  if (hasOwnProperty.call(error, 'context')) contextId = error.context;
+  let context;
+  if (hasOwnProperty.call(error, 'context')) context = error.context;
 
   let extra;
   for (const fieldName in error) {
@@ -24,9 +24,9 @@ export default function buildFullErrorMessage(error = missingArgument('error')) 
     const v = error[fieldName];
     if (v !== undefined) (extra || (extra = Object.create(null)))[fieldName] = v;
   }
-  if (!contextId && !extra) return error.toString();
+  if (!context && !extra) return error.toString();
 
   const name = (typeof error.name === 'string') ? error.name : 'Error';
   const message = (typeof error.message === 'string') ? error.message : undefined;
-  return `${name}${contextId ? ` (${contextId})` : ''}: ${message}${extra ? ` ${prettyPrint(extra, 1000)}` : ''}`;
+  return `${name}${context ? ` (${context})` : ''}: ${message}${extra ? ` ${prettyPrint(extra, 1000)}` : ''}`;
 }
