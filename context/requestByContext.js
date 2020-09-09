@@ -11,17 +11,3 @@ export function removeRequest(context) {
 export default function get(context) {
   return map[context];
 }
-
-export function addRequestMiddleware(getContext) {
-  return function(req, resp, next) {
-    addRequest(req.context?.reqId);
-    next();
-  }
-}
-
-export function removeRequestMiddleware(getContext) {
-  return function(req, resp, next) {
-    removeRequest(req.context?.reqId);
-    next();
-  }
-}
