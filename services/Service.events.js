@@ -11,6 +11,8 @@ import {
   INITIALIZING
 } from './Service.states'
 
+let serviceMethod;
+
 export default oncePerServices(function defineEvents({bus = missingService('bus'), testMode}) {
 
   bus.registerEvent([
@@ -61,7 +63,7 @@ export default oncePerServices(function defineEvents({bus = missingService('bus'
         toString: ev => `${ev.service}: settings: ${prettyPrint(ev.settings)}`,
       },
       // service.method
-      {
+      serviceMethod = {
         kind: 'method',
         type: 'service.method',
         validate: validateEventFactory({
@@ -72,6 +74,12 @@ export default oncePerServices(function defineEvents({bus = missingService('bus'
           failed: {type: VType.Int(), validate: v => v === 1 ? true : 'only 1(one) as value is allowed'},
         }),
         toString: ev => `${ev.service}: ${ev.method}(${prettyPrint(ev.args)}) ${ev.failed ? `failed` : `ok`} in ${ev.duration} ms'`,
+      },
+      {
+        ...serviceMethod,
+        kind: 'action',
+        type: 'service.method.result',
+        result: {type: VType.Any()},
       },
       {
         kind: 'info',

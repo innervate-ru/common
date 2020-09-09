@@ -9,8 +9,10 @@ import urlApi from 'url'
 import * as soap from 'soap'
 import SoapErrorException from '../errors/SoapErrorException'
 import request from 'request-promise'
-import addContextToError from "../context/addContextToError";
-import addContextToArgs from "../context/addContextToArgs";
+import addContextToError from '../context/addContextToError'
+import addContextToArgs from '../context/addContextToArgs'
+import requestByContext from '../context/requestByContext'
+import errorDataToEvent from '../errors/errorDataToEvent'
 
 const debug = require('debug')('soap');
 
@@ -25,6 +27,7 @@ export default oncePerServices(function (services) {
 
     constructor(settings) {
       schema.ctor_settings(this, settings);
+      this._logResult = !!settings?.logResult;
       this._settings = settings;
     }
 
@@ -58,10 +61,15 @@ export default oncePerServices(function (services) {
         const contextRequired = service._contextRequired;
         const method = client[methodName];
 
-        const fixArgs = this._fixArgsBuilder ? this._fixArgsBuilder({methodName}) : function(args) { const {context, ...rest} = args; return rest; };
-        const fixResult = this._fixResultBuilder ? this._fixResultBuilder({methodName}) : function (result) { return result; };
+        const fixArgs = this._fixArgsBuilder ? this._fixArgsBuilder({methodName}) : function (args) {
+          const {context, ...rest} = args;
+          return rest;
+        };
+        const fixResult = this._fixResultBuilder ? this._fixResultBuilder({methodName}) : function (result) {
+          return result;
+        };
 
-          this[methodName] = async function (args) {
+        this[methodName] = async (args) => {
           debug('method: %s; args: %j', methodName, args);
 
           if (contextRequired) {
@@ -69,6 +77,8 @@ export default oncePerServices(function (services) {
               missingArgument('context');
             }
           }
+
+          const user = args.user;
 
           let attempts = 1;
 
@@ -93,10 +103,12 @@ export default oncePerServices(function (services) {
 
             const startTime = Date.now();
 
+            const fixedArgs = fixArgs(newArgs);
+
             try {
               const r = await new Promise((resolve, reject) => {
-                method(fixArgs(newArgs), function (error, result) {
-                  error ? reject(error) : resolve(fixResult(result, args.context));
+                method(fixedArgs, function (error, result) {
+                  error ? reject(error) : resolve(fixResult(result, newArgs.context));
                 });
               });
 
@@ -107,17 +119,35 @@ export default oncePerServices(function (services) {
               service._callMaxCounter(durationSec);
 
               const evMethod = {
+                context: newArgs.context,
                 type: 'service.method',
                 service: service._name,
                 method: methodName,
-                // context: newArgs.context,
-                args: arguments,
+                args: fixedArgs,
                 duration,
               };
               if (attempts > 1) {
                 evMethod.attempts = attempts;
               }
-              bus.method(evMethod);
+
+              if (!this._logResult) {
+                bus.method(evMethod);
+              } else {
+                evMethod.type = 'service.method.result';
+                evMethod.result = r;
+                evMethod.action = methodName;
+                evMethod.reqId = newArgs.context;
+                const request = requestByContext(newArgs.context);
+                if (request) {
+                  if (request.user) {
+                    evMethod.username = request.user.login;
+                    evMethod.email = request.user.email;
+                    evMethod.client = request.user.crmId;
+                  }
+                  evMethod.userIp = request.userIp;
+                }
+                bus.action(evMethod);
+              }
 
               return r;
             } catch (error) {
@@ -146,10 +176,10 @@ export default oncePerServices(function (services) {
               service._callMaxCounter(durationSec);
 
               const evMethod = {
+                context: newArgs.context,
                 type: 'service.method',
                 service: service._name,
                 method: methodName,
-                // context: newArgs.context,
                 args: args,
                 duration,
                 failed: 1,
@@ -157,7 +187,24 @@ export default oncePerServices(function (services) {
               if (attempts > 1) {
                 evMethod.attempts = attempts;
               }
-              bus.method(evMethod);
+              if (!this._logResult) {
+                bus.method(evMethod);
+              } else {
+                errorDataToEvent(error, evMethod);
+                evMethod.type = 'service.method.result';
+                evMethod.action = methodName;
+                evMethod.reqId = newArgs.context;
+                const request = requestByContext(newArgs.context);
+                if (request) {
+                  if (request.user) {
+                    evMethod.username = request.user.login;
+                    evMethod.email = request.user.email;
+                    evMethod.client = request.user.crmId;
+                  }
+                  evMethod.userIp = request.userIp;
+                }
+                bus.action(evMethod);
+              }
 
               throw error;
             }
