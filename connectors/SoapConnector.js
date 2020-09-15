@@ -136,7 +136,7 @@ export default oncePerServices(function (services) {
                 evMethod.type = 'service.method.result';
                 evMethod.result = r;
                 evMethod.action = methodName;
-                evMethod.reqId = newArgs.context;
+                evMethod.context = newArgs.context;
                 const request = requestByContext(newArgs.context);
                 if (request) {
                   if (request.user) {
@@ -193,7 +193,7 @@ export default oncePerServices(function (services) {
                 errorDataToEvent(error, evMethod);
                 evMethod.type = 'service.method.result';
                 evMethod.action = methodName;
-                evMethod.reqId = newArgs.context;
+                evMethod.context = newArgs.context;
                 const request = requestByContext(newArgs.context);
                 if (request) {
                   if (request.user) {
