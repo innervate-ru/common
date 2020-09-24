@@ -196,11 +196,7 @@ export default oncePerServices(function (services) {
                 evMethod.context = newArgs.context;
                 const request = requestByContext(newArgs.context);
                 if (request) {
-                  if (request.user) {
-                    evMethod.username = request.user.login;
-                    evMethod.email = request.user.email;
-                    evMethod.client = request.user.crmId;
-                  }
+                  this._requestToEvent?.(evMethod, request);
                   evMethod.userIp = request.userIp;
                 }
                 bus.action(evMethod);
