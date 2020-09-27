@@ -1,4 +1,4 @@
-// код взят из dscommon/src/utils/_prettyPrint.coffee
+// код взят из hope/src/utils/_prettyPrint.coffee
 
 import serializeError from 'serialize-error'
 
