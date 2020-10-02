@@ -15,7 +15,7 @@ export default oncePerServices(function (services) {
 
     schema.args(args);
 
-    const {path, method, auth, result: addResult} = args;
+    const {expressApp, path, method, auth, result: addResult} = args;
 
     expressApp.post(path,
       auth,

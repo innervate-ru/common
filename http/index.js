@@ -3,7 +3,7 @@ import {invalidArgument} from '../validation/arguments'
 export default function httpAnnotation(...args) {
   const opts = {};
   function decorator(target, key, descriptor)  {
-    (target || (target._http = {}))[key] = opts;
+    (target || (target.__http = {}))[key] = opts;
     return descriptor;
   }
   if (args.length === 1) { // decorator haa arguments
