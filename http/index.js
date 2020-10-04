@@ -1,15 +1,16 @@
 import {invalidArgument} from '../validation/arguments'
 
+const schema = require('./index.schema');
+
 export default function httpAnnotation(...args) {
-  const opts = {};
+  let opts = {};
   function decorator(target, key, descriptor)  {
-    (target || (target.__http = {}))[key] = opts;
+    (target.__http || (target.__http = {}))[key] = opts;
     return descriptor;
   }
   if (args.length === 1) { // decorator haa arguments
-    const [options] = args;
-    if (!(typeof options === 'object' && options !== null && !Array.isArray(options))) invalidArgument('options', options);
-    if (options.result) opts.result = true;
+    opts = args[0];
+    schema.args(opts);
     return decorator;
   }
   decorator.apply(undefined, args);

@@ -5,7 +5,7 @@ const schema = require('./index.schema');
 
 export default oncePerServices(function (services) {
 
-  return class Docs {
+  class Docs {
 
     constructor(settings) {
       schema.ctor_settings(this, settings);
@@ -13,15 +13,26 @@ export default oncePerServices(function (services) {
       this._postgres = settings.postgres;
     }
 
-    @http
+    @http({
+      name: `create / update a document`,
+      http: true,
+    })
     update = require('./_update').default(services);
 
-    @http
+    @http({
+      name: `get a document by it's type and id`,
+      http: true,
+    })
     get = require('./_get').default(services);
 
-    @http
+    @http({
+      name: `list docs with given filter, order and paging`,
+      http: true,
+    })
     list = require('./_list').default(services);
 
     applyUserRights = require('./_applyUserRights').default(services);
   }
+
+  return Docs;
 });

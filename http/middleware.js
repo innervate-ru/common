@@ -1,33 +1,42 @@
 import {oncePerServices} from '../services'
-import postWrapper from './postWrapper'
 
 export default oncePerServices(function (services) {
 
-  return function ({expressApp, auth}) {
-    const paths = [];
-    for (svcName in services) {
+  const postWrapper = require('./postWrapper').default(services);
+
+  return function ({context, expressApp, auth}) {
+    const urls = [];
+    for (const svcName in services) {
+      console.info(9, svcName)
       const svc = services[svcName];
       if (typeof svc !== 'object') continue;
-      let level = svc.__proto;
+      let level = svc.__proto__;
       while (level) {
-        let http = level.__http; // added by @http (./index.js)
-        if (http) {
-          for (methodName in http) {
-            postWrapper((() => {
-              const r = {
-                ...http[methodName],
-                expressApp,
-                auth,
-                path: `${serviceName}/${methodName}`,
-                method: svc[methodNamt].bind(svc),
-              };
-              if (auth) r.auth = auth;
-              return r;
-            })());
+        if (level.hasOwnProperty('__http')) {
+          let http = level.__http; // added by @http (./index.js)
+          console.info(15, http)
+          if (http) {
+            for (const methodName in http) {
+              const path = `${svcName}/${methodName}`;
+              const {name, ...rest} = http[methodName];
+              urls.push({path, name});
+              postWrapper((() => {
+                const r = {
+                  ...rest,
+                  context,
+                  expressApp,
+                  path,
+                  method: svc[methodName].bind(svc),
+                };
+                if (auth) r.auth = auth;
+                return r;
+              })());
+            }
           }
         }
         level = level.__proto__;
       }
     }
+    return urls;
   }
-};
+});

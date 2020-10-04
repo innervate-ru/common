@@ -15,10 +15,12 @@ export default oncePerServices(function (services) {
 
     schema.args(args);
 
-    const {expressApp, path, method, auth, result: addResult} = args;
+    // TODO: as default auth use authMIddleware
+
+    const {expressApp, path, method, auth, result: addResult, http: sayItsHttpCall} = args;
 
     expressApp.post(path,
-      auth,
+      // auth,
       express.json(),
       async (req, resp, next) => {
         const context = (() => {
@@ -37,6 +39,7 @@ export default oncePerServices(function (services) {
         try {
           const params = {...req.body, context};
           if (addResult) params.result = result;
+          if (sayItsHttpCall) params.http = true;
           data = await method(params);
         } catch (err) {
           if (err.code === 'validate') {
