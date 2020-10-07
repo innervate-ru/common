@@ -267,7 +267,7 @@ export default oncePerServices(function (services) {
       }
 
       let transitionDesc;
-      if (docDesc.fields.state && !(transitionDesc = docDesc.states[newDoc.state].transitions[action])) {
+      if (docDesc.fields.state && !(transitionDesc = docDesc.states[newDoc.state]?.transitions[action])) {
         result.error('doc.actionNotAllowedInThisState', {
           docType: type,
           doc: testMode ? '' : newDoc.id,
