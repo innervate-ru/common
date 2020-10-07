@@ -1,0 +1,55 @@
+init token <- ?oldToken
+login <- currentToken -> ?new Token with user
+logout<- currentToken -> ?new Token without user
+check token <- currentToken -> ?401 error
+extend token
+
+token
+  session
+  ?user
+  - password  
+
+users are multiple types - this info part of token
+
+ALL THIS relies on @http
+
+users are 1st class docs
+password even encrypted must not leave server as a field of a doc. use applyUserRights when token gets created
+
+sessions may be blocked on device level
+user may be blocked entirely
+both blocks are checked on each token extension
+
+services:
+  auth
+     get <- ?currentToken with session
+     parseToken         
+     buildToken
+     addCheck - checks are called on every session extentions. if check fails, user gets logout
+
+  ?user
+
+  user/<user kind>
+     login <- currentToken
+        auth.parseToken 
+        auth.buildToken
+     logout <- currentToken
+        ...
+     checkUser as plagin to auth <- parsedToken -> new user info || undefined
+       register in _serviceInit
+
+  docs
+     add user with password encryption in update()
+     update user and keep old password if it's empty
+     get / list delete password field in applyUserRights
+
+  !!! actions
+    user added
+    user updated
+    user login
+    user logout
+    make sure ip are written
+
+CHECK UI behaviour
+
+
