@@ -24,6 +24,7 @@ export default oncePerServices(function (services) {
                   context,
                   expressApp,
                   path,
+                  service: svc,
                   method: svc[methodName].bind(svc),
                 };
                 if (auth) r.auth = auth;

@@ -2,6 +2,7 @@ import md5 from 'md5'
 import oncePerServices from '../services/oncePerServices'
 import Result from '../../../../lib/hope/lib/result/index'
 import buildDoc from './_buildDoc'
+import requestByContext from "../context/requestByContext";
 
 const debug = require('debug')('docs.list');
 
@@ -18,6 +19,8 @@ export default oncePerServices(function (services) {
     schema.list_args(args);
     const {context, http, type, filter = {}, order = {}, pageSize = 25} = args;
     let {last = false, pageNo, pageExtra = 0, offset = 0, limit} = args;
+
+    const user = requestByContext(context)?.user;
 
     const newResult = !args.result;
     const result = args.result || new Result();

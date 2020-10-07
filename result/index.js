@@ -41,7 +41,7 @@ export function _combineMsg(type, path, code, args) {
   return msg;
 }
 
-export class Result {
+export default class Result {
   constructor(pathFuncOrResult) {
     if (!(arguments.length <= 1)) {
       tooManyArguments();

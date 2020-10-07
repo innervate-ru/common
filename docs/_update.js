@@ -2,6 +2,7 @@ import md5 from 'md5'
 import oncePerServices from '../services/oncePerServices'
 import Result from '../../../../lib/hope/lib/result/index'
 import build from './_buildDoc'
+import requestByContext from '../context/requestByContext'
 
 const debug = require('debug')('docs.update');
 
@@ -19,7 +20,9 @@ export default oncePerServices(function (services) {
 
   return async function update(args) {
     schema.update_args(args);
-    const {context, user, type, doc, action, actionArgs} = args;
+    const {context, type, doc, action, actionArgs} = args;
+
+    const user = requestByContext(context)?.user;
 
     const newResult = !args.result;
     const result = args.result || new Result();
@@ -54,7 +57,6 @@ export default oncePerServices(function (services) {
             context,
             result,
             doc: newDoc,
-            user,
             docDesc,
             actionDesc,
             model: this._model,
@@ -300,7 +302,6 @@ export default oncePerServices(function (services) {
           res = actionDesc.$$code({
             context,
             result,
-            user,
             doc: newDoc,
             args: actionArgs,
             docDesc,

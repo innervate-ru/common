@@ -2,6 +2,7 @@ import md5 from 'md5'
 import oncePerServices from "../services/oncePerServices";
 import Result from "../../../../lib/hope/lib/result/index";
 import build from "./_buildDoc";
+import requestByContext from "../context/requestByContext";
 
 const schema = require('./index.schema');
 
@@ -12,11 +13,13 @@ export default oncePerServices(function (services) {
   } = services;
   const testMode = __testMode && __testMode.docs;
 
-  // TODO: Check can user retrieve this object
 
   return async function get(args) {
     schema.get_args(args);
     const {context, id, http} = args;
+
+    const user = requestByContext(context)?.user;
+    // TODO: Check can user retrieve this object
 
     let type = args.type;
 
