@@ -12,7 +12,7 @@ export const signToken_args = validate.method.this('args', {
 
 export const parseToken_args = validate.method.this('args', {
   context: {type: VType.String(), required: true},
-  token: {type: VType.Object()},
+  token: {type: VType.String(), required: true},
   isExpiredOk: {type: VType.Boolean()},
 });
 
