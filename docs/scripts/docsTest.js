@@ -9,11 +9,11 @@ cmd
   .parse(process.argv);
 
 export const task = serial([
-  require('../../../../scripts/taskCompileModel').default({
+  require('./taskCompileModel').default({
     fromDir: 'src/common/docs/model.test',
     toDir: 'src/common/docs/data.test'
   }),
-  require('../../../../scripts/taskGenerateDBSchema').default({
+  require('./taskGenerateDBSchema').default({
     fromDir: 'src/common/docs/data.test',
     toDir: 'src/common/docs/dbEvolutionsSchema.test/schema',
     modelDir: 'src/common/docs/model.test'
@@ -32,7 +32,7 @@ export const task = serial([
     },
     watch(cb) {
       chokidar.watch(path.join(process.cwd(), 'src/common/docs/*.js'), {ignoreInitial: true}).on('all', cb);
-      chokidar.watch(path.join(process.cwd(), 'src/common/docs/dbEvolutionsSchema.test/*.sql'), {ignoreInitial: true}).on('all', cb);
+      chokidar.watch(path.join(process.cwd(), 'src/common/docs/dbEvolutionsSchema.test/!*.sql'), {ignoreInitial: true}).on('all', cb);
     },
   }),
 ]);
