@@ -24,10 +24,6 @@ export default oncePerServices(function (services) {
 
     constructor(settings) {
 
-      const context = req.context || nanoid();
-
-      req.context = context;
-
       // TODO: Invistigate
       // schema.ctor_settings({...settings});
 
@@ -39,6 +35,10 @@ export default oncePerServices(function (services) {
       this._updateUser = [];
 
       this.middleware = (req, resp, next) => {
+
+        const context = req.context || nanoid();
+
+        req.context = context;
 
         const ip = requestIp.getClientIp(req);
         req.userIp = ip.startsWith('::ffff:') ? ip.substr(7) : ip; // удаляем префикс ipV6 для ipV4 адресов
