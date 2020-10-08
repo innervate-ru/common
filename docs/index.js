@@ -14,11 +14,11 @@ export default oncePerServices(function (services) {
     }
 
     @http({
-      name: `create / update a document`,
+      name: `create / update a document and/or perform an action`,
       result: true,
       http: true,
     })
-    update = require('./_update').default(services);
+    invoke = require('./_invoke').default(services);
 
     @http({
       name: `get a document by its type and id`,

@@ -47,7 +47,7 @@ export default oncePerServices(function (services) {
     });
 
     if (r.rowCount === 0) {
-      result.error('doc.oldRev', {doc: testMode ? '' : doc.id, rev: doc.rev});
+      result.error('doc.oldRev', {docId: testMode ? '' : doc.id, rev: doc.rev});
       return;
     }
 

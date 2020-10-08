@@ -56,6 +56,6 @@ test.serial(`1.1 insertUpdateRead: insert`, async t => {
   });
 
   t.deepEqual(result.messages, [
-    {type: 'error', doc: '', code: 'doc.oldRev', rev: 1},
+    {type: 'error', docId: '', code: 'doc.oldRev', rev: 1},
   ]);
 });

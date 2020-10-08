@@ -20,7 +20,7 @@ export default oncePerServices(function (services) {
 
   return async function update(args) {
     schema.update_args(args);
-    const {context, type, doc, action, actionArgs} = args;
+    const {context, type, docId, update, action, actionArgs} = args;
 
     const user = requestByContext(context)?.user;
 
@@ -47,7 +47,7 @@ export default oncePerServices(function (services) {
 
     // basic validate update
 
-    let newDoc = doc;
+    let newDoc = update;
 
     const runActionCode = async (actionDesc) => {
       let res;
@@ -71,19 +71,19 @@ export default oncePerServices(function (services) {
       }
     };
 
-    // get existing doc
+    // get existing update
     let existingDoc;
-    if (typeof doc === 'string' || doc.hasOwnProperty('id')) {
+    if (docId || update.hasOwnProperty('id')) {
       // TODO: Check docType level retrieve right
       const statement = `select * from ${docDesc.$$table} where id = $1;`;
       const r = await connection.exec({
         context,
         name: md5(statement),
         statement,
-        params: [typeof doc === 'string' ? doc : doc.id],
+        params: [docId || update.id],
       });
       if (r.rowCount === 0) {
-        result.error('doc.notFound', {docType: type, doc: testMode ? '' : doc.id});
+        result.error('doc.notFound', {docType: type, docId: testMode ? '' : update.id});
         if (newResult) result.throwIfError(); else return;
       }
       existingDoc = docDesc.fields.$$fix(build(docDesc, r.rows[0]), {mask: docDesc.fields.$$calc('#all-options')});
@@ -99,13 +99,13 @@ export default oncePerServices(function (services) {
     debug(`update: existingDoc: %o`, existingDoc);
 
     let access;
-    if (typeof doc === 'object') {
+    if (update) {
 
-      debug(`update: doc: %o`, doc);
+      debug(`update: doc: %o`, update);
 
-      docDesc.$$validate(localResult, doc, {beforeAction: false, strict: true, mask: docDesc.fields.$$tags.all});
+      docDesc.$$validate(localResult, update, {beforeAction: false, strict: true, mask: docDesc.fields.$$tags.all});
       if (localResult.isError) {
-        result.error(`doc.wrongUpdateArgs`, {docType: type, doc: existingDoc.id, step: 1});
+        result.error(`doc.wrongUpdateArgs`, {docType: type, docId: existingDoc.id, step: 1});
         result.add(localResult);
         if (newResult) result.throwIfError(); else return;
       }
@@ -127,13 +127,13 @@ export default oncePerServices(function (services) {
         if (prevAccess && prevAccess.update.equal(access.update)) break; // если маска update не изменилась, значит обновление полность применено
 
         if (i === 10) {
-          result.error('doc.tooManyUpdateCycles', {docType: type, doc: existingDoc.id});
+          result.error('doc.tooManyUpdateCycles', {docType: type, docId: existingDoc.id});
           if (newResult) result.throwIfError(); else return;
         }
 
         // apply update
         const state = newDoc.state;
-        newDoc = docDesc.fields.$$set(newDoc, doc, {
+        newDoc = docDesc.fields.$$set(newDoc, update, {
           updateMask: docDesc.fields.$$calc('id,rev,deleted').or(access.update),
           newVal: false
         });
@@ -142,23 +142,23 @@ export default oncePerServices(function (services) {
         debug(`update: newDoc[%d]: %o`, i, newDoc);
       }
 
-      docDesc.$$validate(localResult, doc, {
+      docDesc.$$validate(localResult, update, {
         access,
         beforeAction: false,
         strict: true,
         mask: access.update.add('id,rev,deleted'),
       });
       if (localResult.isError) {
-        result.error(`doc.wrongUpdateArgs`, {docType: type, doc: existingDoc.id, step: 2});
+        result.error(`doc.wrongUpdateArgs`, {docType: type, docId: existingDoc.id, step: 2});
         result.add(localResult);
         if (newResult) result.throwIfError(); else return;
       }
 
       // is this existing document?
-      if (doc.hasOwnProperty('id')) {
+      if (update.hasOwnProperty('id')) {
 
         if (!access.actions.get(docDesc.actions.retrieve.$$index)) {
-          result.error(`doc.notAvailable`, {docType: type, doc: newDoc.id});
+          result.error(`doc.notAvailable`, {docType: type, docId: newDoc.id});
           if (newResult) result.throwIfError(); else return;
         }
 
@@ -166,7 +166,7 @@ export default oncePerServices(function (services) {
         if (result.isError) if (newResult) result.throwIfError(); else return;
 
         if (!access.actions.get(docDesc.actions.update.$$index)) {
-          result.error(`doc.cannotUpdate`, {docType: type, doc: newDoc.id});
+          result.error(`doc.cannotUpdate`, {docType: type, docId: newDoc.id});
           if (newResult) result.throwIfError(); else return;
         }
 
@@ -176,7 +176,7 @@ export default oncePerServices(function (services) {
         if (existingDoc.deleted) {
           if (!newDoc.deleted) {
             if (!access.actions.get(docDesc.actions.restore.$$index)) {
-              result.error(`doc.cannotRestore`, {docType: type, doc: newDoc.id});
+              result.error(`doc.cannotRestore`, {docType: type, docId: newDoc.id});
               if (newResult) result.throwIfError(); else return;
             }
 
@@ -187,7 +187,7 @@ export default oncePerServices(function (services) {
 
           if (newDoc.deleted) {
             if (!access.actions.get(docDesc.actions.delete.$$index)) {
-              result.error(`doc.cannotDelete`, {docType: type, doc: newDoc.id});
+              result.error(`doc.cannotDelete`, {docType: type, docId: newDoc.id});
               if (newResult) result.throwIfError(); else return;
             }
 
@@ -202,7 +202,7 @@ export default oncePerServices(function (services) {
         newDoc = docDesc.fields.$$get(newDoc, docDesc.fields.$$calc('id,rev,deleted').or(access.view).or(access.update));
         newDoc = await updateRow(localResult, context, connection, docDesc, newDoc);
         if (localResult.isError) {
-          result.error(`doc.updateFailedToWrite`, {docType: type, doc: testMode ? '' : existingDoc.id});
+          result.error(`doc.updateFailedToWrite`, {docType: type, docId: testMode ? '' : existingDoc.id});
           result.add(localResult);
           if (newResult) result.throwIfError(); else return;
         }
@@ -210,7 +210,7 @@ export default oncePerServices(function (services) {
       } else {
 
         if (!access.actions.get(docDesc.actions.create.$$index)) {
-          result.error(`doc.cannotCreate`, {docType: type, doc: newDoc.id});
+          result.error(`doc.cannotCreate`, {docType: type, docId: newDoc.id});
           if (newResult) result.throwIfError(); else return;
         }
 
@@ -239,12 +239,12 @@ export default oncePerServices(function (services) {
       const actionDesc = docDesc.actions[action];
 
       if (!actionDesc) {
-        result.error('doc.unknownAction', {docType: type, doc: testMode ? '' : newDoc.id, action});
+        result.error('doc.unknownAction', {docType: type, docId: testMode ? '' : newDoc.id, action});
         if (newResult) result.throwIfError(); else return;
       }
 
       if (docDesc.actions.$$tags.system.get(actionDesc.$$index)) {
-        result.error('doc.systemActionCannotBeCalledDirectly', {docType: type, doc: testMode ? '' : newDoc.id, action});
+        result.error('doc.systemActionCannotBeCalledDirectly', {docType: type, docId: testMode ? '' : newDoc.id, action});
         if (newResult) result.throwIfError(); else return;
       }
 
@@ -253,7 +253,7 @@ export default oncePerServices(function (services) {
       }
 
       if (!access.actions.get(actionDesc.$$index)) {
-        result.error('doc.actionIsNotAvailable', {docType: type, doc: testMode ? '' : newDoc.id, action});
+        result.error('doc.actionIsNotAvailable', {docType: type, docId: testMode ? '' : newDoc.id, action});
         if (newResult) result.throwIfError(); else return;
       }
 
@@ -270,8 +270,8 @@ export default oncePerServices(function (services) {
       if (docDesc.fields.state && !(transitionDesc = docDesc.states[newDoc.state]?.transitions[action])) {
         result.error('doc.actionNotAllowedInThisState', {
           docType: type,
-          doc: testMode ? '' : newDoc.id,
-          state: doc.state,
+          docId: testMode ? '' : newDoc.id,
+          state: update.state,
           action
         });
         if (newResult) result.throwIfError(); else return;
@@ -279,17 +279,17 @@ export default oncePerServices(function (services) {
 
       if (actionDesc.arguments) {
         if (!actionArgs) {
-          result.error('doc.actionArgsRequired', {docType: type, doc: testMode ? '' : newDoc.id, action});
+          result.error('doc.actionArgsRequired', {docType: type, docId: testMode ? '' : newDoc.id, action});
           if (newResult) result.throwIfError(); else return;
         }
         actionDesc.arguments.$$validate(localResult, actionArgs, {beforeAction: true});
         if (localResult.isError) {
-          result.error(`doc.invalidActionArgs`, {docType: type, doc: testMode ? '' : newDoc.id, action: action});
+          result.error(`doc.invalidActionArgs`, {docType: type, docId: testMode ? '' : newDoc.id, action: action});
           result.add(localResult);
           if (newResult) result.throwIfError(); else return;
         }
       } else if (actionArgs) {
-        result.error('doc.actionArgsNotExpected', {docType: type, doc: testMode ? '' : newDoc.id, action});
+        result.error('doc.actionArgsNotExpected', {docType: type, docId: testMode ? '' : newDoc.id, action});
         if (newResult) result.throwIfError(); else return;
       }
 
@@ -332,7 +332,7 @@ export default oncePerServices(function (services) {
             if (localResult.isError) {
               result.error(`doc.invalidUpdateFromActionCode`, {
                 docType: type,
-                doc: testMode ? '' : newDoc.id,
+                docId: testMode ? '' : newDoc.id,
                 action: action,
                 step: 1,
               });
@@ -344,7 +344,7 @@ export default oncePerServices(function (services) {
             if (!docDesc.states[res.state]) {
               result.error('doc.actionCodeReturnedUnknownState', {
                 docType: type,
-                doc: testMode ? '' : newDoc.id,
+                docId: testMode ? '' : newDoc.id,
                 state: res.state,
                 action,
               });
@@ -368,7 +368,7 @@ export default oncePerServices(function (services) {
         if (localResult.isError) {
           result.error(`doc.invalidUpdateFromActionCode`, {
             docType: type,
-            doc: testMode ? '' : newDoc.id,
+            docId: testMode ? '' : newDoc.id,
             action: action,
             step: 2,
           });
@@ -382,7 +382,7 @@ export default oncePerServices(function (services) {
         if (localResult.isError) {
           result.error(`doc.failedToWriteActionUpdate`, {
             docType: type,
-            doc: testMode ? '' : newDoc.id,
+            docId: testMode ? '' : newDoc.id,
             action: action
           });
           result.add(localResult);

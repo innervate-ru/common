@@ -19,7 +19,8 @@ const commonFields = {
 export const update_args = validate.method.this(undefined, {
   ...commonFields,
   type: {type: VType.String().notEmpty(), required: true},
-  doc: {type: [VType.String(), VType.Object()], required: true, validate: v => !v.hasOwnProperty('id') || typeof(v.id) === 'string' || `invalid 'id'`},
+  docId: {type: VType.String()},
+  update: {type: VType.Object(), validate: v => !v.hasOwnProperty('id') || typeof(v.id) === 'string' || `invalid 'id'`},
   action: {type: VType.String().notEmpty()},
   actionArgs: {type: VType.Object()},
   _final: true,

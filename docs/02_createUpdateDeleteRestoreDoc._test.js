@@ -8,16 +8,16 @@ test.serial(`2.1 createUpdateDeleteResoreDoc`, async t => {
 
   const result = new Result();
 
-  let doc = await testDocsSvc.update({
-    context: `context`, result, type: 'doc.Doc1', doc: {
+  let doc = await testDocsSvc.invoke({
+    context: `context`, result, type: 'doc.Doc1', update: {
       f1: 'test',
     }
   });
 
   t.deepEqual(result.messages, []);
 
-  doc = await testDocsSvc.update({
-    context: `context`, result, type: 'doc.Doc1', doc: {
+  doc = await testDocsSvc.invoke({
+    context: `context`, result, type: 'doc.Doc1', update: {
       id: doc.id,
       f2: 21,
       deleted: true,
@@ -26,8 +26,8 @@ test.serial(`2.1 createUpdateDeleteResoreDoc`, async t => {
 
   t.deepEqual(result.messages, []);
 
-  doc = await testDocsSvc.update({
-    context: `context`, result, type: 'doc.Doc1', doc: {
+  doc = await testDocsSvc.invoke({
+    context: `context`, result, type: 'doc.Doc1', update: {
       id: doc.id,
       f2: 21,
       deleted: false,
@@ -36,8 +36,8 @@ test.serial(`2.1 createUpdateDeleteResoreDoc`, async t => {
 
   t.deepEqual(result.messages, []);
 
-  doc = await testDocsSvc.update({
-    context: `context`, result, type: 'doc.Doc1', doc: {
+  doc = await testDocsSvc.invoke({
+    context: `context`, result, type: 'doc.Doc1', update: {
       id: doc.id,
       rev: 0,
       f2: 21,
@@ -45,8 +45,8 @@ test.serial(`2.1 createUpdateDeleteResoreDoc`, async t => {
   });
 
   t.deepEqual(result.messages, [
-    {code: 'doc.updateFailedToWrite',type: 'error', doc: '', docType: 'doc.Doc1'},
-    {type: 'error', doc: '', code: 'doc.oldRev', rev: 0},
+    {code: 'doc.updateFailedToWrite', type: 'error', docId: '', docType: 'doc.Doc1'},
+    {type: 'error', docId: '', code: 'doc.oldRev', rev: 0},
   ]);
 });
 

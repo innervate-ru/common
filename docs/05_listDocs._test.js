@@ -35,8 +35,8 @@ test.serial(`5.1 listDocs`, async t => {
   });
 
   for (let i = 0; i < 15; i++) {
-    await testDocsSvc.update({
-      context: `context`, result, type: 'doc.Doc1', doc: {
+    await testDocsSvc.invoke({
+      context: `context`, result, type: 'doc.Doc1', update: {
         f1: 'test',
         f2: i,
       }
