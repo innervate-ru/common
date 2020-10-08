@@ -24,6 +24,10 @@ export default oncePerServices(function (services) {
 
     constructor(settings) {
 
+      const context = req.context || nanoid();
+
+      req.context = context;
+
       // TODO: Invistigate
       // schema.ctor_settings({...settings});
 
@@ -60,7 +64,12 @@ export default oncePerServices(function (services) {
           next(err);
           return;
         }
+
         req.session = token.session;
+
+        if (token.user) {
+          req.user = token.user;
+        }
 
         next();
       };
