@@ -202,7 +202,7 @@ export default oncePerServices(function (services) {
         newDoc = docDesc.fields.$$get(newDoc, docDesc.fields.$$calc('id,rev,deleted').or(access.view).or(access.update));
         newDoc = await updateRow(localResult, context, connection, docDesc, newDoc);
         if (localResult.isError) {
-          result.error(`doc.updateFailedToWrite`, {docType: type, doc: existingDoc.id});
+          result.error(`doc.updateFailedToWrite`, {docType: type, doc: testMode ? '' : existingDoc.id});
           result.add(localResult);
           if (newResult) result.throwIfError(); else return;
         }

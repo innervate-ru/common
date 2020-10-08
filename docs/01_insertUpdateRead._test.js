@@ -6,7 +6,7 @@ import build from './_buildDoc'
 
 test.serial(`1.1 insertUpdateRead: insert`, async t => {
 
-  const {postgres, 'docs/baseDocs/testDocsSvc': testDocsSvc} = t.context.manager.services;
+  const {postgres, testDocsSvc} = t.context.manager.services;
   const insertRow = require('./_insertRow').default(t.context.manager.services);
   const updateRow = require('./_updateRow').default(t.context.manager.services);
 

@@ -4,7 +4,7 @@ import Result from '../../../../lib/hope/lib/result/index'
 
 test.serial(`4.1 getDoc`, async t => {
 
-  const {'docs/baseDocs/testDocsSvc': testDocsSvc} = t.context.manager.services;
+  const {testDocsSvc} = t.context.manager.services;
 
   const result = new Result();
 

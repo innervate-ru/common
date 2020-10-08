@@ -1,8 +1,7 @@
 import oncePerServices from "../../../../services/oncePerServices";
 import missingService from "../../../../services/missingService";
 
-
-const schema = require('../../../list.schema');
+const schema = require('../../../actions.schema');
 
 export default oncePerServices(function (services) {
 

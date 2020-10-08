@@ -4,7 +4,7 @@ import Result from '../../../../lib/hope/lib/result/index'
 
 test.serial(`2.1 createUpdateDeleteResoreDoc`, async t => {
 
-  const {'docs/baseDocs/testDocsSvc': testDocsSvc} = t.context.manager.services;
+  const {testDocsSvc} = t.context.manager.services;
 
   const result = new Result();
 
@@ -45,7 +45,7 @@ test.serial(`2.1 createUpdateDeleteResoreDoc`, async t => {
   });
 
   t.deepEqual(result.messages, [
-    {code: 'doc.updateFailedToWrite',type: 'error'},
+    {code: 'doc.updateFailedToWrite',type: 'error', doc: '', docType: 'doc.Doc1'},
     {type: 'error', doc: '', code: 'doc.oldRev', rev: 0},
   ]);
 });

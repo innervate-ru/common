@@ -95,8 +95,10 @@ export default oncePerServices(function (services) {
         params: sqlParams,
       });
 
+      let docs;
+
       if (http) {
-        docs = r2.rows.reduce((acc, v) => {
+        docs = r.rows.reduce((acc, v) => {
           const doc = buildDoc(docDesc, v);
           // const access = docDesc.$$access(newDoc); // TODO: $$fix doc and $$get only fields viewable for given user
           if (this.applyUserRights({context, result, doc})) {
@@ -106,10 +108,8 @@ export default oncePerServices(function (services) {
         }, []);
         if (newResult) result.throwIfError(); else return;
       } else {
-        r2.rows.map(v => buildDoc(docDesc, v));
+        docs = r.rows.map(v => buildDoc(docDesc, v));
       }
-
-      const docs = r.rows.map(v => buildDoc(docDesc, v));
 
       if (testMode) {
         docs.forEach(d => {
@@ -195,7 +195,7 @@ export default oncePerServices(function (services) {
           }, []);
           if (newResult) result.throwIfError(); else return;
         } else {
-          r2.rows.map(v => buildDoc(docDesc, v));
+          docs = r2.rows.map(v => buildDoc(docDesc, v));
         }
 
         if (testMode) {

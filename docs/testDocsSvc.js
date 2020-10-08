@@ -3,7 +3,7 @@ import cloneDeep from 'lodash/cloneDeep'
 import link from '../../../../lib/hope/lib/config/_link'
 import oncePerServices from '../services/oncePerServices'
 
-export const name = require('../services/serviceName').default(__filename);
+export const name = 'testDocsSvc';
 
 export default oncePerServices(function (services) {
 
