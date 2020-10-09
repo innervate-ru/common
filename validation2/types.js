@@ -126,7 +126,7 @@ function _module() {
               const msg = typeValidator(context, value, undefined, validateOptions);
               if (msg) {
                 if (message) {
-                  Array.prototype.apply(message, msg);
+                  Array.prototype.push.apply(message, msg);
                   return message;
                 }
                 return msg;
@@ -157,7 +157,7 @@ function _module() {
               const msg = typeValidator(context, value, undefined, validateOptions);
               if (msg) {
                 if (message) {
-                  Array.prototype.apply(message, msg);
+                  Array.prototype.push.apply(message, msg);
                   return message;
                 }
                 return msg;
