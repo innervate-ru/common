@@ -8,7 +8,7 @@ test.serial(`4.1 getDoc`, async t => {
 
   const result = new Result();
 
-  let doc = await testDocsSvc.invoke({context: `context`, result, type: 'doc.Doc1', update: {
+  let {doc} = await testDocsSvc.invoke({context: `context`, result, type: 'doc.Doc1', update: {
       f1: 'test',
       f2: 121,
     }});

@@ -172,6 +172,25 @@
             },
             {
               "name": "submitted"
+            },
+            {
+              "name": "login",
+              "static": true,
+              "arguments": {
+                "list": [
+                  {
+                    "name": "email",
+                    "type": "string",
+                    "length": 360
+                  },
+                  {
+                    "name": "password",
+                    "type": "string",
+                    "length": 60
+                  }
+                ],
+                "tags": {}
+              }
             }
           ],
           "tags": {

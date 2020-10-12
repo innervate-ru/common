@@ -61,7 +61,11 @@ export default oncePerServices(function (services) {
             actionDesc,
             model: this._model,
           });
-          if (typeof res === 'object' && res !== null && !Array.isArray(res) && typeof res.then === 'function') await res;
+          if (typeof res === 'object' && res !== null && !Array.isArray(res) && typeof res.then === 'function') res = await res;
+          if (res.doc)  {
+            newDoc = res.doc;
+            delete red.doc;
+          }
           return res;
         } catch (err) {
           err.context = context;
@@ -73,7 +77,7 @@ export default oncePerServices(function (services) {
 
     // get existing update
     let existingDoc;
-    if (docId || update.hasOwnProperty('id')) {
+    if (docId || update?.hasOwnProperty('id')) {
       // TODO: Check docType level retrieve right
       const statement = `select * from ${docDesc.$$table} where id = $1;`;
       const r = await connection.exec({
@@ -232,6 +236,9 @@ export default oncePerServices(function (services) {
     //
     // process action
     //
+
+    let actionResult;
+
     if (action) {
 
       debug(`action: %o`, action)
@@ -245,35 +252,6 @@ export default oncePerServices(function (services) {
 
       if (docDesc.actions.$$tags.system.get(actionDesc.$$index)) {
         result.error('doc.systemActionCannotBeCalledDirectly', {docType: type, docId: testMode ? '' : newDoc.id, action});
-        if (newResult) result.throwIfError(); else return;
-      }
-
-      if (!access) {
-        access = docDesc.$$access(newDoc)
-      }
-
-      if (!access.actions.get(actionDesc.$$index)) {
-        result.error('doc.actionIsNotAvailable', {docType: type, docId: testMode ? '' : newDoc.id, action});
-        if (newResult) result.throwIfError(); else return;
-      }
-
-      if (!actionDesc.skipValidation) {
-        docDesc.$$validate(localResult, newDoc, {access, beforeAction: true, strict: false});
-        if (localResult.isError) {
-          result.error(`doc.invalidDocBeforeAction`, {docType: type, action});
-          result.add(localResult);
-          if (newResult) result.throwIfError(); else return;
-        }
-      }
-
-      let transitionDesc;
-      if (docDesc.fields.state && !(transitionDesc = docDesc.states[newDoc.state]?.transitions[action])) {
-        result.error('doc.actionNotAllowedInThisState', {
-          docType: type,
-          docId: testMode ? '' : newDoc.id,
-          state: update.state,
-          action
-        });
         if (newResult) result.throwIfError(); else return;
       }
 
@@ -293,106 +271,174 @@ export default oncePerServices(function (services) {
         if (newResult) result.throwIfError(); else return;
       }
 
-      let actionUpdate;
-      if (actionDesc.$$code) {
+      if (actionDesc.static) {
 
-        let res;
+        if (actionDesc.$$code) {
 
-        try {
-          res = actionDesc.$$code({
-            context,
-            result,
-            doc: newDoc,
-            args: actionArgs,
-            docDesc,
-            actionDesc,
-            model: this._model,
-          });
+          try {
+            actionResult = actionDesc.$$code({
+              context,
+              result,
+              doc: newDoc,
+              args: actionArgs,
+              docDesc,
+              actionDesc,
+              model: this._model,
+            });
 
-          if (typeof res === 'object' && res !== null && !Array.isArray(res) && typeof res.then === 'function') res = await res;
+            if (typeof actionResult === 'object' && actionResult !== null && !Array.isArray(actionResult) && typeof actionResult.then === 'function') actionResult = await actionResult;
 
-        } catch (err) {
-          err.context = context;
-          this._service._reportError(err);
-          result.error(`doc.systemError`, {context});
+          } catch (err) {
+            err.context = context;
+            this._service._reportError(err);
+            result.error(`doc.systemError`, {context});
+            if (newResult) result.throwIfError(); else return;
+          }
+
+          debug(`action: res: %o`, actionResult);
+
+          if (result.isError) if (newResult) result.throwIfError(); else return;
+        }
+
+        return actionResult?.result ? {result: actionResult.result} : {};
+
+      } else {
+
+        if (!access) {
+          access = docDesc.$$access(newDoc)
+        }
+
+        if (!access.actions.get(actionDesc.$$index)) {
+          result.error('doc.actionIsNotAvailable', {docType: type, docId: testMode ? '' : newDoc.id, action});
           if (newResult) result.throwIfError(); else return;
         }
 
-        debug(`action: res: %o`, res);
-
-        if (result.isError) if (newResult) result.throwIfError(); else return;
-
-        if (typeof res === 'object' && res !== null && !Array.isArray(res)) {
-
-          if (res.update) {
-
-            actionUpdate = docDesc.fields.$$fix(res.update, {newVal: false});
-
-            docDesc.$$validate(localResult, actionUpdate, {mask: docDesc.fields.$$tags.all});
-            if (localResult.isError) {
-              result.error(`doc.invalidUpdateFromActionCode`, {
-                docType: type,
-                docId: testMode ? '' : newDoc.id,
-                action: action,
-                step: 1,
-              });
-              result.add(localResult);
-              if (newResult) result.throwIfError(); else return;
-            }
-          }
-          if (res.state) {
-            if (!docDesc.states[res.state]) {
-              result.error('doc.actionCodeReturnedUnknownState', {
-                docType: type,
-                docId: testMode ? '' : newDoc.id,
-                state: res.state,
-                action,
-              });
-              if (newResult) result.throwIfError(); else return;
-            }
-            (actionUpdate || (actionUpdate = {})).state = res.state;
+        if (!actionDesc.skipValidation) {
+          docDesc.$$validate(localResult, newDoc, {access, beforeAction: true, strict: false});
+          if (localResult.isError) {
+            result.error(`doc.invalidDocBeforeAction`, {docType: type, action});
+            result.add(localResult);
+            if (newResult) result.throwIfError(); else return;
           }
         }
-      }
 
-      if (transitionDesc && !(actionUpdate && actionUpdate.state)) (actionUpdate || (actionUpdate = {})).state = transitionDesc.next.name;
-
-      if (actionUpdate) {
-
-        // apply update
-        newDoc = docDesc.fields.$$set(newDoc, actionUpdate);
-
-        access = docDesc.$$access(newDoc);
-
-        docDesc.$$validate(localResult, actionUpdate, {mask: access.view.or(access.update)});
-        if (localResult.isError) {
-          result.error(`doc.invalidUpdateFromActionCode`, {
+        let transitionDesc;
+        if (docDesc.fields.state && !(transitionDesc = docDesc.states[newDoc.state]?.transitions[action])) {
+          result.error('doc.actionNotAllowedInThisState', {
             docType: type,
             docId: testMode ? '' : newDoc.id,
-            action: action,
-            step: 2,
+            state: update.state,
+            action
           });
-          result.add(localResult);
           if (newResult) result.throwIfError(); else return;
         }
 
-        // update document
-        newDoc = docDesc.fields.$$get(newDoc, access.view.add(access.update).add('id,rev,state,deleted'));
-        newDoc = await updateRow(localResult, context, connection, docDesc, newDoc);
-        if (localResult.isError) {
-          result.error(`doc.failedToWriteActionUpdate`, {
-            docType: type,
-            docId: testMode ? '' : newDoc.id,
-            action: action
-          });
-          result.add(localResult);
-          if (newResult) result.throwIfError(); else return;
-        }
-      }
+        let actionUpdate;
+        if (actionDesc.$$code) {
 
-      // TODO: Log history
+          try {
+            actionResult = actionDesc.$$code({
+              context,
+              result,
+              doc: newDoc,
+              args: actionArgs,
+              docDesc,
+              actionDesc,
+              model: this._model,
+            });
+
+            if (typeof actionResult === 'object' && actionResult !== null && !Array.isArray(actionResult) && typeof actionResult.then === 'function') actionResult = await actionResult;
+
+          } catch (err) {
+            err.context = context;
+            this._service._reportError(err);
+            result.error(`doc.systemError`, {context});
+            if (newResult) result.throwIfError(); else return;
+          }
+
+          debug(`action: res: %o`, actionResult);
+
+          if (result.isError) if (newResult) result.throwIfError(); else return;
+
+          if (typeof actionResult === 'object' && actionResult !== null && !Array.isArray(actionResult)) {
+
+            if (actionResult.update) {
+
+              actionUpdate = docDesc.fields.$$fix(actionResult.update, {newVal: false});
+
+              docDesc.$$validate(localResult, actionUpdate, {mask: docDesc.fields.$$tags.all});
+              if (localResult.isError) {
+                result.error(`doc.invalidUpdateFromActionCode`, {
+                  docType: type,
+                  docId: testMode ? '' : newDoc.id,
+                  action: action,
+                  step: 1,
+                });
+                result.add(localResult);
+                if (newResult) result.throwIfError(); else return;
+              }
+            }
+            if (actionResult.state) {
+              if (!docDesc.states[actionResult.state]) {
+                result.error('doc.actionCodeReturnedUnknownState', {
+                  docType: type,
+                  docId: testMode ? '' : newDoc.id,
+                  state: actionResult.state,
+                  action,
+                });
+                if (newResult) result.throwIfError(); else return;
+              }
+              (actionUpdate || (actionUpdate = {})).state = actionResult.state;
+            }
+          }
+        }
+
+        if (transitionDesc && !(actionUpdate && actionUpdate.state)) (actionUpdate || (actionUpdate = {})).state = transitionDesc.next.name;
+
+        if (actionUpdate) {
+
+          // apply update
+          newDoc = docDesc.fields.$$set(newDoc, actionUpdate);
+
+          access = docDesc.$$access(newDoc);
+
+          docDesc.$$validate(localResult, actionUpdate, {mask: access.view.or(access.update)});
+          if (localResult.isError) {
+            result.error(`doc.invalidUpdateFromActionCode`, {
+              docType: type,
+              docId: testMode ? '' : newDoc.id,
+              action: action,
+              step: 2,
+            });
+            result.add(localResult);
+            if (newResult) result.throwIfError(); else return;
+          }
+
+          // update document
+          newDoc = docDesc.fields.$$get(newDoc, access.view.add(access.update).add('id,rev,state,deleted'));
+          newDoc = await updateRow(localResult, context, connection, docDesc, newDoc);
+          if (localResult.isError) {
+            result.error(`doc.failedToWriteActionUpdate`, {
+              docType: type,
+              docId: testMode ? '' : newDoc.id,
+              action: action
+            });
+            result.add(localResult);
+            if (newResult) result.throwIfError(); else return;
+          }
+        }
+
+        // TODO: Log history
+
+      }
     }
 
-    return newDoc;
+    const r = {doc: newDoc};
+
+    if (actionResult?.result) {
+      r.result = actionResult.result;
+    }
+
+    return r;
   }
 });

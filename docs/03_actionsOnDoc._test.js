@@ -8,7 +8,7 @@ test.serial(`3.1 actionsOnDoc`, async t => {
 
   const result = new Result();
 
-  let doc = await testDocsSvc.invoke({context: `context`, result, type: 'doc.Doc1', update: {
+  let {doc} = await testDocsSvc.invoke({context: `context`, result, type: 'doc.Doc1', update: {
       f1: 'test',
       str: {
         d: '4567'
@@ -17,7 +17,7 @@ test.serial(`3.1 actionsOnDoc`, async t => {
 
   t.deepEqual(result.messages, []);
 
-  let res = await testDocsSvc.invoke({context: `context`, result, type: 'doc.Doc1', docId: doc.id, action: 'submit', actionArgs: {
+  ({doc} = await testDocsSvc.invoke({context: `context`, result, type: 'doc.Doc1', docId: doc.id, action: 'submit', actionArgs: {
       x: 12,
       y: null,
       z: [
@@ -25,9 +25,9 @@ test.serial(`3.1 actionsOnDoc`, async t => {
         {a: 24, b: '2'},
         {a: 36, b: '2'},
       ]
-    }});
+    }}));
 
   t.deepEqual(result.messages, []);
 
-  t.is(res.state, 'submit');
+  t.is(doc.state, 'submit');
 });

@@ -13,6 +13,7 @@ export default oncePerServices(function (services) {
   const testMode = __testMode && __testMode.docs;
 
   return async function applyUserRights(args) {
+/*
     schema.applyUserRights_args(args);
     const {context, doc} = args;
 
@@ -29,10 +30,13 @@ export default oncePerServices(function (services) {
 
     const res = docDesc.actions.retrieve.$$code?.({context, result, doc, docDesc, model: this._model});
 
-      if (result.isError) {
+    if (result.isError) {
       if (newResult) result.throwIfError(); else return;
     }
 
     return res; // may be undefined
+*/
+
+    return true;
   }
 });

@@ -37,5 +37,13 @@ export default oncePerServices(function (services) {
         },
       }
     },
+
+    login({context, result, args, docDesc, actionDesc, model}) {
+      return {
+        result: {
+          token: '321',
+        }
+      };
+    },
   };
 });

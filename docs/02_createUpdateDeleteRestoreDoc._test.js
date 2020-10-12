@@ -8,7 +8,7 @@ test.serial(`2.1 createUpdateDeleteResoreDoc`, async t => {
 
   const result = new Result();
 
-  let doc = await testDocsSvc.invoke({
+  let res = await testDocsSvc.invoke({
     context: `context`, result, type: 'doc.Doc1', update: {
       f1: 'test',
     }
@@ -16,7 +16,9 @@ test.serial(`2.1 createUpdateDeleteResoreDoc`, async t => {
 
   t.deepEqual(result.messages, []);
 
-  doc = await testDocsSvc.invoke({
+  const doc = res.doc;
+
+  await testDocsSvc.invoke({
     context: `context`, result, type: 'doc.Doc1', update: {
       id: doc.id,
       f2: 21,
@@ -26,7 +28,7 @@ test.serial(`2.1 createUpdateDeleteResoreDoc`, async t => {
 
   t.deepEqual(result.messages, []);
 
-  doc = await testDocsSvc.invoke({
+  await testDocsSvc.invoke({
     context: `context`, result, type: 'doc.Doc1', update: {
       id: doc.id,
       f2: 21,
@@ -36,7 +38,7 @@ test.serial(`2.1 createUpdateDeleteResoreDoc`, async t => {
 
   t.deepEqual(result.messages, []);
 
-  doc = await testDocsSvc.invoke({
+  await testDocsSvc.invoke({
     context: `context`, result, type: 'doc.Doc1', update: {
       id: doc.id,
       rev: 0,
@@ -48,6 +50,24 @@ test.serial(`2.1 createUpdateDeleteResoreDoc`, async t => {
     {code: 'doc.updateFailedToWrite', type: 'error', docId: '', docType: 'doc.Doc1'},
     {type: 'error', docId: '', code: 'doc.oldRev', rev: 0},
   ]);
+});
+
+test.serial(`2.2 staticAction`, async t => {
+
+  const {testDocsSvc} = t.context.manager.services;
+
+  const result = new Result();
+
+  let res = await testDocsSvc.invoke({
+    context: `context`, result, type: 'doc.Doc1', action: 'login', actionArgs: {
+      email: "test@test.com",
+      password: '321',
+    }
+  });
+
+  t.deepEqual(result.messages, []);
+
+  t.deepEqual(res.result, {token: '321'});
 });
 
 // TODO: Errors

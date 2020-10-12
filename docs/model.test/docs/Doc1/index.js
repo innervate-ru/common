@@ -36,6 +36,13 @@ export default {
       }
     },
     submitted: {},
+    login: {
+      static: true,
+      arguments: {
+        email: {type: 'string(360)'},
+        password: {type: 'string(60)'},
+      }
+    }
   },
   states: {
     new: {
