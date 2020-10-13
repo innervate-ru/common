@@ -32,20 +32,29 @@ export default oncePerServices(function (services) {
               (res || (res = {}))[fieldDesc.name] =
                 function (result, context, val, isOut) {
                   let newVal;
-                  val?.forEach((row, i) => {
-                    const newRow = processLevel(context, row, isOut);
-                    if (newRow) {
-                      (newVal || (newVal = val.slice()))[i] = newRow;
-                    }
-                  });
+                  if (val) {
+                    let i;
+                    result.context(
+                      function (path) {
+                        return path.index(i)(path);
+                      },
+                      function () {
+                        for (i = 0; i < val.length; i++) {
+                          const newRow = processLevel(result, context, row, isOut);
+                          if (newRow) {
+                            (newVal || (newVal = val.slice()))[i] = newRow;
+                          }
+                        }
+                      });
+                  }
                   return newVal;
                 }
             }
             continue;
           }
         }
-        if (fieldDesc.udtype) {
-          if (fieldDesc.udtype.indexOf('bcryptPassword')) {
+        if (fieldDesc.udType) {
+          if (~fieldDesc.udType.indexOf('bcryptPassword')) {
             (res || (res = {}))[fieldDesc.name] = function (result, context, val, isOut) {
               if (!isOut && val) {
                 return bcrypt.hash(val, BCRYPT_ROUNDS);
@@ -53,7 +62,7 @@ export default oncePerServices(function (services) {
               return REMOVE_FIELD;
             }
           }
-          else if (fieldDesc.udtype.indexOf('fileToken')) {
+          else if (~fieldDesc.udType.indexOf('fileToken')) {
             (res || (res = {}))[fieldDesc.name] = function (result, context, val, isOut) {
               if (isOut) {
                 if (val) {
@@ -67,9 +76,20 @@ export default oncePerServices(function (services) {
                 }
               } else {
                 if (val) {
-                  const req = requestByContext(context);
                   try {
-                    return auth._parseToken({context, token: val, isExpiredOk: false});
+                    const token = auth._parseToken({context, token: val, isExpiredOk: false});
+                    if (token.userId) {
+                      const req = requestByContext(context);
+                      if (!req.user) {
+                        result.error('doc.assignedToUserTokenSentToNotAuthorizedUser');
+                        return;
+                      }
+                      if (req.user.id !== token.userId) {
+                        result.error('doc.assignedToUserTokenSentToAnotherUser');
+                        return;
+                      }
+                    }
+                    return token;
                   } catch (err) {
                     result.error(err.message);
                   }
@@ -82,21 +102,28 @@ export default oncePerServices(function (services) {
           return function (result, context, val, isOut) {
             let newVal;
             if (val) {
-              for (const fieldName in val) {
-                if (res[fieldName]) {
-                  const r = res[fieldName](context, val[fieldName], isOut);
-                  if (r !== undefined) {
-                    if (!newVal) {
-                      newVal = {...val};
-                    }
-                    if (r === REMOVE_FIELD) {
-                      delete newVal[fieldName];
-                    } else {
-                      newVal[fieldName] = r;
+              let fieldName;
+              result.context(
+                function (path) {
+                  return path.prop(fieldName)(path);
+                },
+                function () {
+                  for (fieldName in val) {
+                    if (res[fieldName]) {
+                      const r = res[fieldName](context, val[fieldName], isOut);
+                      if (r !== undefined) {
+                        if (!newVal) {
+                          newVal = {...val};
+                        }
+                        if (r === REMOVE_FIELD) {
+                          delete newVal[fieldName];
+                        } else {
+                          newVal[fieldName] = r;
+                        }
+                      }
                     }
                   }
-                }
-              }
+                });
             }
             return newVal;
           }
