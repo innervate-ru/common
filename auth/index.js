@@ -207,9 +207,9 @@ export default oncePerServices(function (services) {
 
       schema.signToken_args(args);
 
-      const {context, token} = args;
+      const {context, token, notExpired} = args;
 
-      return jwt.sign(token, secret, {expiresIn: this._expirationPeriod + this._extraTime});
+      return jwt.sign(token, secret, notExpired ? undefined : {expiresIn: this._expirationPeriod + this._extraTime});
     }
 
     _addUpdateUser(args) {

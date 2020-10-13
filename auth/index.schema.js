@@ -8,6 +8,7 @@ export const ctor_settings = validateThisServiceSettings({
 export const signToken_args = validate.method.this('args', {
   context: {type: VType.String(), required: true},
   token: {type: VType.Object(), required: true},
+  notExpired: {type: VType.Boolean()},
 });
 
 export const parseToken_args = validate.method.this('args', {

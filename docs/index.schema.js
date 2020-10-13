@@ -1,4 +1,4 @@
-import { VType, validateThisServiceSettings, validate} from '../validation/index';
+import {VType, validateThisServiceSettings, validate} from '../validation/index';
 
 import {isResult} from '../../../../lib/hope/lib/utils/_err'
 
@@ -54,5 +54,15 @@ export const list_args = validate.method.this(undefined, {
   filter: {type: VType.Object()},
   order: {type: VType.Object()},
   // TODO:
+  _final: true,
+});
+
+export const httpFix_args = validate.method.this(undefined, {
+  context: {type: VType.String(), required: true},
+  result: {type: VType.Object(), validate: r => isResult(r) ? true : 'not Result object'},
+  fields: {type: VType.Object(), required: true},
+  isOut: {type: VType.Boolean(), required: true},
+  fieldsDesc: {type: VType.Object(), required: true},
+  model: {type: VType.Object(), required: true},
   _final: true,
 });
