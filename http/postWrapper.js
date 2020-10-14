@@ -23,7 +23,6 @@ export default oncePerServices(function (services) {
       // auth,
       express.json(),
       async (req, resp, next) => {
-        console.info(25)
         const context = (() => {
           if (typeof req.body.context === 'string' && req.body.context.length === 21) {
             req.context = req.body.context;
@@ -34,17 +33,13 @@ export default oncePerServices(function (services) {
             return hrid();
           }
         })();
-        console.info(26)
         addRequest(context, req);
-        console.info(28)
         const result = new Result();
         let data;
         try {
-          console.info(27)
           const params = {...req.body, context};
           if (addResult) params.result = result;
           if (sayItsHttpCall) params.http = true;
-          console.info(43)
           data = await method(params);
         } catch (err) {
           if (err.code === 'validate') {

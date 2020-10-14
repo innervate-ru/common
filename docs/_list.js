@@ -102,7 +102,7 @@ export default oncePerServices(function (services) {
       if (http) {
         docs = r.rows.reduce((acc, v) => {
           let doc = buildDoc(docDesc, v);
-          doc = httpFix({context, result, doc, docDesc, isOut: true});
+          doc = httpFix({context, result, fields: doc, fieldsDesc: docDesc.fields, isOut: true});
           if (doc) {
             acc.push(doc);
           }

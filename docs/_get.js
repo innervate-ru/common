@@ -70,7 +70,7 @@ export default oncePerServices(function (services) {
 
     if (http) {
 
-      doc = httpFix({context, result, fields: doc, fieldsDesc: docDesc, isOut: true})
+      doc = httpFix({context, result, fields: doc, fieldsDesc: docDesc.fields, isOut: true})
       if (result.isError) {
         if (newResult) result.throwIfError(); else return;
       }

@@ -105,8 +105,6 @@ export default oncePerServices(function (services) {
 
     async extendSession(args) {
 
-      console.info(97, args)
-
       schema.extendSession_args(args);
 
       const {context, userIp, isTestToken} = args;

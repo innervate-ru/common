@@ -17,7 +17,7 @@ export default oncePerServices(function (services) {
 
       let res;
 
-      for (const fieldDesc in level.$$list) {
+      for (const fieldDesc of level.$$list) {
         switch (fieldDesc.type) {
           case 'structure': {
             const processLevel = buildLevel(fieldDesc.fields);
@@ -30,7 +30,7 @@ export default oncePerServices(function (services) {
             const processLevel = buildLevel(fieldDesc.fields);
             if (processLevel) {
               (res || (res = {}))[fieldDesc.name] =
-                function (result, context, val, isOut) {
+                function (context, result, val, isOut) {
                   let newVal;
                   if (val) {
                     let i;
@@ -40,7 +40,7 @@ export default oncePerServices(function (services) {
                       },
                       function () {
                         for (i = 0; i < val.length; i++) {
-                          const newRow = processLevel(result, context, row, isOut);
+                          const newRow = processLevel(context, result, row, isOut);
                           if (newRow) {
                             (newVal || (newVal = val.slice()))[i] = newRow;
                           }
@@ -55,7 +55,7 @@ export default oncePerServices(function (services) {
         }
         if (fieldDesc.udType) {
           if (~fieldDesc.udType.indexOf('bcryptPassword')) {
-            (res || (res = {}))[fieldDesc.name] = function (result, context, val, isOut) {
+            (res || (res = {}))[fieldDesc.name] = function (context, result, val, isOut) {
               if (!isOut && val) {
                 return bcrypt.hash(val, BCRYPT_ROUNDS);
               }
@@ -63,12 +63,12 @@ export default oncePerServices(function (services) {
             }
           }
           else if (~fieldDesc.udType.indexOf('fileToken')) {
-            (res || (res = {}))[fieldDesc.name] = function (result, context, val, isOut) {
+            (res || (res = {}))[fieldDesc.name] = function (context, result, val, isOut) {
               if (isOut) {
                 if (val) {
                   const req = requestByContext(context);
                   const newToken = {};
-                  if (req.user) {
+                  if (req?.user) {
                     newToken.userId = req.user.id;
                   }
                   Object.assign(newToken, val);
@@ -80,7 +80,7 @@ export default oncePerServices(function (services) {
                     const token = auth._parseToken({context, token: val, isExpiredOk: false});
                     if (token.userId) {
                       const req = requestByContext(context);
-                      if (!req.user) {
+                      if (!req?.user) {
                         result.error('doc.assignedToUserTokenSentToNotAuthorizedUser');
                         return;
                       }
@@ -98,35 +98,36 @@ export default oncePerServices(function (services) {
             }
           }
         }
-        if (res) {
-          return function (result, context, val, isOut) {
-            let newVal;
-            if (val) {
-              let fieldName;
-              result.context(
-                function (path) {
-                  return path.prop(fieldName)(path);
-                },
-                function () {
-                  for (fieldName in val) {
-                    if (res[fieldName]) {
-                      const r = res[fieldName](context, val[fieldName], isOut);
-                      if (r !== undefined) {
-                        if (!newVal) {
-                          newVal = {...val};
-                        }
-                        if (r === REMOVE_FIELD) {
-                          delete newVal[fieldName];
-                        } else {
-                          newVal[fieldName] = r;
-                        }
+      }
+
+      if (res) {
+        return function (context, result, val, isOut) {
+          let newVal;
+          if (val) {
+            let fieldName;
+            result.context(
+              function (path) {
+                return path.prop(fieldName)(path);
+              },
+              function () {
+                for (fieldName in val) {
+                  if (res[fieldName]) {
+                    const r = res[fieldName](context, result, val[fieldName], isOut);
+                    if (r !== undefined) {
+                      if (!newVal) {
+                        newVal = {...val};
+                      }
+                      if (r === REMOVE_FIELD) {
+                        delete newVal[fieldName];
+                      } else {
+                        newVal[fieldName] = r;
                       }
                     }
                   }
-                });
-            }
-            return newVal;
+                }
+              });
           }
+          return newVal;
         }
       }
 
@@ -146,7 +147,7 @@ export default oncePerServices(function (services) {
       if (!proc) {
         proc = buildLevel(fieldsDesc);
         if (!proc) {
-          proc = function (result, context, val, isOut) {
+          proc = function (context, result, val, isOut) {
             return val;
           };
         }
