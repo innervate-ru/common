@@ -72,7 +72,7 @@ export default oncePerServices(function (services) {
                     newToken.userId = req.user.id;
                   }
                   Object.assign(newToken, val);
-                  return auth._signToken({context, token: newToken, notExpired:: true});
+                  return auth._signToken({context, token: newToken, notExpired: true});
                 }
               } else {
                 if (val) {
@@ -139,7 +139,7 @@ export default oncePerServices(function (services) {
 
       schema.httpFix_args(args);
 
-      const {context, resulr, fields, isOut, fieldsDesc} = args;
+      const {context, result, fields, isOut, fieldsDesc} = args;
 
       let proc = processor.get(fieldsDesc);
 
@@ -153,7 +153,7 @@ export default oncePerServices(function (services) {
         processor.set(fieldsDesc, proc);
       }
 
-      const r = proc(result, context, fields, isOut);
+      const r = proc(context, result, fields, isOut);
       if (!result.isError) {
         return r;
       }

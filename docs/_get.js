@@ -8,6 +8,8 @@ const schema = require('./index.schema');
 
 export default oncePerServices(function (services) {
 
+  const httpFix = require('./httpFix').default(services);
+
   const {
     testMode: __testMode,
   } = services;
@@ -67,10 +69,18 @@ export default oncePerServices(function (services) {
     // const access = docDesc.$$access(newDoc); // TODO: $$fix doc and $$get only fields viewable for given user
 
     if (http) {
-      if (!this.applyUserRights({context, result, doc})) {
-        result.error(`doc.noAccess`, {docType: type, id: testMode ? '' : id});
+
+      doc = httpFix({context, result, fields: doc, fieldsDesc: docDesc, isOut: true})
+      if (result.isError) {
         if (newResult) result.throwIfError(); else return;
       }
+
+      /*
+            if (!this.applyUserRights({context, result, doc})) {
+              result.error(`doc.noAccess`, {docType: type, id: testMode ? '' : id});
+              if (newResult) result.throwIfError(); else return;
+            }
+      */
     }
 
     return doc;

@@ -63,6 +63,5 @@ export const httpFix_args = validate.method.this(undefined, {
   fields: {type: VType.Object(), required: true},
   isOut: {type: VType.Boolean(), required: true},
   fieldsDesc: {type: VType.Object(), required: true},
-  model: {type: VType.Object(), required: true},
   _final: true,
 });

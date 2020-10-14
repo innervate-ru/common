@@ -10,6 +10,8 @@ const schema = require('./index.schema');
 
 export default oncePerServices(function (services) {
 
+  const httpFix = require('./httpFix').default(services);
+
   const {
     testMode: __testMode,
   } = services;
@@ -99,14 +101,23 @@ export default oncePerServices(function (services) {
 
       if (http) {
         docs = r.rows.reduce((acc, v) => {
-          const doc = buildDoc(docDesc, v);
+          let doc = buildDoc(docDesc, v);
+          doc = httpFix({context, result, doc, docDesc, isOut: true});
+          if (doc) {
+            acc.push(doc);
+          }
+
           // const access = docDesc.$$access(newDoc); // TODO: $$fix doc and $$get only fields viewable for given user
+/*
           if (this.applyUserRights({context, result, doc})) {
             acc.push(doc);
           }
+*/
           return acc;
         }, []);
-        if (newResult) result.throwIfError(); else return;
+        if (result.isError) {
+          if (newResult) result.throwIfError(); else return;
+        }
       } else {
         docs = r.rows.map(v => buildDoc(docDesc, v));
       }
@@ -186,14 +197,25 @@ export default oncePerServices(function (services) {
 
         if (http) {
           docs = r2.rows.reduce((acc, v) => {
-            const doc = buildDoc(docDesc, v);
+            let doc = buildDoc(docDesc, v);
+            doc = httpFix({context, result, doc, docDesc, isOut: true});
+            if (doc) {
+              acc.push(doc);
+            }
+
+            // TODO: How to apply user rights ???
+
             // const access = docDesc.$$access(newDoc); // TODO: $$fix doc and $$get only fields viewable for given user
+/*
             if (this.applyUserRights({context, result, doc})) {
               acc.push(doc);
             }
+*/
             return acc;
           }, []);
-          if (newResult) result.throwIfError(); else return;
+          if (result.isError) {
+            if (newResult) result.throwIfError(); else return;
+          }
         } else {
           docs = r2.rows.map(v => buildDoc(docDesc, v));
         }

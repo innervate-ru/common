@@ -21,7 +21,8 @@ test.beforeEach(async t => {
   const manager = t.context.manager = new (require('../services/index').NodeManager(consoleAndBusServicesOnly))({
     name: 'test',
     services: [
-      require('../../services/postgres/index'),
+      require('../../services/postgres'),
+      require('../auth'),
       require('./testDocsSvc'),
     ],
   });

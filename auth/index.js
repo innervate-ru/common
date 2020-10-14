@@ -226,5 +226,3 @@ export default oncePerServices(function (services) {
   });
 
 });
-
-
