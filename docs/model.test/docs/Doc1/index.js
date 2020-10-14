@@ -41,6 +41,9 @@ export default {
       arguments: {
         email: {type: 'string(360)'},
         password: {type: 'string(60)'},
+      },
+      result: {
+        token: {type: 'text'},
       }
     }
   },

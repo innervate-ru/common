@@ -190,6 +190,15 @@
                   }
                 ],
                 "tags": {}
+              },
+              "result": {
+                "list": [
+                  {
+                    "name": "token",
+                    "type": "text"
+                  }
+                ],
+                "tags": {}
               }
             }
           ],
