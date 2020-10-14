@@ -57,6 +57,23 @@
               "type": "structure"
             },
             {
+              "name": "password",
+              "type": "string",
+              "length": 60,
+              "min": 6,
+              "udType": [
+                "bcryptPassword"
+              ]
+            },
+            {
+              "name": "file",
+              "type": "json",
+              "null": true,
+              "udType": [
+                "fileToken"
+              ]
+            },
+            {
               "name": "state",
               "type": "string",
               "length": 100,
@@ -82,19 +99,19 @@
           ],
           "tags": {
             "field": [
-              31747
+              126979
             ],
             "system": [
-              31747
+              126979
             ],
             "index": [
-              15361
+              61441
             ],
             "unique": [
               1
             ],
             "hide": [
-              30723
+              122883
             ]
           }
         },
@@ -213,10 +230,10 @@
             {
               "name": "new",
               "view": [
-                32767
+                131071
               ],
               "update": [
-                32767
+                131071
               ],
               "transitions": {
                 "list": [
@@ -230,10 +247,10 @@
             {
               "name": "submit",
               "view": [
-                32767
+                131071
               ],
               "update": [
-                32767
+                131071
               ],
               "transitions": {
                 "list": [
@@ -247,10 +264,10 @@
             {
               "name": "submitted",
               "view": [
-                32767
+                131071
               ],
               "update": [
-                32767
+                131071
               ],
               "transitions": {
                 "list": []

@@ -13,21 +13,24 @@ test.serial(`3.1 actionsOnDoc`, async t => {
       str: {
         d: '4567'
       },
+      password: '123456',
     }});
 
   t.deepEqual(result.messages, []);
 
-  ({doc} = await testDocsSvc.invoke({context: `context`, result, type: 'doc.Doc1', docId: doc.id, action: 'submit', actionArgs: {
+  let res = await testDocsSvc.invoke({context: `context`, result, type: 'doc.Doc1', docId: doc.id, action: 'submit', actionArgs: {
       x: 12,
       y: null,
       z: [
         {a: 12, b: '1'},
         {a: 24, b: '2'},
         {a: 36, b: '2'},
-      ]
-    }}));
+      ],
+    }});
 
   t.deepEqual(result.messages, []);
+
+  ({doc} = res);
 
   t.is(doc.state, 'submit');
 });

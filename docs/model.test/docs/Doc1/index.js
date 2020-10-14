@@ -15,6 +15,13 @@ export default {
         d: {type: 'string(20)', required: true},
       }
     },
+    password: {
+      type: 'bcryptPassword',
+    },
+    file: {
+      type: 'fileToken',
+      null: true,
+    },
   },
   actions: {
     list: {

@@ -63,10 +63,10 @@ test.serial(`5.1 listDocs`, async t => {
     pageExtra: 2,
     last: false,
     docs: [
-      {id: '', rev: 0, f1: 'test', f2: 4, st: [], str: {c: 0, d: ''}, state: 'new', created: '', modified: '', deleted: false, _type: 'doc.Doc1'},
-      {id: '', rev: 0, f1: 'test', f2: 5, st: [], str: {c: 0, d: ''}, state: 'new', created: '', modified: '', deleted: false, _type: 'doc.Doc1'},
-      {id: '', rev: 0, f1: 'test', f2: 6, st: [], str: {c: 0, d: ''}, state: 'new', created: '', modified: '', deleted: false, _type: 'doc.Doc1'},
-      {id: '', rev: 0, f1: 'test', f2: 7, st: [], str: {c: 0, d: ''}, state: 'new', created: '', modified: '', deleted: false, _type: 'doc.Doc1'},
+      {id: '', rev: 0, f1: 'test', f2: 4, st: [], str: {c: 0, d: ''}, password: '', file: null, state: 'new', created: '', modified: '', deleted: false, _type: 'doc.Doc1'},
+      {id: '', rev: 0, f1: 'test', f2: 5, st: [], str: {c: 0, d: ''}, password: '', file: null, state: 'new', created: '', modified: '', deleted: false, _type: 'doc.Doc1'},
+      {id: '', rev: 0, f1: 'test', f2: 6, st: [], str: {c: 0, d: ''}, password: '', file: null, state: 'new', created: '', modified: '', deleted: false, _type: 'doc.Doc1'},
+      {id: '', rev: 0, f1: 'test', f2: 7, st: [], str: {c: 0, d: ''}, password: '', file: null, state: 'new', created: '', modified: '', deleted: false, _type: 'doc.Doc1'},
     ]
   });
 
@@ -90,9 +90,9 @@ test.serial(`5.1 listDocs`, async t => {
     last: true,
     count: 15,
     docs: [
-      {id: '', rev: 0, f1: 'test', f2: 12, st: [], str: {c: 0, d: ''}, state: 'new', created: '', modified: '', deleted: false, _type: 'doc.Doc1'},
-      {id: '', rev: 0, f1: 'test', f2: 13, st: [], str: {c: 0, d: ''}, state: 'new', created: '', modified: '', deleted: false, _type: 'doc.Doc1'},
-      {id: '', rev: 0, f1: 'test', f2: 14, st: [], str: {c: 0, d: ''}, state: 'new', created: '', modified: '', deleted: false, _type: 'doc.Doc1'},
+      {id: '', rev: 0, f1: 'test', f2: 12, st: [], str: {c: 0, d: ''}, password: '', file: null, state: 'new', created: '', modified: '', deleted: false, _type: 'doc.Doc1'},
+      {id: '', rev: 0, f1: 'test', f2: 13, st: [], str: {c: 0, d: ''}, password: '', file: null, state: 'new', created: '', modified: '', deleted: false, _type: 'doc.Doc1'},
+      {id: '', rev: 0, f1: 'test', f2: 14, st: [], str: {c: 0, d: ''}, password: '', file: null, state: 'new', created: '', modified: '', deleted: false, _type: 'doc.Doc1'},
     ]
   });
 
@@ -117,11 +117,11 @@ test.serial(`5.1 listDocs`, async t => {
     last: true,
     count: 15,
     docs: [
-      {id: '', rev: 0, f1: 'test', f2: 10, st: [], str: {c: 0, d: ''}, state: 'new', created: '', modified: '', deleted: false, _type: 'doc.Doc1'},
-      {id: '', rev: 0, f1: 'test', f2: 11, st: [], str: {c: 0, d: ''}, state: 'new', created: '', modified: '', deleted: false, _type: 'doc.Doc1'},
-      {id: '', rev: 0, f1: 'test', f2: 12, st: [], str: {c: 0, d: ''}, state: 'new', created: '', modified: '', deleted: false, _type: 'doc.Doc1'},
-      {id: '', rev: 0, f1: 'test', f2: 13, st: [], str: {c: 0, d: ''}, state: 'new', created: '', modified: '', deleted: false, _type: 'doc.Doc1'},
-      {id: '', rev: 0, f1: 'test', f2: 14, st: [], str: {c: 0, d: ''}, state: 'new', created: '', modified: '', deleted: false, _type: 'doc.Doc1'},
+      {id: '', rev: 0, f1: 'test', f2: 10, st: [], str: {c: 0, d: ''}, password: '', file: null, state: 'new', created: '', modified: '', deleted: false, _type: 'doc.Doc1'},
+      {id: '', rev: 0, f1: 'test', f2: 11, st: [], str: {c: 0, d: ''}, password: '', file: null, state: 'new', created: '', modified: '', deleted: false, _type: 'doc.Doc1'},
+      {id: '', rev: 0, f1: 'test', f2: 12, st: [], str: {c: 0, d: ''}, password: '', file: null, state: 'new', created: '', modified: '', deleted: false, _type: 'doc.Doc1'},
+      {id: '', rev: 0, f1: 'test', f2: 13, st: [], str: {c: 0, d: ''}, password: '', file: null, state: 'new', created: '', modified: '', deleted: false, _type: 'doc.Doc1'},
+      {id: '', rev: 0, f1: 'test', f2: 14, st: [], str: {c: 0, d: ''}, password: '', file: null, state: 'new', created: '', modified: '', deleted: false, _type: 'doc.Doc1'},
     ]
   });
 
@@ -144,8 +144,8 @@ test.serial(`5.1 listDocs`, async t => {
     pageExtra: 7,
     last: false,
     docs: [
-      {id: '', rev: 0, f1: 'test', f2: 0, st: [], str: {c: 0, d: ''}, state: 'new', created: '', modified: '', deleted: false, _type: 'doc.Doc1'},
-      {id: '', rev: 0, f1: 'test', f2: 1, st: [], str: {c: 0, d: ''}, state: 'new', created: '', modified: '', deleted: false, _type: 'doc.Doc1'},
+      {id: '', rev: 0, f1: 'test', f2: 0, st: [], str: {c: 0, d: ''}, password: '', file: null, state: 'new', created: '', modified: '', deleted: false, _type: 'doc.Doc1'},
+      {id: '', rev: 0, f1: 'test', f2: 1, st: [], str: {c: 0, d: ''}, password: '', file: null, state: 'new', created: '', modified: '', deleted: false, _type: 'doc.Doc1'},
     ],
   });
 

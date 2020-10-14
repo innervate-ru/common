@@ -1,3 +1,3 @@
 export default {
-  type: `double`,
+  type: `json`,
 };
