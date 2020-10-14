@@ -10,6 +10,8 @@ const schema = require('./index.schema');
 
 export default oncePerServices(function (services) {
 
+  const httpFix = require('./httpFix').default(services);
+
   const {
     testMode: __testMode,
   } = services;
@@ -18,9 +20,12 @@ export default oncePerServices(function (services) {
   const insertRow = require('./_insertRow').default(services);
   const updateRow = require('./_updateRow').default(services);
 
-  return async function update(args) {
+  return async function invoke(args) {
+
     schema.update_args(args);
-    const {context, type, docId, update, action, actionArgs} = args;
+
+    const {context, type, http, docId, action, actionArgs} = args;
+    let {update} = args;
 
     const user = requestByContext(context)?.user;
 
@@ -47,6 +52,27 @@ export default oncePerServices(function (services) {
 
     // basic validate update
 
+    debug(`update: doc: %o`, update);
+
+    if (update) {
+
+      docDesc.$$validate(localResult, update, {beforeAction: false, strict: true, mask: docDesc.fields.$$tags.all});
+      if (localResult.isError) {
+        result.error(`doc.wrongUpdateArgs`, {docType: type, step: 1});
+        result.add(localResult);
+        if (newResult) result.throwIfError(); else return;
+      }
+
+      if (http) {
+        update = await httpFix({context, result, fields: update, fieldsDesc: docDesc.fields, isOut: false});
+        if (localResult.isError) {
+          result.error(`doc.failedToFixUpdate`, {docType: type});
+          result.add(localResult);
+          if (newResult) result.throwIfError(); else return;
+        }
+      }
+    }
+
     let newDoc = update;
 
     const runActionCode = async (actionDesc) => {
@@ -62,7 +88,7 @@ export default oncePerServices(function (services) {
             model: this._model,
           });
           if (typeof res === 'object' && res !== null && !Array.isArray(res) && typeof res.then === 'function') res = await res;
-          if (res.doc)  {
+          if (res.doc) {
             newDoc = res.doc;
             delete red.doc;
           }
@@ -104,15 +130,6 @@ export default oncePerServices(function (services) {
 
     let access;
     if (update) {
-
-      debug(`update: doc: %o`, update);
-
-      docDesc.$$validate(localResult, update, {beforeAction: false, strict: true, mask: docDesc.fields.$$tags.all});
-      if (localResult.isError) {
-        result.error(`doc.wrongUpdateArgs`, {docType: type, docId: existingDoc.id, step: 1});
-        result.add(localResult);
-        if (newResult) result.throwIfError(); else return;
-      }
 
       newDoc = existingDoc;
       // при изменении документа может меняться update маска, если есть поля, которые становятся редактируемыми при определенных
@@ -237,13 +254,13 @@ export default oncePerServices(function (services) {
     // process action
     //
 
-    let actionResult;
+    let actionDesc, actionResult;
 
     if (action) {
 
       debug(`action: %o`, action)
 
-      const actionDesc = docDesc.actions[action];
+      actionDesc = docDesc.actions[action];
 
       if (!actionDesc) {
         result.error('doc.unknownAction', {docType: type, docId: testMode ? '' : newDoc.id, action});
@@ -251,7 +268,11 @@ export default oncePerServices(function (services) {
       }
 
       if (docDesc.actions.$$tags.system.get(actionDesc.$$index)) {
-        result.error('doc.systemActionCannotBeCalledDirectly', {docType: type, docId: testMode ? '' : newDoc.id, action});
+        result.error('doc.systemActionCannotBeCalledDirectly', {
+          docType: type,
+          docId: testMode ? '' : newDoc.id,
+          action
+        });
         if (newResult) result.throwIfError(); else return;
       }
 
@@ -358,7 +379,25 @@ export default oncePerServices(function (services) {
 
           debug(`action: res: %o`, actionResult);
 
-          if (result.isError) if (newResult) result.throwIfError(); else return;
+          if (localResult.isError) {
+            result.error(`doc.failedActionCode`, {docType: type, action: actionDesc.name});
+            result.add(localResult);
+            if (newResult) result.throwIfError(); else return;
+          }
+
+          if (actionDesc.result) {
+            actionDesc.result.$$validate(result, actionResult.result);
+            if (localResult.isError) {
+              result.error(`doc.invalidActionCodeResult`, {docType: type, action: actionDesc.name});
+              result.add(localResult);
+              if (newResult) result.throwIfError(); else return;
+            }
+          } else {
+            if (actionResult.result) {
+              result.error(`doc.unexpectedActionCodeResult`, {value: actionResult.result, docType: type, action: actionDesc.name});
+              if (newResult) result.throwIfError(); else return;
+            }
+          }
 
           if (typeof actionResult === 'object' && actionResult !== null && !Array.isArray(actionResult)) {
 
@@ -433,10 +472,30 @@ export default oncePerServices(function (services) {
       }
     }
 
+    if (http) {
+
+      newDoc = await httpFix({context, result, fields: newDoc, fieldsDesc: docDesc.fields, isOut: true});
+
+      if (localResult.isError) {
+        result.error(`doc.failedToFixDoc`, {docType: type});
+        result.add(localResult);
+        if (newResult) result.throwIfError(); else return;
+      }
+    }
+
     const r = {doc: newDoc};
 
     if (actionResult?.result) {
-      r.result = actionResult.result;
+      if (http) {
+        r.result = await httpFix({context, result, fields: actionResult.result, fieldsDesc: actionDesc.result, isOut: true});
+        if (localResult.isError) {
+          result.error(`doc.failedToFixResulr`, {docType: type});
+          result.add(localResult);
+          if (newResult) result.throwIfError(); else return;
+        }
+      } else {
+        r.result = actionResult.result;
+      }
     }
 
     return r;

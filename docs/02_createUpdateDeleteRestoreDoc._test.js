@@ -4,17 +4,20 @@ import Result from '../../../../lib/hope/lib/result/index'
 
 test.serial(`2.1 createUpdateDeleteResoreDoc`, async t => {
 
-  const {testDocsSvc} = t.context.manager.services;
+  const {testDocsSvc, postgres} = t.context.manager.services;
 
   const result = new Result();
 
   let res = await testDocsSvc.invoke({
-    context: `context`, result, type: 'doc.Doc1', update: {
+    context: `context`, result, http: true, type: 'doc.Doc1', update: {
       f1: 'test',
+      password: "123456",
     }
   });
 
   t.deepEqual(result.messages, []);
+
+  t.is(res.doc.hasOwnProperty('password'), false);
 
   const doc = res.doc;
 

@@ -30,7 +30,7 @@ export default oncePerServices(function (services) {
             const processLevel = buildLevel(fieldDesc.fields);
             if (processLevel) {
               (res || (res = {}))[fieldDesc.name] =
-                function (context, result, val, isOut) {
+                function (context, result, val, isOut, promises) {
                   let newVal;
                   if (val) {
                     let i;
@@ -40,7 +40,7 @@ export default oncePerServices(function (services) {
                       },
                       function () {
                         for (i = 0; i < val.length; i++) {
-                          const newRow = processLevel(context, result, row, isOut);
+                          const newRow = processLevel(context, result, row, isOut, promises);
                           if (newRow) {
                             (newVal || (newVal = val.slice()))[i] = newRow;
                           }
@@ -54,16 +54,20 @@ export default oncePerServices(function (services) {
           }
         }
         if (fieldDesc.udType) {
+
           if (~fieldDesc.udType.indexOf('bcryptPassword')) {
-            (res || (res = {}))[fieldDesc.name] = function (context, result, val, isOut) {
+            (res || (res = {}))[fieldDesc.name] = function (context, result, val, isOut, promises) {
               if (!isOut && val) {
-                return bcrypt.hash(val, BCRYPT_ROUNDS);
+                const promise = bcrypt.hash(val, BCRYPT_ROUNDS);
+                promises.push(promise);
+                return promise;
               }
               return REMOVE_FIELD;
             }
           }
+
           else if (~fieldDesc.udType.indexOf('fileToken')) {
-            (res || (res = {}))[fieldDesc.name] = function (context, result, val, isOut) {
+            (res || (res = {}))[fieldDesc.name] = function (context, result, val, isOut, promises) {
               if (isOut) {
                 if (val) {
                   const req = requestByContext(context);
@@ -101,7 +105,7 @@ export default oncePerServices(function (services) {
       }
 
       if (res) {
-        return function (context, result, val, isOut) {
+        return function (context, result, val, isOut, promises) {
           let newVal;
           if (val) {
             let fieldName;
@@ -112,7 +116,7 @@ export default oncePerServices(function (services) {
               function () {
                 for (fieldName in val) {
                   if (res[fieldName]) {
-                    const r = res[fieldName](context, result, val[fieldName], isOut);
+                    const r = res[fieldName](context, result, val[fieldName], isOut, promises);
                     if (r !== undefined) {
                       if (!newVal) {
                         newVal = {...val};
@@ -120,7 +124,15 @@ export default oncePerServices(function (services) {
                       if (r === REMOVE_FIELD) {
                         delete newVal[fieldName];
                       } else {
-                        newVal[fieldName] = r;
+                        if (typeof r === 'object' && r !== null && 'then' in r) {
+                          (function (fieldName) {
+                            promises.push(r.then((data) => {
+                              newVal[fieldName] = data;
+                            }));
+                          })(fieldName);
+                        } else {
+                          newVal[fieldName] = r;
+                        }
                       }
                     }
                   }
@@ -147,14 +159,18 @@ export default oncePerServices(function (services) {
       if (!proc) {
         proc = buildLevel(fieldsDesc);
         if (!proc) {
-          proc = function (context, result, val, isOut) {
+          proc = function (context, result, val, isOut, promises) {
             return val;
           };
         }
         processor.set(fieldsDesc, proc);
       }
 
-      const r = proc(context, result, fields, isOut);
+      const promises = [];
+      const r = proc(context, result, fields, isOut, promises);
+      if (promises.length > 0) {
+        await Promise.all(promises);
+      }
       if (!result.isError) {
         return r;
       }

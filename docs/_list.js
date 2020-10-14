@@ -115,6 +115,7 @@ export default oncePerServices(function (services) {
 */
           return acc;
         }, []);
+        docs = await Promise.all(docs);
         if (result.isError) {
           if (newResult) result.throwIfError(); else return;
         }
@@ -213,6 +214,7 @@ export default oncePerServices(function (services) {
 */
             return acc;
           }, []);
+          docs = await Promise.all(docs);
           if (result.isError) {
             if (newResult) result.throwIfError(); else return;
           }

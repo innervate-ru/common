@@ -12,7 +12,6 @@ const commonFields = {
   context: {type: VType.String(), required: true},
   result: {type: VType.Object(), validate: r => isResult(r) ? true : 'not Result object'},
   http: {type: VType.Boolean()},
-  user: {type: VType.Object()},
   connection: {type: VType.Object(), validate: r => typeof r.exec === 'function' ? true : 'not connection object'},
 };
 
