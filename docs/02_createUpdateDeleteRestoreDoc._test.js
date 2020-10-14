@@ -21,18 +21,23 @@ test.serial(`2.1 createUpdateDeleteResoreDoc`, async t => {
 
   const doc = res.doc;
 
+  const pass1 = (await testDocsSvc.get({context: `context`, result, type: 'doc.Doc1', docId: doc.id})).password;
+
   await testDocsSvc.invoke({
-    context: `context`, result, type: 'doc.Doc1', update: {
+    context: `context`, result, http: true, type: 'doc.Doc1', update: {
       id: doc.id,
       f2: 21,
       deleted: true,
+      password: '', // do not change password
     }
   });
 
   t.deepEqual(result.messages, []);
 
+  t.is((await testDocsSvc.get({context: `context`, result, type: 'doc.Doc1', docId: doc.id})).password, pass1);
+
   await testDocsSvc.invoke({
-    context: `context`, result, type: 'doc.Doc1', update: {
+    context: `context`, result, http: true, type: 'doc.Doc1', update: {
       id: doc.id,
       f2: 21,
       deleted: false,
@@ -42,7 +47,7 @@ test.serial(`2.1 createUpdateDeleteResoreDoc`, async t => {
   t.deepEqual(result.messages, []);
 
   await testDocsSvc.invoke({
-    context: `context`, result, type: 'doc.Doc1', update: {
+    context: `context`, result, http: true, type: 'doc.Doc1', update: {
       id: doc.id,
       rev: 0,
       f2: 21,
@@ -62,7 +67,7 @@ test.serial(`2.2 staticAction`, async t => {
   const result = new Result();
 
   let res = await testDocsSvc.invoke({
-    context: `context`, result, type: 'doc.Doc1', action: 'login', actionArgs: {
+    context: `context`, result, http: true, type: 'doc.Doc1', action: 'login', actionArgs: {
       email: "test@test.com",
       password: '321',
     }

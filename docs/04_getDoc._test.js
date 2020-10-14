@@ -19,14 +19,14 @@ test.serial(`4.1 getDoc`, async t => {
 
   const {doc} = res;
 
-  res = await testDocsSvc.get({context: `context`, result, type: 'doc.Doc1', id: doc.id});
+  res = await testDocsSvc.get({context: `context`, result, type: 'doc.Doc1', docId: doc.id});
 
   t.deepEqual(result.messages, []);
 
   t.is(res.f1, 'test');
   t.is(res.f2, 121);
 
-  res = await testDocsSvc.get({context: `context`, result, id: doc.id}); // w/o type
+  res = await testDocsSvc.get({context: `context`, result, docId: doc.id}); // w/o type
 
   t.deepEqual(result.messages, []);
 
@@ -34,7 +34,7 @@ test.serial(`4.1 getDoc`, async t => {
   t.is(res.f2, 121);
 
   // with http: true
-  res = await testDocsSvc.get({context: `context`, result, id: doc.id, http: true}); // w/o type
+  res = await testDocsSvc.get({context: `context`, result, docId: doc.id, http: true}); // w/o type
 
   t.deepEqual(result.messages, []);
 

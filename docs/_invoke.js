@@ -154,6 +154,10 @@ export default oncePerServices(function (services) {
 
         // apply update
         const state = newDoc.state;
+
+        console.info(158, newDoc)
+        console.info(160, update)
+
         newDoc = docDesc.fields.$$set(newDoc, update, {
           updateMask: docDesc.fields.$$calc('id,rev,deleted').or(access.update),
           newVal: false
@@ -475,6 +479,8 @@ export default oncePerServices(function (services) {
     if (http) {
 
       newDoc = await httpFix({context, result, fields: newDoc, fieldsDesc: docDesc.fields, isOut: true});
+
+      console.info(479, newDoc)
 
       if (localResult.isError) {
         result.error(`doc.failedToFixDoc`, {docType: type});

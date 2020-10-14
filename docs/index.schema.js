@@ -29,7 +29,7 @@ export const get_args = validate.method.this(undefined, {
   ...commonFields,
   http: {type: VType.Boolean()},
   type: {type: VType.String().notEmpty()},
-  id: {type: VType.String().notEmpty(), required: true},
+  docId: {type: VType.String().notEmpty(), required: true},
   _final: true,
 });
 

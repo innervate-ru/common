@@ -17,8 +17,10 @@ export default oncePerServices(function (services) {
 
 
   return async function get(args) {
+
     schema.get_args(args);
-    const {context, id, http} = args;
+
+    const {context, docId, http} = args;
 
     const user = requestByContext(context)?.user;
     // TODO: Check can user retrieve this object
@@ -36,10 +38,10 @@ export default oncePerServices(function (services) {
         context,
         name: md5(statement),
         statement,
-        params: [id],
+        params: [docId],
       });
       if (r.rowCount === 0) {
-        result.error(`doc.notFound`, {id});
+        result.error(`doc.notFound`, {docId});
         if (newResult) result.throwIfError(); else return;
       }
       type = r.rows[0].type;
@@ -56,11 +58,11 @@ export default oncePerServices(function (services) {
       context,
       name: md5(statement),
       statement,
-      params: [id],
+      params: [docId],
     });
 
     if (r.rowCount === 0) {
-      result.error(`doc.notFound`, {docType: type, id: testMode ? '' : id});
+      result.error(`doc.notFound`, {docType: type, id: testMode ? '' : docId});
       if (newResult) result.throwIfError(); else return;
     }
 
@@ -77,7 +79,7 @@ export default oncePerServices(function (services) {
 
       /*
             if (!this.applyUserRights({context, result, doc})) {
-              result.error(`doc.noAccess`, {docType: type, id: testMode ? '' : id});
+              result.error(`doc.noAccess`, {docType: type, docId: testMode ? '' : docId});
               if (newResult) result.throwIfError(); else return;
             }
       */

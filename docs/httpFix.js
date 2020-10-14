@@ -92,6 +92,7 @@ export default oncePerServices(function (services) {
                         result.error('doc.assignedToUserTokenSentToAnotherUser');
                         return;
                       }
+                      delete token.userId;
                     }
                     return token;
                   } catch (err) {
