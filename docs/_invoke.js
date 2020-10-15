@@ -24,8 +24,8 @@ export default oncePerServices(function (services) {
 
     schema.update_args(args);
 
-    const {context, type, http, docId, action, actionArgs} = args;
-    let {update} = args;
+    const {context, type, http, docId, action} = args;
+    let {update, actionArgs} = args;
 
     const user = requestByContext(context)?.user;
 
@@ -104,6 +104,7 @@ export default oncePerServices(function (services) {
     // get existing update
     let existingDoc;
     if (docId || update?.hasOwnProperty('id')) {
+
       // TODO: Check docType level retrieve right
       const statement = `select * from ${docDesc.$$table} where id = $1;`;
       const r = await connection.exec({
@@ -154,9 +155,6 @@ export default oncePerServices(function (services) {
 
         // apply update
         const state = newDoc.state;
-
-        console.info(158, newDoc)
-        console.info(160, update)
 
         newDoc = docDesc.fields.$$set(newDoc, update, {
           updateMask: docDesc.fields.$$calc('id,rev,deleted').or(access.update),
@@ -291,6 +289,17 @@ export default oncePerServices(function (services) {
           result.add(localResult);
           if (newResult) result.throwIfError(); else return;
         }
+
+        if (http) {
+          actionArgs = await httpFix({context, result, fields: actionArgs, fieldsDesc: actionDesc.arguments, isOut: false});
+          if (localResult.isError) {
+            result.error(`doc.failedToFixActionArgs`, {docType: type, docId: testMode ? '' : newDoc.id, action: action});
+            result.add(localResult);
+            if (newResult) result.throwIfError(); else return;
+          }
+        }
+
+
       } else if (actionArgs) {
         result.error('doc.actionArgsNotExpected', {docType: type, docId: testMode ? '' : newDoc.id, action});
         if (newResult) result.throwIfError(); else return;
@@ -480,8 +489,6 @@ export default oncePerServices(function (services) {
 
       newDoc = await httpFix({context, result, fields: newDoc, fieldsDesc: docDesc.fields, isOut: true});
 
-      console.info(479, newDoc)
-
       if (localResult.isError) {
         result.error(`doc.failedToFixDoc`, {docType: type});
         result.add(localResult);
@@ -494,10 +501,10 @@ export default oncePerServices(function (services) {
     if (actionResult?.result) {
       if (http) {
         r.result = await httpFix({context, result, fields: actionResult.result, fieldsDesc: actionDesc.result, isOut: true});
+        if (newResult) result.throwIfError(); else return;
         if (localResult.isError) {
           result.error(`doc.failedToFixResulr`, {docType: type});
           result.add(localResult);
-          if (newResult) result.throwIfError(); else return;
         }
       } else {
         r.result = actionResult.result;

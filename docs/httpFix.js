@@ -159,7 +159,15 @@ export default oncePerServices(function (services) {
 
       if (!proc) {
         proc = buildLevel(fieldsDesc);
-        if (!proc) {
+        if (proc) {
+          proc =
+            (function (proc) {
+              return function (context, result, val, isOut, promises) {
+                const newVal = proc(context, result, val, isOut, promises);
+                return newVal || val;
+              };
+            })(proc);
+        } else {
           proc = function (context, result, val, isOut, promises) {
             return val;
           };
