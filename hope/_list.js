@@ -4,7 +4,7 @@ import Result from '../../../../lib/hope/lib/result/index'
 import buildDoc from './_buildDoc'
 import requestByContext from "../context/requestByContext";
 
-const debug = require('debug')('docs.list');
+const debug = require('debug')('hope.list');
 
 const schema = require('./index.schema');
 
@@ -15,7 +15,7 @@ export default oncePerServices(function (services) {
   const {
     testMode: __testMode,
   } = services;
-  const testMode = __testMode && __testMode.docs;
+  const testMode = __testMode && __testMode.hope;
 
   return async function list(args) {
     schema.list_args(args);

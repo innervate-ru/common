@@ -76,7 +76,7 @@ export default oncePerServices(function (services) {
                     newToken.userId = req.user.id;
                   }
                   Object.assign(newToken, val);
-                  return auth._signToken({context, token: newToken, notExpired: true});
+                  return auth._signToken({context, token: newToken, nonExpiring: true});
                 }
               } else {
                 if (val) {

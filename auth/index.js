@@ -1,9 +1,11 @@
-import {oncePerServices, missingExport} from '../../common/services'
-import configAPI from 'config'
-import missingService from '../services/missingService'
-import requestIp from 'request-ip'
 import nanoid from 'nanoid'
+import configAPI from 'config'
+import requestIp from 'request-ip'
 import jwt, {TokenExpiredError} from 'jsonwebtoken'
+import {oncePerServices, missingExport} from '../../common/services'
+import missingService from '../services/missingService'
+import requestByContext from '../context/requestByContext'
+import http from '../http'
 
 const debug = require('debug')('auth');
 
@@ -35,28 +37,21 @@ export default oncePerServices(function (services) {
       this._updateUser = [];
 
       this.middleware = (req, resp, next) => {
-
         const context = req.context || nanoid();
-
         req.context = context;
-
         const ip = requestIp.getClientIp(req);
         req.userIp = ip.startsWith('::ffff:') ? ip.substr(7) : ip; // удаляем префикс ipV6 для ipV4 адресов
-
         let auth = req.query.auth;
-
         if (!auth && req.headers.authorization) {
           const r = req.headers.authorization.split(' ');
           if (r.length === 2 && r[0] === 'Bearer') {
             auth = r[1];
           }
         }
-
         if (!auth) {
           res.status(401).send('Authorization token is required');
           return;
         }
-
         let token;
         try {
           token = this._parseToken({context, token: auth, isExpiredOk: false});
@@ -64,13 +59,11 @@ export default oncePerServices(function (services) {
           next(err);
           return;
         }
-
         req.session = token.session;
-
         if (token.user) {
+          req.session = token.session;
           req.user = token.user;
         }
-
         next();
       };
     }
@@ -84,14 +77,10 @@ export default oncePerServices(function (services) {
     }
 
     async newSession(args) {
-
       schema.newSession_args(args);
-
       const {context, userIp, isTestToken} = args; // Если тестовый токен, то не создаем сессию в БД
-
       const session = nanoid();
       debug('new session %s', session);
-
       if (!isTestToken) {
         await postgres.exec({
           context,
@@ -99,19 +88,14 @@ export default oncePerServices(function (services) {
           params: [session, userIp]
         });
       }
-
       return session;
     }
 
     async extendSession(args) {
-
       schema.extendSession_args(args);
-
       const {context, userIp, isTestToken} = args;
       let {session, user} = args;
-
       if (session) {
-
         let {rowCount, rows} =
           isTestToken ?
             {rowCount: 1, rows: [{active: true}]} :
@@ -120,9 +104,7 @@ export default oncePerServices(function (services) {
               statement: 'update session set last_seeing = now() where id = $1 returning active;',
               params: [session]
             });
-
         debug('rowCount %d, active: %s', rowCount, (rowCount > 0 ? rows[0].active : 'n/a'));
-
         if (rowCount === 0 || !rows[0].active) { // сессия или была деактивированна, или её удалили из БД
           debug('session is missing');
           session = await _newSession({context, userIp, isTestToken});
@@ -141,50 +123,49 @@ export default oncePerServices(function (services) {
             }
           }
         }
-
         const res = {session};
         if (user) {
           res.user = user;
         }
         return res;
-
       } else {
-
         return {session: await this._newSession({context, userIp})};
       }
     }
 
     async login(args) {
-
       schema.login_args(args);
-
-      const {context, session, userEmail, user} = args;
-
+      const {context, user} = args;
+      const session = requestByContext(context).session;
       let {rowCount} = await postgres.exec({
-        statement: 'update session set user_email = $2, last_seeing = now() where active = true and id = $1;',
-        params: [session, userEmail],
+        context,
+        statement: 'update session set user_id = $2, last_seeing = now() where active = true and id = $1;',
+        params: [session, user.id],
       });
-
       if (rowCount === 0) {
         throw Error(`Session '${session}' not found`);
       }
-
-      return {session, user};
+      return this._signToken({
+        context, token: {
+          session,
+          user
+        }
+      });
     }
 
+    @http({name: 'logout a user'})
     async logout(args) {
-
       schema.logout_args(args);
-
-      const {context, session} = args;
-
-      return {session};
+      const {context} = args;
+      return this._signToken({
+        context, token: {
+          session: requestByContext(context).session
+        }
+      });
     }
 
     _parseToken(args) {
-
       schema.parseToken_args(args);
-
       const {context, token, isExpiredOk} = args;
       try {
         return jwt.verify(token, secret);
@@ -202,18 +183,13 @@ export default oncePerServices(function (services) {
     }
 
     _signToken(args) {
-
       schema.signToken_args(args);
-
-      const {context, token, notExpired} = args;
-
-      return jwt.sign(token, secret, notExpired ? undefined : {expiresIn: this._expirationPeriod + this._extraTime});
+      const {context, token, nonExpiring} = args;
+      return jwt.sign(token, secret, nonExpiring ? undefined : {expiresIn: this._expirationPeriod + this._extraTime});
     }
 
     _addUpdateUser(args) {
-
       schema.addUpdateUser_args(args);
-
       this._updateUser.push(args.updateUserHandler);
     }
   }

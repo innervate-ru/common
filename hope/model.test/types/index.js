@@ -39,7 +39,7 @@ export default function (result) {
   }
 
   const res = {};
-  loadLevel(res, path.resolve(process.cwd(), 'src/common/docs/types'));
+  loadLevel(res, path.resolve(process.cwd(), 'src/common/hope/types'));
   // loadLevel(res, __dirname);
   return res;
 }

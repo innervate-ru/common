@@ -4,7 +4,7 @@ import Result from '../../../../lib/hope/lib/result/index'
 import build from './_buildDoc'
 import requestByContext from '../context/requestByContext'
 
-const debug = require('debug')('docs.update');
+const debug = require('debug')('hope.update');
 
 const schema = require('./index.schema');
 
@@ -15,7 +15,7 @@ export default oncePerServices(function (services) {
   const {
     testMode: __testMode,
   } = services;
-  const testMode = __testMode && __testMode.docs;
+  const testMode = __testMode && __testMode.hope;
 
   const insertRow = require('./_insertRow').default(services);
   const updateRow = require('./_updateRow').default(services);

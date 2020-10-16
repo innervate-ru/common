@@ -9,7 +9,7 @@ export default oncePerServices(function (services) {
     testMode: __testMode,
   } = services;
 
-  const testMode = __testMode && __testMode.docs;
+  const testMode = __testMode && __testMode.hope;
 
   return async function update(result, context, connection, docDesc, doc) {
 

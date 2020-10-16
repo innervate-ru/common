@@ -11,7 +11,7 @@ test.beforeEach(async t => {
   testResetCounters();
 
   const consoleAndBusServicesOnly = Object.create(null);
-  consoleAndBusServicesOnly.testMode = {docs: true};
+  consoleAndBusServicesOnly.testMode = {hope: true};
   consoleAndBusServicesOnly.console = t.context.testConsole = new (require('../utils/testConsole').default)();
   consoleAndBusServicesOnly.bus = new (require('../events/index').Bus(consoleAndBusServicesOnly))({nodeName: 'test'});
 

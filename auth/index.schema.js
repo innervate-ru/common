@@ -8,7 +8,7 @@ export const ctor_settings = validateThisServiceSettings({
 export const signToken_args = validate.method.this('args', {
   context: {type: VType.String(), required: true},
   token: {type: VType.Object(), required: true},
-  notExpired: {type: VType.Boolean()},
+  nonExpiring: {type: VType.Boolean()},
 });
 
 export const parseToken_args = validate.method.this('args', {
@@ -34,7 +34,6 @@ export const extendSession_args = validate.method.this('args', {
 
 export const login_args = validate.method.this('args', {
   context: {type: VType.String(), required: true},
-  session: {type: VType.String(), required: true},
   userEmail: {type: VType.String(), required: true},
   user: {type: VType.String(), required: true},
   _final: true,
@@ -42,7 +41,6 @@ export const login_args = validate.method.this('args', {
 
 export const logout_args = validate.method.this('args', {
   context: {type: VType.String(), required: true},
-  session: {type: VType.String(), required: true},
   _final: true,
 });
 
