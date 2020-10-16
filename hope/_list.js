@@ -10,7 +10,7 @@ const schema = require('./index.schema');
 
 export default oncePerServices(function (services) {
 
-  const httpFix = require('./httpFix').default(services);
+  const httpFix = require('./_httpFix').default(services);
 
   const {
     testMode: __testMode,
@@ -35,7 +35,7 @@ export default oncePerServices(function (services) {
     // process type
     //
 
-    const docDesc = this._model.docs[type];
+    const docDesc = this._model().docs[type];
     if (!docDesc) {
       result.error(`doc.unknownType`, {docType: type});
       if (newResult) result.throwIfError(); else return;
@@ -52,7 +52,7 @@ export default oncePerServices(function (services) {
     const builder = docDesc.actions.list.$$code;
     if (builder) {
       try {
-        const r = builder({context, result, sqlWhere, sqlOrder, sqlParams, filter, order, docDesc, model: this._model});
+        const r = builder({context, result, sqlWhere, sqlOrder, sqlParams, filter, order, docDesc, model: this._model()});
         if (typeof r === 'object' && r !== null && !Array.isArray(r) && typeof r.then === 'function') await r;
       } catch (err) {
         err.context = context;

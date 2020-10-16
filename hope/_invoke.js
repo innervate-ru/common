@@ -10,7 +10,7 @@ const schema = require('./index.schema');
 
 export default oncePerServices(function (services) {
 
-  const httpFix = require('./httpFix').default(services);
+  const httpFix = require('./_httpFix').default(services);
 
   const {
     testMode: __testMode,
@@ -22,7 +22,7 @@ export default oncePerServices(function (services) {
 
   return async function invoke(args) {
 
-    schema.update_args(args);
+    schema.invoke_args(args);
 
     const {context, type, http, docId, action} = args;
     let {update, actionArgs} = args;
@@ -40,7 +40,7 @@ export default oncePerServices(function (services) {
     // process type
     //
 
-    const docDesc = this._model.docs[type];
+    const docDesc = this._model().docs[type];
     if (!docDesc) {
       result.error(`doc.unknownType`, {docType: type});
       if (newResult) result.throwIfError(); else return;
@@ -85,12 +85,12 @@ export default oncePerServices(function (services) {
             doc: newDoc,
             docDesc,
             actionDesc,
-            model: this._model,
+            model: this._model(),
           });
           if (typeof res === 'object' && res !== null && !Array.isArray(res) && typeof res.then === 'function') res = await res;
-          if (res.doc) {
+          if (res?.doc) {
             newDoc = res.doc;
-            delete red.doc;
+            delete res.doc;
           }
           return res;
         } catch (err) {
@@ -317,7 +317,7 @@ export default oncePerServices(function (services) {
               args: actionArgs,
               docDesc,
               actionDesc,
-              model: this._model,
+              model: this._model(),
             });
 
             if (typeof actionResult === 'object' && actionResult !== null && !Array.isArray(actionResult) && typeof actionResult.then === 'function') actionResult = await actionResult;
@@ -378,7 +378,7 @@ export default oncePerServices(function (services) {
               args: actionArgs,
               docDesc,
               actionDesc,
-              model: this._model,
+              model: this._model(),
             });
 
             if (typeof actionResult === 'object' && actionResult !== null && !Array.isArray(actionResult) && typeof actionResult.then === 'function') actionResult = await actionResult;

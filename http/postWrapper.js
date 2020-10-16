@@ -8,19 +8,18 @@ const schema = require('./postWrapper.schema');
 
 export default oncePerServices(function (services) {
   const {
-    bus = missingService('bus'),
+    bus,
+    auth = missingService('auth'),
   } = services;
 
   return function (args) {
 
     schema.args(args);
 
-    // TODO: as default auth use authMIddleware
-
-    const {expressApp, path, service, method, auth, result: addResult, http: sayItsHttpCall} = args;
+    const {expressApp, path, service, method, result: addResult, http: sayItsHttpCall} = args;
 
     expressApp.post(path,
-      // auth,
+      auth.middleware,
       express.json(),
       async (req, resp, next) => {
         const context = (() => {

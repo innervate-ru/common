@@ -8,7 +8,7 @@ const schema = require('./index.schema');
 
 export default oncePerServices(function (services) {
 
-  const httpFix = require('./httpFix').default(services);
+  const httpFix = require('./_httpFix').default(services);
 
   const {
     testMode: __testMode,
@@ -47,7 +47,7 @@ export default oncePerServices(function (services) {
       type = r.rows[0].type;
     }
 
-    const docDesc = this._model.docs[type];
+    const docDesc = this._model().docs[type];
     if (!docDesc) {
       result.error(`doc.unknownType`, {docType: type});
       if (newResult) result.throwIfError(); else return;

@@ -22,13 +22,13 @@ export default oncePerServices(function (services) {
 
     // const connection = args.connection || this._postgres;
 
-    const docDesc = this._model.docs[doc._type];
+    const docDesc = this._model().docs[doc._type];
     if (!docDesc) {
       result.error(`doc.unknownType`, {docType: type});
       if (newResult) result.throwIfError(); else return;
     }
 
-    const res = docDesc.actions.retrieve.$$code?.({context, result, doc, docDesc, model: this._model});
+    const res = docDesc.actions.retrieve.$$code?.({context, result, doc, docDesc, model: this._model()});
 
     if (result.isError) {
       if (newResult) result.throwIfError(); else return;

@@ -12,7 +12,7 @@ test.serial(`1.1 insertUpdateRead: insert`, async t => {
 
   const result = new Result();
 
-  const docDesc = testDocsSvc._model.docs['doc.Doc1'];
+  const docDesc = testDocsSvc._model().docs['doc.Doc1'];
 
   let res = await insertRow('context', postgres, docDesc, {
     f1: '123',

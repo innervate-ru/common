@@ -49,7 +49,7 @@ export default oncePerServices(function (services) {
           }
         }
         if (!auth) {
-          res.status(401).send('Authorization token is required');
+          resp.status(401).send('Authorization token is required');
           return;
         }
         let token;
@@ -118,7 +118,7 @@ export default oncePerServices(function (services) {
               debug('user is missing or blocked');
               user = null;
               break;
-            } else if (newUser) { // новые данные по пользователю
+            } else if (user) { // новые данные по пользователю
               break;
             }
           }

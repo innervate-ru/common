@@ -3,7 +3,7 @@ import {VType, validateThisServiceSettings, validate} from '../validation/index'
 import {isResult} from '../../../../lib/hope/lib/utils/_err'
 
 export const ctor_settings = validateThisServiceSettings({
-  model: {type: VType.Object(), required: true},
+  model: {type: VType.Function(), required: true},
   postgres:  {type: VType.Object(), required: true},
   _final: true,
 });
@@ -15,7 +15,7 @@ const commonFields = {
   connection: {type: VType.Object(), validate: r => typeof r.exec === 'function' ? true : 'not connection object'},
 };
 
-export const update_args = validate.method.this(undefined, {
+export const invoke_args = validate.method.this(undefined, {
   ...commonFields,
   type: {type: VType.String().notEmpty(), required: true},
   docId: {type: VType.String()},

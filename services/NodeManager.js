@@ -179,7 +179,7 @@ export default oncePerServices(function (services) {
   defineProps(NodeManager, {
     context: {
       get() {
-        return bus._context;
+        return this._context;
       }
     },
     name: {
