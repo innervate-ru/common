@@ -164,8 +164,6 @@ export default oncePerServices(function (services) {
         });
         if (state) newDoc.state = state;
 
-        console.info(169, newDoc)
-
         debug(`update: newDoc[%d]: %o`, i, newDoc);
       }
 
@@ -260,8 +258,6 @@ export default oncePerServices(function (services) {
 
     let actionDesc, actionResult;
 
-    console.info(265)
-
     if (action) {
 
       debug(`action: %o`, action)
@@ -337,8 +333,6 @@ export default oncePerServices(function (services) {
 
           if (result.isError) if (newResult) result.throwIfError(); else return;
         }
-
-        console.info(341, actionResult)
 
         return actionResult?.result ? {result: actionResult.result} : {};
 
@@ -491,21 +485,16 @@ export default oncePerServices(function (services) {
       }
     }
 
-    console.info(492, localResult)
-
     if (http) {
 
       newDoc = await this.httpFix({context, result: localResult, fields: newDoc, fieldsDesc: docDesc.fields, isOut: true});
 
-      console.info(500, localResult)
       if (localResult.isError) {
         result.error(`doc.failedToFixDoc`, {docType: type});
         result.add(localResult);
         if (newResult) result.throwIfError(); else return;
       }
     }
-
-    console.info(505)
 
     const r = {doc: newDoc};
 
@@ -521,8 +510,6 @@ export default oncePerServices(function (services) {
         r.result = actionResult.result;
       }
     }
-
-    console.info(519, r)
     return r;
   }
 });

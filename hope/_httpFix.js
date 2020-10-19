@@ -57,13 +57,8 @@ export default oncePerServices(function (services) {
 
           if (~fieldDesc.udType.indexOf('bcryptPassword')) {
             (res || (res = {}))[fieldDesc.name] = function (context, result, val, isOut, promises) {
-              console.info(59, val)
               if (!isOut && val) {
-                return bcrypt.hash(val, BCRYPT_ROUNDS).then((v) =>
-                {
-                  console.info(71, v);
-                  return v;
-                });
+                return bcrypt.hash(val, BCRYPT_ROUNDS);
               }
               return REMOVE_FIELD;
             }

@@ -220,7 +220,18 @@ export default oncePerServices(function (services) {
           docs = r2.rows.reduce((acc, v) => {
             let doc = buildDoc(docDesc, v);
             doc = this.httpFix({context, result, doc, docDesc, isOut: true});
-            if (doc) {
+            result.isError = false;
+            docDesc.actions.retrieve.$$code?.({
+              context,
+              result,
+              doc,
+              docDesc,
+              model: this._model
+            });
+
+            if (result.isError) {
+              result.isError = false;
+            } else {
               acc.push(doc);
             }
 
