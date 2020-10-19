@@ -8,8 +8,6 @@ const schema = require('./index.schema');
 
 export default oncePerServices(function (services) {
 
-  const httpFix = require('./_httpFix').default(services);
-
   const {
     testMode: __testMode,
   } = services;
@@ -68,11 +66,20 @@ export default oncePerServices(function (services) {
 
     let doc = build(docDesc, r.rows[0]);
 
+    docDesc.actions.retrieve.$$code?.({
+      context,
+      result,
+      doc,
+      docDesc,
+      model: this._model
+    });
+    if (result.isError) if (newResult) result.throwIfError(); else return;
+
     // const access = docDesc.$$access(newDoc); // TODO: $$fix doc and $$get only fields viewable for given user
 
     if (http) {
 
-      doc = await httpFix({context, result, fields: doc, fieldsDesc: docDesc.fields, isOut: true})
+      doc = await this.httpFix({context, result, fields: doc, fieldsDesc: docDesc.fields, isOut: true})
       if (result.isError) {
         if (newResult) result.throwIfError(); else return;
       }

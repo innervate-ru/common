@@ -32,6 +32,7 @@ export default oncePerServices(function (services) {
             return hrid();
           }
         })();
+        req.http = true;
         addRequest(context, req);
         const result = new Result();
         let data;
@@ -40,6 +41,7 @@ export default oncePerServices(function (services) {
           if (addResult) params.result = result;
           if (sayItsHttpCall) params.http = true;
           data = await method(params);
+          console.info(44, data, result)
         } catch (err) {
           if (err.code === 'validate') {
             result.error('doc.wrongArgs', {message: err.message});
@@ -68,6 +70,7 @@ export default oncePerServices(function (services) {
         } else {
           res.data = data;
         }
+        console.info(73, data)
         resp.json(res);
         next();
       });

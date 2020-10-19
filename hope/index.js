@@ -32,7 +32,9 @@ export default oncePerServices(function (services) {
     })
     list = require('./_list').default(services);
 
-    applyUserRights = require('./_applyUserRights').default(services);
+    httpFix = require('./_httpFix').default(services);
+
+    // applyUserRights = require('./_applyUserRights').default(services);
   }
 
   return Docs;

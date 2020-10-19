@@ -4,7 +4,7 @@ export default oncePerServices(function (services) {
 
   const postWrapper = require('./postWrapper').default(services);
 
-  return function ({context, expressApp, auth}) {
+  return function ({context, expressApp}) {
     const urls = [];
     for (const svcName in services) {
       const svc = services[svcName];
@@ -27,7 +27,6 @@ export default oncePerServices(function (services) {
                   service: svc,
                   method: svc[methodName].bind(svc),
                 };
-                if (auth) r.auth = auth;
                 return r;
               })());
             }

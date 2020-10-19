@@ -10,8 +10,6 @@ const schema = require('./index.schema');
 
 export default oncePerServices(function (services) {
 
-  const httpFix = require('./_httpFix').default(services);
-
   const {
     testMode: __testMode,
   } = services;
@@ -52,7 +50,17 @@ export default oncePerServices(function (services) {
     const builder = docDesc.actions.list.$$code;
     if (builder) {
       try {
-        const r = builder({context, result, sqlWhere, sqlOrder, sqlParams, filter, order, docDesc, model: this._model()});
+        const r = builder({
+          context,
+          result,
+          sqlWhere,
+          sqlOrder,
+          sqlParams,
+          filter,
+          order,
+          docDesc,
+          model: this._model()
+        });
         if (typeof r === 'object' && r !== null && !Array.isArray(r) && typeof r.then === 'function') await r;
       } catch (err) {
         err.context = context;
@@ -102,17 +110,29 @@ export default oncePerServices(function (services) {
       if (http) {
         docs = r.rows.reduce((acc, v) => {
           let doc = buildDoc(docDesc, v);
-          doc = httpFix({context, result, fields: doc, fieldsDesc: docDesc.fields, isOut: true});
-          if (doc) {
+          doc = this.httpFix({context, result, fields: doc, fieldsDesc: docDesc.fields, isOut: true});
+
+          result.isError = false;
+          docDesc.actions.retrieve.$$code?.({
+            context,
+            result,
+            doc,
+            docDesc,
+            model: this._model
+          });
+
+          if (result.isError) {
+            result.isError = false;
+          } else {
             acc.push(doc);
           }
 
           // const access = docDesc.$$access(newDoc); // TODO: $$fix doc and $$get only fields viewable for given user
-/*
-          if (this.applyUserRights({context, result, doc})) {
-            acc.push(doc);
-          }
-*/
+          /*
+                    if (this.applyUserRights({context, result, doc})) {
+                      acc.push(doc);
+                    }
+          */
           return acc;
         }, []);
         docs = await Promise.all(docs);
@@ -199,7 +219,7 @@ export default oncePerServices(function (services) {
         if (http) {
           docs = r2.rows.reduce((acc, v) => {
             let doc = buildDoc(docDesc, v);
-            doc = httpFix({context, result, doc, docDesc, isOut: true});
+            doc = this.httpFix({context, result, doc, docDesc, isOut: true});
             if (doc) {
               acc.push(doc);
             }
@@ -207,11 +227,11 @@ export default oncePerServices(function (services) {
             // TODO: How to apply user rights ???
 
             // const access = docDesc.$$access(newDoc); // TODO: $$fix doc and $$get only fields viewable for given user
-/*
-            if (this.applyUserRights({context, result, doc})) {
-              acc.push(doc);
-            }
-*/
+            /*
+                        if (this.applyUserRights({context, result, doc})) {
+                          acc.push(doc);
+                        }
+            */
             return acc;
           }, []);
           docs = await Promise.all(docs);
