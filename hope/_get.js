@@ -70,8 +70,9 @@ export default oncePerServices(function (services) {
       context,
       result,
       doc,
+      actionDesc: docDesc.actions.retrieve,
       docDesc,
-      model: this._model
+      model: this._model(),
     });
     if (result.isError) if (newResult) result.throwIfError(); else return;
 
