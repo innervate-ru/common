@@ -3,7 +3,7 @@ const MAX_LIST = 10;
 const MAX_LEVELS = 2;
 
 function printList(list, level, maxLevel) {
-  const res = list.splice(0, Math.min(list.length, MAX_LIST)).map(v => prettyPrint(v, level, maxLevel)).join(', ');
+  const res = list.slice(0, Math.min(list.length, MAX_LIST)).map(v => prettyPrint(v, level, maxLevel)).join(', ');
   return `[${res}${list.length > MAX_LIST ? ' ...]' : ']'}`;
 }
 
