@@ -146,14 +146,23 @@ export default function ({fromDir = 'model', toDir = 'data'} = {}) {
         tab += TAB;
 
         if (server && docCode.actions) {
-          res.push(`${' '.repeat(tab + TAB)}actions: require('${path.relative(scriptPath, docCode.actions).replace(/\\/g, '/')}').default(services),`);
+
+          res.push(`${' '.repeat(tab)}actions: {`);
+          tab += TAB;
+
+          Object.entries(docCode.actions).forEach(([key, value]) => {
+            res.push(`${' '.repeat(tab + TAB)}${key}: require('${path.relative(scriptPath, value).replace(/\\/g, '/')}').default(services),`);
+          });
+
+          tab -= TAB;
+          res.push(`${' '.repeat(tab)}},`);
         }
 
         Object.entries(docCode).forEach(([methodName, methodPath]) => {
 
           if (methodName === 'actions') return;
 
-          res.push(`${' '.repeat(tab + TAB)}${methodName}: require('${path.relative(scriptPath, methodPath).replace(/\\/g, '/')}').default,`);
+          res.push(`${' '.repeat(tab)}${methodName}: require('${path.relative(scriptPath, methodPath).replace(/\\/g, '/')}').default,`);
         });
 
         tab -= TAB;
