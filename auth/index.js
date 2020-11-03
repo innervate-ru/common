@@ -168,11 +168,13 @@ export default oncePerServices(function (services) {
       schema.parseToken_args(args);
       const {context, token, isExpiredOk} = args;
       try {
-        return jwt.verify(token, secret);
+        const {session, user} = jwt.verify(token, secret);
+        return {session, user};
       } catch (err) {
         if (err instanceof TokenExpiredError) {
           if (isExpiredOk) {
-            return jwt.decode(token);
+            const {session, user} = jwt.decode(token);
+            return {session, user};
           } else {
             throw new Error('tokenExpired');
           }
