@@ -25,7 +25,6 @@ export default oncePerServices(function (services) {
         const ip = requestIp.getClientIp(req);
         req.userIp = ip.startsWith('::ffff:') ? ip.substr(7) : ip; // удаляем префикс ipV6 для ipV4 адресов
         try {
-          console.info(28, auth._parseToken({context, token: req.body, isExpiredOk: true}))
           const newToken =
             req.body ?
               await auth.extendSession({...auth._parseToken({context, token: req.body, isExpiredOk: true}), context, userIp: ip}) :
