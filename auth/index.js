@@ -157,11 +157,15 @@ export default oncePerServices(function (services) {
     async logout(args) {
       schema.logout_args(args);
       const {context} = args;
-      return this._signToken({
-        context, token: {
-          session: requestByContext(context).session
-        }
-      });
+      return {
+        time: (new Date()).toISOString(),
+        refreshIn: this._expirationPeriod,
+        token: this._signToken({
+          context, token: {
+            session: requestByContext(context).session
+          }
+        }),
+      };
     }
 
     _parseToken(args) {

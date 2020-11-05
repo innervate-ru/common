@@ -8,7 +8,7 @@ export default function httpAnnotation(...args) {
     (target.__http || (target.__http = {}))[key] = opts;
     return descriptor;
   }
-  if (args.length === 1) { // decorator haa arguments
+  if (args.length === 1) { // decorator has arguments
     opts = args[0];
     schema.args(opts);
     return decorator;

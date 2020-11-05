@@ -22,12 +22,14 @@ export default oncePerServices(function (services) {
 
     @http({
       name: `get a document by its type and id`,
+      result: true,
       http: true,
     })
     get = require('./_get').default(services);
 
     @http({
       name: `list docs with given filter, order and paging`,
+      result: true,
       http: true,
     })
     list = require('./_list').default(services);
