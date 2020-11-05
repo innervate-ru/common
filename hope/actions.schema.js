@@ -19,6 +19,7 @@ export const update_args = validate.method.this('args', {
   context: {type: VType.String(), required: true},
   result: {type: VType.Object(), validate: r => isResult(r) ? true : 'not Result object'},
   doc: {type: VType.Object(), required: true},
+  prevDoc: {type: VType.Object()},
   actionDesc: {type: VType.Object(), required: true},
   docDesc: {type: VType.Object(), required: true},
   model: {type: VType.Object(), required: true},

@@ -72,6 +72,7 @@ export default oncePerServices(function (services) {
     }
 
     let newDoc = update;
+    let existingDoc;
 
     const runActionCode = async (actionDesc) => {
       let res;
@@ -81,6 +82,7 @@ export default oncePerServices(function (services) {
             context,
             result,
             doc: newDoc,
+            prevDoc: existingDoc,
             docDesc,
             actionDesc,
             model: this._model(),
@@ -114,9 +116,9 @@ export default oncePerServices(function (services) {
         result.error('doc.notFound', {docType: type, docId: testMode ? '' : update.id});
         if (newResult) result.throwIfError(); else return;
       }
-      newDoc = docDesc.fields.$$fix(build(docDesc, r.rows[0]), {mask: docDesc.fields.$$calc('#all-options')});
+      newDoc = existingDoc = docDesc.fields.$$fix(build(docDesc, r.rows[0]), {mask: docDesc.fields.$$calc('#all-options')});
 
-      await runActionCode(docDesc.actions.retrieve);
+      await runActionCode(docDesc.actions.retrieve); // TODO: Think of
       if (result.isError) if (newResult) result.throwIfError(); else return;
 
     } else {
@@ -128,6 +130,8 @@ export default oncePerServices(function (services) {
       if (result.isError) if (newResult) result.throwIfError(); else return;
 
       if (!newDoc) newDoc = docDesc.fields.$$new();
+
+      existingDoc = newDoc;
     }
 
     debug(`update: newDoc: %o`, newDoc);
@@ -187,13 +191,15 @@ export default oncePerServices(function (services) {
           if (newResult) result.throwIfError(); else return;
         }
 
-        await runActionCode(docDesc.actions.retrieve);
+        await runActionCode(docDesc.actions.retrieve); // TODO: ???
         if (result.isError) if (newResult) result.throwIfError(); else return;
 
         if (!access.actions.get(docDesc.actions.update.$$index)) {
           result.error(`doc.cannotUpdate`, {docType: type, docId: newDoc.id});
           if (newResult) result.throwIfError(); else return;
         }
+
+        console.info(202, existingDoc)
 
         await runActionCode(docDesc.actions.update);
         if (result.isError) if (newResult) result.throwIfError(); else return;
@@ -227,14 +233,14 @@ export default oncePerServices(function (services) {
         newDoc = docDesc.fields.$$get(newDoc, docDesc.fields.$$calc('id,rev,deleted').or(access.view).or(access.update));
         newDoc = await updateRow(localResult, context, connection, docDesc, newDoc);
         if (localResult.isError) {
-          result.error(`doc.updateFailedToWrite`, {docType: type, docId: testMode ? '' : newDoc.id});
+          result.error(`doc.updateFailedToWrite`, {docType: type, docId: testMode ? '' : newDoc?.id});
           result.add(localResult);
           if (newResult) result.throwIfError(); else return;
         }
 
       } else {
 
-        if (!access.actions.get(docDesc.actions.create.$$index)) {
+        if (!access.actions.get(docDesc.actions.create.$$index)) { // TODO: Is this right place?
           result.error(`doc.cannotCreate`, {docType: type, docId: newDoc.id});
           if (newResult) result.throwIfError(); else return;
         }
@@ -257,6 +263,8 @@ export default oncePerServices(function (services) {
     //
 
     let actionDesc, actionResult;
+
+    console.info(267, action)
 
     if (action) {
 
@@ -356,6 +364,8 @@ export default oncePerServices(function (services) {
           }
         }
 
+        console.info(360, actionDesc)
+
         let transitionDesc;
         if (docDesc.fields.state && !(transitionDesc = docDesc.states[newDoc.state]?.transitions[action])) {
           result.error('doc.actionNotAllowedInThisState', {
@@ -367,15 +377,18 @@ export default oncePerServices(function (services) {
           if (newResult) result.throwIfError(); else return;
         }
 
+        console.info(370, transitionDesc)
+
         let actionUpdate;
         if (actionDesc.$$code) {
 
           try {
-            actionResult = actionDesc.$$code({
+            actionResult = await actionDesc.$$code({
               context,
               result,
               doc: newDoc,
               args: actionArgs,
+              nextState: transitionDesc?.next.name,
               docDesc,
               actionDesc,
               model: this._model(),
@@ -406,7 +419,7 @@ export default oncePerServices(function (services) {
               if (newResult) result.throwIfError(); else return;
             }
           } else {
-            if (actionResult.result) {
+            if (actionResult?.result) {
               result.error(`doc.unexpectedActionCodeResult`, {value: actionResult.result, docType: type, action: actionDesc.name});
               if (newResult) result.throwIfError(); else return;
             }
