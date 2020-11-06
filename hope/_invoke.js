@@ -113,7 +113,7 @@ export default oncePerServices(function (services) {
         params: [docId || update.id],
       });
       if (r.rowCount === 0) {
-        result.error('doc.notFound', {docType: type, docId: testMode ? '' : update.id});
+        result.error('doc.notFound', {docType: type, docId: testMode ? '' : update?.id});
         if (newResult) result.throwIfError(); else return;
       }
       newDoc = existingDoc = docDesc.fields.$$fix(build(docDesc, r.rows[0]), {mask: docDesc.fields.$$calc('#all-options')});
@@ -199,8 +199,6 @@ export default oncePerServices(function (services) {
           if (newResult) result.throwIfError(); else return;
         }
 
-        console.info(202, existingDoc)
-
         await runActionCode(docDesc.actions.update);
         if (result.isError) if (newResult) result.throwIfError(); else return;
 
@@ -263,8 +261,6 @@ export default oncePerServices(function (services) {
     //
 
     let actionDesc, actionResult;
-
-    console.info(267, action)
 
     if (action) {
 
@@ -364,20 +360,16 @@ export default oncePerServices(function (services) {
           }
         }
 
-        console.info(360, actionDesc)
-
         let transitionDesc;
         if (docDesc.fields.state && !(transitionDesc = docDesc.states[newDoc.state]?.transitions[action])) {
           result.error('doc.actionNotAllowedInThisState', {
             docType: type,
             docId: testMode ? '' : newDoc.id,
-            state: update.state,
+            state: newDoc.state,
             action
           });
           if (newResult) result.throwIfError(); else return;
         }
-
-        console.info(370, transitionDesc)
 
         let actionUpdate;
         if (actionDesc.$$code) {
@@ -485,7 +477,7 @@ export default oncePerServices(function (services) {
           if (localResult.isError) {
             result.error(`doc.failedToWriteActionUpdate`, {
               docType: type,
-              docId: testMode ? '' : newDoc.id,
+              docId: testMode ? '' : newDoc?.id,
               action: action
             });
             result.add(localResult);
