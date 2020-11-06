@@ -107,7 +107,7 @@ export default oncePerServices(function (services) {
         debug('rowCount %d, active: %s', rowCount, (rowCount > 0 ? rows[0].active : 'n/a'));
         if (rowCount === 0 || !rows[0].active) { // сессия или была деактивированна, или её удалили из БД
           debug('session is missing');
-          session = await _newSession({context, userIp, isTestToken});
+          session = await this._newSession({context, userIp, isTestToken});
           user = null;
         } else if (user) { // если укзаан пользователь
           const givenUser = user;
