@@ -16,13 +16,16 @@ export default oncePerServices(function (services) {
   return function (options) {
     schema.options(options);
     return function accessLog(req, res, next) {
+
       const startTime = Date.now();
+
+      const service = options?.service || 'express';
+
+      req.context = nanoid();
+
       const ip = requestIp.getClientIp(req);
-      const service = (options && options.service) || 'express';
-      req.context = {
-        reqId: nanoid(),
-        userIp: ip.startsWith('::ffff:') ? ip.substr(7) : ip, // удаляем префикс ipV6 для ipV4 адресов
-      };
+      req.userIp = ip.startsWith('::ffff:') ? ip.substr(7) : ip; // удаляем префикс ipV6 для ipV4 адресов
+
       onHeaders(res, function () {
 
         const reqContext = req.context;

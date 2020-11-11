@@ -7,6 +7,8 @@ const debug = require('debug')('auth');
 
 const schema = require('./index.schema');
 
+const service = 'auth';
+
 export default oncePerServices(function (services) {
 
   const {
@@ -14,16 +16,19 @@ export default oncePerServices(function (services) {
     auth = missingService('auth'),
   } = services;
 
+  const logger = require('../express/accessLog').default(services)({service});
+
   return function (args) {
     schema.middleware_args(args);
     const {expressApp} = args;
     const path = '/api/user';
-    expressApp.post(path, express.text(),
+    expressApp.post(path,
+      logger,
+      express.text(),
       async (req, resp, next) => {
         const context = nanoid();
         const time = (new Date()).toISOString();
         const ip = requestIp.getClientIp(req);
-        req.userIp = ip.startsWith('::ffff:') ? ip.substr(7) : ip; // удаляем префикс ipV6 для ipV4 адресов
         try {
           const newToken =
             req.body ?

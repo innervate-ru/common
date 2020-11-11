@@ -28,26 +28,33 @@ export default function ({fromDir = 'data', modelDir = 'model', toDir = 'db/evol
           validators: require(validators)
         }, {server: true});
 
-
+        let lastName;
         const filesMap = fs.readdirSync(path.join(process.cwd(), toDir))
           .map(filename => path.parse(filename))
-          .filter(filename => filename.ext === '.sql')
-          .filter(filename => filename.name.startsWith('doc_'))
+          .sort((fnL, fnR) => fnL.name.localeCompare(fnR.name))
+          .filter(filename => {
+            if (filename.ext === '.sql') {
+              lastName = filename.name;
+              return true;
+            }
+          })
+          .filter(filename => /^\d{3,3}\sdoc_/.test(filename.name))
           .reduce((acc, filename) => {
-            acc[filename.name] = false;
+            acc[filename.name.match(/^\d{3,3}\s(doc_.*)$/)[1]] = filename.name;
             return acc;
           }, {});
+
+        let lastIndex = parseInt(lastName.match(/^(\d{3,3})\s/)[1]);
 
         await Promise.all(config.docs.$$list.map(async (doc) => {
           const table = buildTableDefinition(doc);
           const filename = `${doc.name.startsWith('doc.') ? '' : `doc_`}${doc.$$table}`;
-          await writeFile(path.join(process.cwd(), `${toDir}/${filename }.sql`), createTableScript(table));
-          filesMap[filename] = true;
+          await writeFile(path.join(process.cwd(), `${toDir}/${filesMap[filename] || `${zeroPad(++lastIndex, 3)} ${filename}`}.sql`), createTableScript(table));
+          delete filesMap[filename];
         }));
 
-        await Promise.all(Object.entries(filesMap)
-          .filter(([_, saved]) => !saved)
-          .map(async ([filename]) => {
+        await Promise.all(Object.values(filesMap)
+          .map(async (filename) => {
             await unlink(path.join(process.cwd(), `${toDir}/${filename}.sql`));
           }));
 
@@ -187,3 +194,8 @@ export default function ({fromDir = 'data', modelDir = 'model', toDir = 'db/evol
     return res.join(' ')
   }
 };
+
+function zeroPad(num, places) {
+  var zero = places - num.toString().length + 1;
+  return Array(+(zero > 0 && zero)).join("0") + num;
+}
