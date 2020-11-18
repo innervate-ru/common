@@ -12,6 +12,7 @@ export const list_args = validate.method.this('args', {
   order: {type: VType.Object(), required: true},
   docDesc: {type: VType.Object(), required: true},
   model: {type: VType.Object(), required: true},
+  setCatchError: {type: VType.Function(), required: true},
   _final: true,
 });
 

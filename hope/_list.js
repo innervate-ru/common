@@ -46,6 +46,7 @@ export default oncePerServices(function (services) {
     const sqlParams = [];
     const sqlWhere = [];
     const sqlOrder = [];
+    let catchError;
 
     const builder = docDesc.actions.list.$$code;
     if (builder) {
@@ -59,7 +60,8 @@ export default oncePerServices(function (services) {
           filter,
           order,
           docDesc,
-          model: this._model()
+          model: this._model(),
+          setCatchError: (v) => { catchError = v; },
         });
         if (typeof r === 'object' && r !== null && !Array.isArray(r) && typeof r.then === 'function') await r;
       } catch (err) {
@@ -103,6 +105,7 @@ export default oncePerServices(function (services) {
         name: md5(statement),
         statement,
         params: sqlParams,
+        catchError,
       });
 
       let docs;
@@ -166,6 +169,7 @@ export default oncePerServices(function (services) {
             name: md5(statement),
             statement,
             params: sqlParams,
+            catchError,
           });
           count = r2.rows[0].count;
           pageNo = Math.trunc(count / pageSize) + 1;

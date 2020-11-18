@@ -186,9 +186,22 @@ export default oncePerServices(function (services) {
 
       args = this._testTimer(args);
 
-      const {name, statement, params} = args;
+      const {name, statement, params, catchError} = args;
 
-      return this._client.query({name, text: statement, values: params});
+      if (!catchError) {
+        return this._client.query({name, text: statement, values: params});
+      } else {
+        try {
+          return await this._client.query({name, text: statement, values: params});
+        } catch (err) {
+          const res = catchError(err);
+          if (res) {
+            return res;
+          } else {
+            throw err;
+          }
+        }
+      }
     }
 
     async sendMessage(args) {

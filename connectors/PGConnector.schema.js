@@ -24,6 +24,7 @@ export const exec_args = validate.method.finished('args', {
   name: {type: VType.String().notEmpty()},
   statement: {required: true, type: VType.String().notEmpty()},
   params: {type: VType.Array()},
+  catchError: {type: VType.Function()},
   _final: true,
 });
 
