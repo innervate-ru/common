@@ -4,8 +4,17 @@ import nanoid from 'nanoid'
 import 'moment-duration-format';
 import errorDataToEvent from '../errors/errorDataToEvent';
 import prettyError from '../utils/prettyError';
+import cmd from 'commander'
 
 export default (async function start() {
+
+  cmd
+    .name(`node src/common/postgres/updateDatabase.js`)
+    .option(`-p, --prod`, `production mode`)
+    .option(`-d, --dev`, `development mode. sql section '-- !Dev' is executed`)
+    .option(`-e, --eval <.../db/evolutions>`, `path of db evolution`)
+    .option(`-s, --silent`, `silent mode`)
+    .parse(process.argv);
 
   let bus, nodeName;
 
@@ -34,13 +43,19 @@ export default (async function start() {
 
     const params = {
       postgres,
-      lock: process.env.NODE_ENV === 'production',
-      dev: process.env.NODE_ENV === 'development',
-      silent: evolutions.hasOwnProperty('silent') ? evolutions.silent : true,
+      lock: cmd.prod || process.env.NODE_ENV === 'production',
+      dev: cmd.dev || process.env.NODE_ENV === 'development',
+      silent: cmd.silent || (evolutions.hasOwnProperty('silent') ? evolutions.silent : true),
     };
 
-    if (evolutions.schemaDir) params.schemaDir = evolutions.schemaDir;
-    if (evolutions.codeDir) params.codeDir = evolutions.codeDir;
+    if (cmd.eval) {
+      params.schemaDir = path.resolve(process.cwd(), cmd.eval, 'schema');
+      params.codeDir = path.resolve(process.cwd(), cmd.eval, 'code');
+
+    } else {
+      if (evolutions.schemaDir) params.schemaDir = evolutions.schemaDir;
+      if (evolutions.codeDir) params.codeDir = evolutions.codeDir;
+    }
 
     await require('./evolutions').default(consoleAndBusServicesOnly)(params);
 

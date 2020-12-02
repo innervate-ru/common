@@ -90,7 +90,7 @@ function runTasks({watch, tasks, delay}) {
 }
 
 function parallel(tasks) {
-  tasks = tasks.filter(v => typeof v === 'object' && v !== null && '_run' in v);
+  tasks = tasks.flat(Infinity).filter(v => typeof v === 'object' && v !== null && '_run' in v);
   const task = {
     lastRun: null,
     working: false,
@@ -130,7 +130,7 @@ function parallel(tasks) {
 }
 
 function serial(tasks) {
-  tasks = tasks.filter(v => typeof v === 'object' && v !== null && '_run' in v);
+  tasks = tasks.flat(Infinity).filter(v => typeof v === 'object' && v !== null && '_run' in v);
   const task = {
     lastRun: null,
     working: false,
