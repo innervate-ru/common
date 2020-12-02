@@ -1,6 +1,8 @@
-const generate = require('nanoid/generate');
+import { customAlphabet } from 'nanoid'
 const dictionary = require('nanoid-dictionary');
 
+const nanoid = customAlphabet(dictionary.nolookalikes, 21);
+
 export default function hrid() {
-  return generate(dictionary.nolookalikes, 21);
+  return nanoid();
 }
