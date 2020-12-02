@@ -1,4 +1,4 @@
-import nanoid from 'nanoid'
+import {nanoid} from 'nanoid'
 import configAPI from 'config'
 import requestIp from 'request-ip'
 import jwt, {TokenExpiredError} from 'jsonwebtoken'

@@ -1,6 +1,6 @@
 import {invalidArgument} from '../validation'
 
-import nanoid from 'nanoid'
+import {nanoid} from 'nanoid'
 
 const hasOwnProperty = Object.prototype.hasOwnProperty;
 

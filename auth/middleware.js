@@ -1,4 +1,4 @@
-import nanoid from 'nanoid'
+import {nanoid} from 'nanoid'
 import {missingService, oncePerServices} from '../services'
 import requestIp from 'request-ip'
 import express from 'express'

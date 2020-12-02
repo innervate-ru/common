@@ -1,6 +1,6 @@
 import path from 'path';
 import configAPI from 'config';
-import nanoid from 'nanoid'
+import {nanoid} from 'nanoid'
 import 'moment-duration-format';
 import errorDataToEvent from '../errors/errorDataToEvent';
 import prettyError from '../utils/prettyError';

@@ -1,7 +1,7 @@
 import {oncePerServices} from "../services";
 import onHeaders from 'on-headers'
 import requestIp from 'request-ip'
-import nanoid from 'nanoid'
+import {nanoid} from 'nanoid'
 
 const hasOwnProperty = Object.prototype.hasOwnProperty;
 
