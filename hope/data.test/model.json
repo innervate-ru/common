@@ -60,7 +60,6 @@
               "name": "password",
               "type": "string",
               "length": 60,
-              "min": 6,
               "udType": [
                 "bcryptPassword"
               ]
@@ -136,18 +135,28 @@
               "name": "list"
             },
             {
-              "name": "list",
+              "name": "login",
+              "static": true,
               "arguments": {
                 "list": [
                   {
-                    "name": "a",
-                    "type": "integer"
+                    "name": "email",
+                    "type": "string",
+                    "length": 360
                   },
                   {
-                    "name": "b",
+                    "name": "password",
                     "type": "string",
-                    "required": true,
-                    "length": 20
+                    "length": 60
+                  }
+                ],
+                "tags": {}
+              },
+              "result": {
+                "list": [
+                  {
+                    "name": "token",
+                    "type": "text"
                   }
                 ],
                 "tags": {}
@@ -189,34 +198,6 @@
             },
             {
               "name": "submitted"
-            },
-            {
-              "name": "login",
-              "static": true,
-              "arguments": {
-                "list": [
-                  {
-                    "name": "email",
-                    "type": "string",
-                    "length": 360
-                  },
-                  {
-                    "name": "password",
-                    "type": "string",
-                    "length": 60
-                  }
-                ],
-                "tags": {}
-              },
-              "result": {
-                "list": [
-                  {
-                    "name": "token",
-                    "type": "text"
-                  }
-                ],
-                "tags": {}
-              }
             }
           ],
           "tags": {

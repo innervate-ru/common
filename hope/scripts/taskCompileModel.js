@@ -151,7 +151,7 @@ export default function ({fromDir = 'model', toDir = 'data'} = {}) {
           tab += TAB;
 
           Object.entries(docCode.actions).forEach(([key, value]) => {
-            res.push(`${' '.repeat(tab + TAB)}${key}: require('${path.relative(scriptPath, value).replace(/\\/g, '/')}').default(services),`);
+            res.push(`${' '.repeat(tab + TAB)}${key}: require('${path.relative(scriptPath, value).replace(/\\/g, '/')}').default?.(services),`);
           });
 
           tab -= TAB;

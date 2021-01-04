@@ -6,7 +6,11 @@ export default oncePerServices(function (services) {
   return {
     docs: {
       'doc.Doc1': {
-          actions: require('../model.test/docs/Doc1/actions.js').default(services),
+        actions: {
+            default: require('../model.test/docs/Doc1/systemActions.js').default?.(services),
+            login: require('../model.test/docs/Doc1/actions/login.js').default?.(services),
+            submit: require('../model.test/docs/Doc1/actions/submit.js').default?.(services),
+        },
       },
     },
     validators: require('../model.test/validators'),

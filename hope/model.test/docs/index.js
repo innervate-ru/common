@@ -11,64 +11,143 @@ const hasOwnProperty = Object.prototype.hasOwnProperty;
  */
 export default function (result) {
 
+  class Level {
+
+    constructor(fullname) {
+      this.filename = null;
+      this.basedir = fullname;
+    }
+
+    fileExists(filename) {
+      this.filename = null;
+      return ['.js', '.coffee'].some(fileext => {
+        try {
+          const fullname = path.join(this.basedir, `${filename}${fileext}`);
+          if (!fs.statSync(fullname).isFile()) return false;
+          this.filename = fullname;
+          return true;
+        } catch (err) {
+          if (err.code !== 'ENOENT') throw err;
+        }
+      });
+    }
+
+    loadFile(filename) {
+      let load = require(filename || this.filename);
+      if (typeof load === 'object' && load !== null && hasOwnProperty.call(load, 'default')) load = load.default;
+      if (typeof load === 'function') load = load(result);
+      return load;
+    }
+
+    dirExists(dirname) {
+      try {
+        const fullname = path.join(this.basedir, dirname);
+        return fs.statSync(fullname).isDirectory();
+      } catch (err) {
+        if (err.code !== 'ENOENT') throw err;
+      }
+      return false;
+    }
+  }
+
   function loadLevel(items, code, dirname, level = 0, prefix = '') {
+
     fs.readdirSync(dirname)
       .filter(filename => !filename.startsWith('.') && !filename.startsWith('_') && (level > 0 || filename !== 'index.js'))
       .forEach(filename => {
         const fullpath = path.join(dirname, filename);
         let docName;
         if (fs.statSync(fullpath).isDirectory()) {
-          try {
 
-            const indexJs = path.join(fullpath, 'index.js'); // Если есть index.js, то это описание типа документа в папке
-            fs.statSync(indexJs);
+          const dirLevel = new Level(fullpath);
+
+          if (dirLevel.fileExists('index')) { // версия 2: все поля, states и actions decl в одном index.js
 
             const fullDocName = `${prefix}${filename}`  // prefix.substr(0, prefix.length - 1); // убираем точку в конце
             if (items.hasOwnProperty(fullDocName)) {
-              result.context(Result.item(fullpath)).error(`dsc.duplicatedName`, {value: fullDocName});
-            } else {
-              try {
-                let load = require(indexJs);
-                if (typeof load === 'object' && load !== null && hasOwnProperty.call(load, 'default')) load = load.default;
-                if (typeof load === 'function') load = load(result);
-                items[fullDocName] = load;
-              } catch (err) {
-                console.error(err);
-              }
+              result.error(() => fullpath, `dsc.duplicatedName`, {value: fullDocName});
+              return;
+            }
+            items[fullDocName] = dirLevel.loadFile();
+
+            if (dirLevel.fileExists('access')) {
+              (code[fullDocName] || (code[fullDocName] = {})).access = dirLevel.filename;
             }
 
-            try {
-              const accessJs = path.join(fullpath, 'access.js');
-              fs.statSync(accessJs);
-              (code[fullDocName] || (code[fullDocName] = {})).access = accessJs;
-            } catch (err) {
-              if (err.code !== 'ENOENT') throw err;
+            if (dirLevel.fileExists('validate')) {
+              (code[fullDocName] || (code[fullDocName] = {})).validate = dirLevel.filename;
             }
 
-            try {
-              const validateJs = path.join(fullpath, 'validate.js');
-              fs.statSync(validateJs);
-              (code[fullDocName] || (code[fullDocName] = {})).validate = validateJs;
-            } catch (err) {
-              if (err.code !== 'ENOENT') throw err;
+            if (dirLevel.fileExists('actions')) {
+              ((code[fullDocName] || (code[fullDocName] = {})).actions = {}).default = dirLevel.filename;
             }
 
-            try {
-              const actionsJs = path.join(fullpath, 'actions.js');
-              fs.statSync(actionsJs);
-              (code[fullDocName] || (code[fullDocName] = {})).actions = actionsJs;
-            } catch (err) {
-              if (err.code !== 'ENOENT') throw err;
+          } else if (dirLevel.fileExists('fields')) { // версия 3: поля, actions, states в отдельных фпйлах. не system actions отдельной папке вместе с declaration + rights + computed
+
+            const fullDocName = `${prefix}${filename}`  // prefix.substr(0, prefix.length - 1); // убираем точку в конце
+            if (items.hasOwnProperty(fullDocName)) {
+              result.error(() => fullpath, `dsc.duplicatedName`, {value: fullDocName});
+              return;
             }
 
-          } catch (err) {
-            if (err.code !== 'ENOENT') throw err;
-            loadLevel(items, code, fullpath, level + 1, `${prefix}${filename}.`);
+            const doc = items[fullDocName] = {};
+
+            doc.fields = dirLevel.loadFile();
+
+            if (dirLevel.fileExists('states')) {
+              doc.states = dirLevel.loadFile();
+            }
+
+            if (dirLevel.fileExists('access')) {
+              (code[fullDocName] || (code[fullDocName] = {})).access = dirLevel.filename;
+            }
+
+            if (dirLevel.fileExists('validate')) {
+              (code[fullDocName] || (code[fullDocName] = {})).validate = dirLevel.filename;
+            }
+
+            if (dirLevel.fileExists('rights')) {
+              (code[fullDocName] || (code[fullDocName] = {})).rights = dirLevel.filename;
+            }
+
+            const actions = (code[fullDocName] || (code[fullDocName] = {})).actions = {};
+            if (dirLevel.fileExists('systemActions')) {
+              actions.default = dirLevel.filename;
+            }
+
+            if (dirLevel.dirExists('actions')) {
+
+              const actionsLevel = new Level(path.join(dirLevel.basedir, 'actions'));
+              fs.readdirSync(actionsLevel.basedir)
+                .filter(filename => !filename.startsWith('.') && !filename.startsWith('_'))
+                .forEach(filename => {
+                  const actionFile = path.join(actionsLevel.basedir, filename);
+                  const actionDesc = require(actionFile);
+                  const actionName = path.parse(filename).name;
+                  if (actionDesc.hasOwnProperty('model')) { // есть описание action
+                    (doc.actions || (doc.actions = {}))[actionName] = actionDesc.model;
+                  }
+                  if (actionDesc.hasOwnProperty('default')) { // есть реализпция action
+                    if (!doc.actions[actionName]) {
+                      result.error(() => filename, `dsc.missingActionModel`, {value: actionName});
+                      return;
+                    }
+                    actions[actionName] = actionFile;
+                  }
+                });
+            }
+          } else  {
+
+            if (fs.statSync(fullpath).isDirectory()) {
+
+              loadLevel(items, code, fullpath, level + 1, `${prefix}${filename}.`);
+            }
           }
-        } else if (docName = canBeRequire(filename)) {
+        } else if (docName = canBeRequire(filename)) { // версия 1: описание документа просто в <тип документа>.js
+
           const fullDocName = `${prefix}${docName}`;
           if (items.hasOwnProperty(fullDocName)) {
-            result.context(Result.item(fullpath)).error(`dsc.duplicatedName`, {value: fullDocName});
+            result.error(() => fullpath, `dsc.duplicatedName`, {value: fullDocName});
           } else {
             try {
               let load = require(fullpath);
