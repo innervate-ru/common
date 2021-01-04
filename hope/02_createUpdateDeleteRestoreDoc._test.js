@@ -4,11 +4,14 @@ import Result from '../../../../lib/hope/lib/result/index'
 
 test.serial(`2.1 createUpdateDeleteResoreDoc`, async t => {
 
-  const {testDocsSvc, postgres} = t.context.manager.services;
+  const {testDocsSvc: hope, postgres} = t.context.manager.services;
 
   const result = new Result();
 
-  let res = await testDocsSvc.invoke({
+  // При вызове с параметром http true поля с типом bcryptPassword при записи в базу шифруются исользуя bcrypt, а при возврате
+  // через invoke, get или list не вклоючаются в результат
+
+  let res = await hope.invoke({
     context: `context`, result, http: true, type: 'doc.Doc1', update: {
       f1: 'test',
       password: "123456",
@@ -21,9 +24,9 @@ test.serial(`2.1 createUpdateDeleteResoreDoc`, async t => {
 
   const doc = res.doc;
 
-  const pass1 = (await testDocsSvc.get({context: `context`, result, type: 'doc.Doc1', docId: doc.id})).password;
+  const pass1 = (await hope.get({context: `context`, result, type: 'doc.Doc1', docId: doc.id})).password;
 
-  await testDocsSvc.invoke({
+  await hope.invoke({
     context: `context`, result, http: true, type: 'doc.Doc1', update: {
       id: doc.id,
       f2: 21,
@@ -34,9 +37,9 @@ test.serial(`2.1 createUpdateDeleteResoreDoc`, async t => {
 
   t.deepEqual(result.messages, []);
 
-  t.is((await testDocsSvc.get({context: `context`, result, type: 'doc.Doc1', docId: doc.id})).password, pass1);
+  t.is((await hope.get({context: `context`, result, type: 'doc.Doc1', docId: doc.id})).password, pass1);
 
-  await testDocsSvc.invoke({
+  await hope.invoke({
     context: `context`, result, http: true, type: 'doc.Doc1', update: {
       id: doc.id,
       f2: 21,
@@ -46,7 +49,7 @@ test.serial(`2.1 createUpdateDeleteResoreDoc`, async t => {
 
   t.deepEqual(result.messages, []);
 
-  await testDocsSvc.invoke({
+  await hope.invoke({
     context: `context`, result, http: true, type: 'doc.Doc1', update: {
       id: doc.id,
       rev: 0,
@@ -62,11 +65,11 @@ test.serial(`2.1 createUpdateDeleteResoreDoc`, async t => {
 
 test.serial(`2.2 staticAction`, async t => {
 
-  const {testDocsSvc} = t.context.manager.services;
+  const {testDocsSvc: hope} = t.context.manager.services;
 
   const result = new Result();
 
-  let res = await testDocsSvc.invoke({
+  let res = await hope.invoke({
     context: `context`, result, http: true, type: 'doc.Doc1', action: 'login', actionArgs: {
       email: "test@test.com",
       password: '321',

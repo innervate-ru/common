@@ -135,6 +135,10 @@
               "name": "list"
             },
             {
+              "name": "errorAction",
+              "static": true
+            },
+            {
               "name": "login",
               "static": true,
               "arguments": {

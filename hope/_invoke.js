@@ -78,25 +78,35 @@ export default oncePerServices(function (services) {
       let res;
       if (actionDesc.$$code) {
         try {
-          res = actionDesc.$$code({
+
+          res = await Promise.resolve(actionDesc.$$code({
             context,
-            result,
+            result: localResult,
             doc: newDoc,
             prevDoc: existingDoc,
             docDesc,
             actionDesc,
             model: this._model(),
-          });
-          if (typeof res === 'object' && res !== null && !Array.isArray(res) && typeof res.then === 'function') res = await res;
+          }));
+
           if (res?.doc) {
             newDoc = res.doc;
             delete res.doc;
           }
+
           return res;
+
         } catch (err) {
           err.context = context;
           this._service._reportError(err);
           result.error(`doc.systemError`, {context});
+          if (newResult) result.throwIfError(); else return false;
+        }
+
+        if (localResult.isError) {
+          result.error(`doc.failedActionCode`, {docType: type, action: actionDesc.name});
+          result.add(localResult);
+          if (newResult) result.throwIfError(); else return false;
         }
       }
     };
@@ -118,16 +128,14 @@ export default oncePerServices(function (services) {
       }
       newDoc = existingDoc = docDesc.fields.$$fix(build(docDesc, r.rows[0]), {mask: docDesc.fields.$$calc('#all-options')});
 
-      await runActionCode(docDesc.actions.retrieve); // TODO: Think of
-      if (result.isError) if (newResult) result.throwIfError(); else return;
+      if (false === await runActionCode(docDesc.actions.retrieve)) return; // TODO: Think of
 
     } else {
       // TODO: Check docType level create right
 
       newDoc = update;
 
-      await runActionCode(docDesc.actions.create);
-      if (result.isError) if (newResult) result.throwIfError(); else return;
+      if (false === await runActionCode(docDesc.actions.create)) return;
 
       if (!newDoc) newDoc = docDesc.fields.$$new();
 
@@ -191,16 +199,14 @@ export default oncePerServices(function (services) {
           if (newResult) result.throwIfError(); else return;
         }
 
-        await runActionCode(docDesc.actions.retrieve); // TODO: ???
-        if (result.isError) if (newResult) result.throwIfError(); else return;
+        if (false === await runActionCode(docDesc.actions.retrieve)) return; // TODO: ???
 
         if (!access.actions.get(docDesc.actions.update.$$index)) {
           result.error(`doc.cannotUpdate`, {docType: type, docId: newDoc.id});
           if (newResult) result.throwIfError(); else return;
         }
 
-        await runActionCode(docDesc.actions.update);
-        if (result.isError) if (newResult) result.throwIfError(); else return;
+        if (false === await runActionCode(docDesc.actions.update)) return;
 
         if (newDoc.deleted) {
           if (!newDoc.deleted) {
@@ -209,8 +215,7 @@ export default oncePerServices(function (services) {
               if (newResult) result.throwIfError(); else return;
             }
 
-            await runActionCode(docDesc.actions.restore);
-            if (result.isError) if (newResult) result.throwIfError(); else return;
+            if (false === await runActionCode(docDesc.actions.restore)) return;
           }
         } else {
 
@@ -220,8 +225,7 @@ export default oncePerServices(function (services) {
               if (newResult) result.throwIfError(); else return;
             }
 
-            await runActionCode(docDesc.actions.delete);
-            if (result.isError) if (newResult) result.throwIfError(); else return;
+            if (false === await runActionCode(docDesc.actions.delete)) return;
           }
         }
 
@@ -243,8 +247,7 @@ export default oncePerServices(function (services) {
           if (newResult) result.throwIfError(); else return;
         }
 
-        await runActionCode(docDesc.actions.update);
-        if (result.isError) if (newResult) result.throwIfError(); else return;
+        if (false === await runActionCode(docDesc.actions.update)) return;
 
         // create document
         newDoc = docDesc.fields.$$get(newDoc, access.view.or(access.update));
@@ -316,7 +319,7 @@ export default oncePerServices(function (services) {
           try {
             actionResult = await Promise.resolve(actionDesc.$$code({
               context,
-              result,
+              result: localResult,
               doc: newDoc,
               args: actionArgs,
               docDesc,
@@ -324,7 +327,7 @@ export default oncePerServices(function (services) {
               model: this._model(),
             }));
 
-            if (typeof actionResult === 'object' && actionResult !== null && !Array.isArray(actionResult) && typeof actionResult.then === 'function') actionResult = await actionResult;
+            actionResult = await  Promise.resolve(actionResult);
 
           } catch (err) {
             err.context = context;
@@ -335,7 +338,11 @@ export default oncePerServices(function (services) {
 
           debug(`action: res: %o`, actionResult);
 
-          if (result.isError) if (newResult) result.throwIfError(); else return;
+          if (localResult.isError) {
+            result.error(`doc.failedActionCode`, {docType: type, action: actionDesc.name});
+            result.add(localResult);
+            if (newResult) result.throwIfError(); else return;
+          }
         }
 
         return actionResult?.result ? {result: actionResult.result} : {};
@@ -375,18 +382,18 @@ export default oncePerServices(function (services) {
         if (actionDesc.$$code) {
 
           try {
-            actionResult = await actionDesc.$$code({
+            actionResult = await Promise.resolve(actionDesc.$$code({
               context,
-              result,
+              result: localResult,
               doc: newDoc,
               args: actionArgs,
               nextState: transitionDesc?.next.name,
               docDesc,
               actionDesc,
               model: this._model(),
-            });
+            }));
 
-            if (typeof actionResult === 'object' && actionResult !== null && !Array.isArray(actionResult) && typeof actionResult.then === 'function') actionResult = await actionResult;
+            actionResult = await Promise.resolve(actionResult);
 
           } catch (err) {
             err.context = context;
@@ -488,6 +495,11 @@ export default oncePerServices(function (services) {
         // TODO: Log history
 
       }
+    }
+
+    if (testMode) {
+      newDoc.created = '';
+      newDoc.modified = '';
     }
 
     if (http) {

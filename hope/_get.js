@@ -11,8 +11,7 @@ export default oncePerServices(function (services) {
   const {
     testMode: __testMode,
   } = services;
-  const testMode = __testMode && __testMode.docs;
-
+  const testMode = __testMode && __testMode.hope;
 
   return async function get(args) {
 
@@ -91,6 +90,11 @@ export default oncePerServices(function (services) {
               if (newResult) result.throwIfError(); else return;
             }
       */
+    }
+
+    if (testMode) {
+      doc.created = '';
+      doc.modified = '';
     }
 
     return doc;

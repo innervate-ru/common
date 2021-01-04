@@ -14,7 +14,7 @@ export default function serviceMethodWrapper({
                                                prototypeOrInstance = missingArgument('prototypeOrInstance'),
                                                bus = missingArgument('bus'),
                                                getService = missingArgument('getService'),
-                                               contextRequired,
+                                               contextRequired = true,
                                              }) {
   if (!(typeof prototypeOrInstance === 'object' && prototypeOrInstance !== null && !Array.isArray(prototypeOrInstance))) invalidArgument('prototypeOrInstance', prototypeOrInstance);
   if (!(typeof getService === 'function')) invalidArgument('getService', getService);
