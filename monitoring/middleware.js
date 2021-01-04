@@ -15,7 +15,7 @@ export default oncePerServices(function (services) {
   } = services;
 
   function reportError(req, res, err, code) {
-    if (!err.context) err.context = req.context.reqId;
+    if (!err.context) err.context = req.context.reqId || req.context;
     monitoring._service._reportError(err);
     res.status(err.code || code).send(
       {
@@ -74,7 +74,7 @@ export default oncePerServices(function (services) {
           res
             .type('text/plain')
             .send(await monitoring.reportCounters({
-              context: req.context.reqId,
+              context: req.context.reqId || req.context,
             }));
         } catch (err) {
           reportError(req, res, err, 500);

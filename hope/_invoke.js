@@ -351,7 +351,7 @@ export default oncePerServices(function (services) {
           if (newResult) result.throwIfError(); else return;
         }
 
-        if (!actionDesc.skipValidation) {
+        if (!actionDesc.skipValidate) {
           docDesc.$$validate(localResult, newDoc, {access, beforeAction: true, strict: false});
           if (localResult.isError) {
             result.error(`doc.invalidDocBeforeAction`, {docType: type, action});
