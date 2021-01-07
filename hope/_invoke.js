@@ -32,7 +32,7 @@ export default oncePerServices(function (services) {
 
     const localResult = new Result();
 
-    const connection = args.connection || this._postgres;
+    const connection = args.connection || (await this._postgres.connection({context}));
 
     //
     // process type

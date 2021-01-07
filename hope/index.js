@@ -36,6 +36,8 @@ export default oncePerServices(function (services) {
 
     httpFix = require('./_httpFix').default(services);
 
+    _scopeByContext = require('./_scopeByContext').default;
+
     // applyUserRights = require('./_applyUserRights').default(services);
   }
 

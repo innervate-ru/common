@@ -2,6 +2,8 @@ import path from 'path'
 import test from 'ava'
 import {testResetCounters} from '../monitoring/index'
 
+Error.stackTraceLimit = 20;
+
 test.before(t => {
   deleteRequireCache(require.resolve('./testDocsSvc'));
 });

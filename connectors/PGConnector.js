@@ -69,11 +69,10 @@ export default oncePerServices(function (services) {
     }
 
     async _innerConnection() {
-      const self = this;
       return new Promise((resolve, reject) => {
-        this._pool.connect(function (err, client, done) {
+        this._pool.connect((err, client, done) => {
           if (err) reject(err);
-          else resolve(new Connection(self, client, done));
+          else resolve(new Connection(this, client, done));
         });
       })
     }
