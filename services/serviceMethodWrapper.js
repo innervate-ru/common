@@ -14,10 +14,13 @@ export default function serviceMethodWrapper({
                                                prototypeOrInstance = missingArgument('prototypeOrInstance'),
                                                bus = missingArgument('bus'),
                                                getService = missingArgument('getService'),
-                                               contextRequired = true,
+                                               contextRequired,
                                              }) {
   if (!(typeof prototypeOrInstance === 'object' && prototypeOrInstance !== null && !Array.isArray(prototypeOrInstance))) invalidArgument('prototypeOrInstance', prototypeOrInstance);
   if (!(typeof getService === 'function')) invalidArgument('getService', getService);
+  if (typeof contextRequired !== 'boolean') {
+    contextRequired = typeof global.COMMON_CONTEXT_NOT_REQUIRED === 'boolean' ? !global.COMMON_CONTEXT_NOT_REQUIRED : true;
+  }
   const methods = Object.getOwnPropertyNames(prototypeOrInstance);
   if (methods.indexOf('__serviceStateValidationAdded') >= 0) return; // уже обработанный класс
   for (const methodName of methods) {
