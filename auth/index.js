@@ -56,7 +56,9 @@ export default oncePerServices(function (services) {
         try {
           token = this._parseToken({context, token: auth, isExpiredOk: false});
         } catch (err) {
-          next(err);
+          err.context = context;
+          this._service._reportError(err);
+          resp.status(401).send(`Invalid authorization token (${context})`);
           return;
         }
         req.session = token.session;

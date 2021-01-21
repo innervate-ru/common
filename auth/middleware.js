@@ -29,19 +29,22 @@ export default oncePerServices(function (services) {
         const context = nanoid();
         const time = (new Date()).toISOString();
         const ip = requestIp.getClientIp(req);
+        let newToken;
         try {
-          const newToken =
+          newToken =
             req.body ?
               await auth.extendSession({...auth._parseToken({context, token: req.body, isExpiredOk: true}), context, userIp: ip}) :
               {session: await auth.newSession({context, userIp: ip})};
-          resp.json({
-            time,
-            refreshIn: auth._expirationPeriod,
-            token: auth._signToken({context, token: newToken}),
-          });
         } catch (err) {
-          next(err);
+          err.context = nanoid();
+          auth._service._reportError(err);
+          newToken = {session: await auth.newSession({context, userIp: ip})};
         }
+        resp.json({
+          time,
+          refreshIn: auth._expirationPeriod,
+          token: auth._signToken({context, token: newToken}),
+        });
       }
     );
     return [{path, name: 'create / extend user token'}]
