@@ -1,7 +1,7 @@
 import {nanoid} from 'nanoid'
 import configAPI from 'config'
 import requestIp from 'request-ip'
-import jwt, {TokenExpiredError} from 'jsonwebtoken'
+import jwt, {JsonWebTokenError, TokenExpiredError} from 'jsonwebtoken'
 import {oncePerServices, missingExport} from '../../common/services'
 import missingService from '../services/missingService'
 import requestByContext from '../context/requestByContext'
@@ -175,16 +175,13 @@ export default oncePerServices(function (services) {
         const {session, user} = jwt.verify(token, secret);
         return {session, user};
       } catch (err) {
-        if (err instanceof TokenExpiredError) {
-          if (isExpiredOk) {
+        if (err instanceof JsonWebTokenError) {
+          if (isExpiredOk && err instanceof TokenExpiredError) {
             const {session, user} = jwt.decode(token);
             return {session, user};
-          } else {
-            throw new Error('tokenExpired');
           }
-        } else {
-          throw err;
         }
+        throw err;
       }
     }
 
