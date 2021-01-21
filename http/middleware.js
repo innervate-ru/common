@@ -14,8 +14,10 @@ export default oncePerServices(function (services) {
         if (level.hasOwnProperty('__http')) {
           let http = level.__http; // added by @http (./index.js)
           if (http) {
+            const url = level.__http?.['']?.url || `/api/${svcName}`;
             for (const methodName in http) {
-              const path = `/api/${svcName}/${methodName}`;
+              if (methodName === '') continue;
+              const path = `${url}/${methodName}`;
               const {name, ...rest} = http[methodName];
               urls.push({path, name});
               postWrapper((() => {
