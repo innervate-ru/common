@@ -38,8 +38,8 @@ export default (async function start() {
     const evolutions = configAPI.has('evolutions') ? configAPI.get('evolutions') : {};
 
     const postgres = {...configAPI.get('postgres')};
-    postgres.user = postgres.user || evolutions.user;
-    postgres.password = postgres.password || evolutions.password;
+    postgres.user = evolutions.user || postgres.user;
+    postgres.password = evolutions.password || postgres.password;
 
     const params = {
       postgres,
