@@ -62,10 +62,7 @@ export default oncePerServices(function (services) {
           return;
         }
         req.session = token.session;
-        if (token.user) {
-          req.session = token.session;
-          req.user = token.user;
-        }
+        if (token.user) req.user = token.user;
         next();
       };
     }
