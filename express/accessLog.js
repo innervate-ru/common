@@ -21,14 +21,14 @@ export default oncePerServices(function (services) {
 
       const service = options?.service || 'express';
 
-      req.context = nanoid();
+      if (!req.context) {
+        req.context = nanoid();
 
-      const ip = requestIp.getClientIp(req);
-      req.userIp = ip.startsWith('::ffff:') ? ip.substr(7) : ip; // удаляем префикс ipV6 для ipV4 адресов
+        const ip = requestIp.getClientIp(req);
+        req.userIp = ip.startsWith('::ffff:') ? ip.substr(7) : ip; // удаляем префикс ipV6 для ipV4 адресов
+      }
 
       onHeaders(res, function () {
-
-        const reqContext = req.context;
 
         let query = req.query;
         if (hasOwnProperty.call(query, 'auth')) {
@@ -39,13 +39,20 @@ export default oncePerServices(function (services) {
         const path = req.baseUrl + req.path;
 
         const httpEvent = {
+          ...(() => {
+            if (req.user) {
+              const {id, ...rest} = req.user;
+              return rest;
+            }
+          })(),
           type: 'http.request',
           service: res.service || service,
-          context: reqContext.reqId,
+          context: req.context,
+          agent: req.get('user-agent'),
+          ip: req.userIp,
           duration: Date.now() - startTime,
           statusCode: res.statusCode,
           method: req.method,
-          headers: req.headers,
           path,
           query,
         };
@@ -53,16 +60,6 @@ export default oncePerServices(function (services) {
         const hostname = req.hostname;
         if (hostname) {
           httpEvent.hostname = hostname;
-        }
-
-        for (const key in reqContext) {
-          switch (key) {
-            case 'reqId':
-              break;
-            default: {
-              httpEvent[key] = reqContext[key];
-            }
-          }
         }
 
         bus.method(httpEvent);

@@ -19,18 +19,18 @@ export default oncePerServices(function (services) {
       schema.log_args(args);
       const req = requestByContext(args.context);
       bus.error({
+        ...(() => {
+          if (req.user) {
+            const {id, ...rest} = req.user;
+            return rest;
+          }
+        })(),
         context: args.context,
         type: 'client.error',
         service: name,
         userAgent: req.get('user-agent'),
         error: args.error,
         session: req.session,
-        ...(() => {
-          if (req.user) {
-            const {id, ...rest} = req.user;
-            return rest;
-          }
-        })()
       });
     }
   }
