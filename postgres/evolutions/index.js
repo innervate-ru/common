@@ -6,7 +6,7 @@ import {Client as PGClient} from 'pg'
 import oncePerServices from '../../services/oncePerServices'
 import listFiles from '../../utils/listFiles'
 import {fixDependsOn} from "../../services/index"
-
+import errorDataToEvent from '../../errors/errorDataToEvent'
 const readFile = promisify(fs.readFile);
 
 const SERVICE_TYPE = require('../../connectors/PGConnector.serviceType').SERVICE_TYPE;
@@ -162,8 +162,8 @@ export default oncePerServices(function (services) {
         ...this._settings,
         database: 'postgres',
       });
-      await client.connect();
       try {
+        await client.connect();
         const res = await client.query(`SELECT datname FROM pg_catalog.pg_database WHERE datname = $1`, [this._settings.database]);
         if (res.rowCount === 0) {
           if (!(await this._ask(`Do you want to create a new database '${this._settings.database}'?`))) {
@@ -179,6 +179,14 @@ export default oncePerServices(function (services) {
           return true;
         }
         return false;
+      } catch (error) {
+        const errEvent = {
+          context,
+          type: 'nodemanager.error',
+          service: SERVICE_NAME,
+        };
+        errorDataToEvent(error, errEvent);
+        bus.error(errEvent);
       } finally {
         await client.end();
       }
