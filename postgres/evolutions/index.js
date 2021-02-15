@@ -179,14 +179,6 @@ export default oncePerServices(function (services) {
           return true;
         }
         return false;
-      } catch (error) {
-        const errEvent = {
-          context,
-          type: 'nodemanager.error',
-          service: SERVICE_NAME,
-        };
-        errorDataToEvent(error, errEvent);
-        bus.error(errEvent);
       } finally {
         await client.end();
       }
