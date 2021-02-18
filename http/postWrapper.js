@@ -18,10 +18,7 @@ export default oncePerServices(function (services) {
 
     const {expressApp, path, service, method, result: addResult, http: sayItsHttpCall} = args;
 
-    const logger = require('../express/accessLog').default(services)({service: service.name});
-
     expressApp.post(path,
-      logger,
       auth.middleware,
       express.json(),
       async (req, resp, next) => {
