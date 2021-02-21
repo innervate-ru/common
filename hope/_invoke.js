@@ -209,6 +209,13 @@ export default oncePerServices(function (services) {
 
         if (false === await runActionCode(docDesc.actions.update)) return;
 
+        if (localResult.isError) {
+          result.error(`doc.failedToUpdate`, {docType: type, docId: testMode ? '' : newDoc?.id});
+          result.add(localResult);
+          if (newResult) result.throwIfError(); else return;
+        }
+
+        // TODO: Fix this code. Looks stupid )
         if (newDoc.deleted) {
           if (!newDoc.deleted) {
             if (!access.actions.get(docDesc.actions.restore.$$index)) {
@@ -241,7 +248,7 @@ export default oncePerServices(function (services) {
           if (newResult) result.throwIfError(); else return;
         }
 
-      } else {
+      } else { // new doc
 
         if (!access.actions.get(docDesc.actions.create.$$index)) { // TODO: Is this right place?
           result.error(`doc.cannotCreate`, {docType: type, docId: newDoc.id});
@@ -249,6 +256,12 @@ export default oncePerServices(function (services) {
         }
 
         if (false === await runActionCode(docDesc.actions.update)) return;
+
+        if (localResult.isError) {
+          result.error(`doc.failedToCreate`, {docType: type, docId: testMode ? '' : newDoc?.id});
+          result.add(localResult);
+          if (newResult) result.throwIfError(); else return;
+        }
 
         // create document
         newDoc = docDesc.fields.$$get(newDoc, access.view.or(access.update));
