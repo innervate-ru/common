@@ -16,14 +16,11 @@ export default oncePerServices(function (services) {
     auth = missingService('auth'),
   } = services;
 
-  const logger = require('../express/accessLog').default(services)({service});
-
   return function (args) {
     schema.middleware_args(args);
     const {expressApp} = args;
     const path = '/api/user';
     expressApp.post(path,
-      logger,
       express.text(),
       async (req, resp, next) => {
         const context = nanoid();
