@@ -19,7 +19,8 @@ export const parseToken_args = validate.method.this('args', {
 
 export const newSession_args = validate.method.this('args', {
   context: {type: VType.String(), required: true},
-  userIp: {type: VType.String(), required: true},
+  sessionId: {type: VType.String().notEmpty()},
+  userIp: {type: VType.String()},
   isTestToken: {type: VType.Boolean()},
   _final: true,
 });
@@ -41,6 +42,14 @@ export const login_args = validate.method.this('args', {
 
 export const logout_args = validate.method.this('args', {
   context: {type: VType.String(), required: true},
+  _final: true,
+});
+
+export const longToken_args = validate.method.this('args', {
+  context: {type: VType.String(), required: true},
+  creditOrgId: {type: VType.String().notEmpty()},
+  name: {type: VType.String().notEmpty(), required: true},
+  notes: {type: VType.String()},
   _final: true,
 });
 

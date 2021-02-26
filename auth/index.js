@@ -77,14 +77,14 @@ export default oncePerServices(function (services) {
 
     async newSession(args) {
       schema.newSession_args(args);
-      const {context, userIp, isTestToken} = args; // Если тестовый токен, то не создаем сессию в БД
-      const session = nanoid();
+      const {context, sessionId, userIp, isTestToken} = args; // Если тестовый токен, то не создаем сессию в БД
+      const session = sessionId || nanoid();
       debug('new session %s', session);
       if (!isTestToken) {
         await postgres.exec({
           context,
           statement: 'insert into session(id, ip) values ($1, $2);',
-          params: [session, userIp]
+          params: [session, userIp || '::1']
         });
       }
       return session;
@@ -164,6 +164,26 @@ export default oncePerServices(function (services) {
             session: requestByContext(context).session
           }
         }),
+      };
+    }
+
+    // TODO: Check it's admin
+    // @http({name: 'build long token'})
+    async buildLongToken(args) {
+      schema.longToken_args(args);
+      const {context, creditOrgId, name, notes} = args;
+      const session = await this.newSession({context});
+      const user = {
+        longToken: true,
+      };
+      const token = {session, user};
+
+      if (creditOrgId) user.creditOrgId = creditOrgId;
+      if (name) user.name = name;
+      if (notes) user.notes = notes;
+
+      return {
+        token: this._signToken({context, token, nonExpiring: true}),
       };
     }
 
