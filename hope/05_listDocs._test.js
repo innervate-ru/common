@@ -9,6 +9,7 @@ test.serial(`5.1 listDocs`, async t => {
   const result = new Result();
 
   await postgres.exec({
+    context: 'context',
     statement: `delete from doc_doc_1`,
   });
 
