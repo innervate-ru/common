@@ -81,11 +81,16 @@ export default oncePerServices(function (services) {
       const session = sessionId || nanoid();
       debug('new session %s', session);
       if (!isTestToken) {
-        await postgres.exec({
-          context,
-          statement: 'insert into session(id, ip) values ($1, $2);',
-          params: [session, userIp || '::1']
-        });
+        try {
+          await postgres.exec({
+            context,
+            statement: 'insert into session(id, ip) values ($1, $2);',
+            params: [session, userIp || '::1']
+          });
+        } catch (err) {
+          if (err.code === '23505') return; // id already exists
+          throw err;
+        }
       }
       return session;
     }
