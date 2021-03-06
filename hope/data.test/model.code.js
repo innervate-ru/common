@@ -2,8 +2,6 @@
 
 export default {
   docs: {
-    'doc.Doc1': {
-    },
   },
   validators: require('../model.test/validators'),
 };

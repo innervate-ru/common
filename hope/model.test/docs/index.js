@@ -50,7 +50,7 @@ export default function (result) {
     }
   }
 
-  function loadLevel(items, code, dirname, level = 0, prefix = '') {
+  function loadLevel(items, code, dirname, level = 0, prefix = 'doc.') {
 
     fs.readdirSync(dirname)
       .filter(filename => !filename.startsWith('.') && !filename.startsWith('_') && (level > 0 || filename !== 'index.js'))
@@ -98,6 +98,10 @@ export default function (result) {
               doc.states = dirLevel.loadFile();
             }
 
+            if (dirLevel.fileExists('computed')) {
+              (code[fullDocName] || (code[fullDocName] = {})).computed = dirLevel.filename;
+            }
+
             if (dirLevel.fileExists('access')) {
               (code[fullDocName] || (code[fullDocName] = {})).access = dirLevel.filename;
             }
@@ -140,7 +144,7 @@ export default function (result) {
 
             if (fs.statSync(fullpath).isDirectory()) {
 
-              loadLevel(items, code, fullpath, level + 1, `${prefix}${filename}.`);
+              loadLevel(items, code, fullpath, level + 1, `${filename}.`);
             }
           }
         } else if (docName = canBeRequire(filename)) { // версия 1: описание документа просто в <тип документа>.js

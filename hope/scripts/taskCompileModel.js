@@ -65,6 +65,86 @@ export default function ({fromDir = 'model', toDir = 'data'} = {}) {
           api: model.api && model.api.items
         });
 
+        // add computed fields
+
+        config.docs.$$list.forEach(docDesc => {
+
+          const computed = docDesc.fields.$$tags.computed;
+
+          // 1. check for inner computed
+          if (computed) {
+            for (let i = 0; i < docDesc.fields.$$flat.$$list.length; i++) {
+
+              const field = docDesc.fields.$$flat.$$list[i];
+              if (field.$$mask && computed.get(field.$$index)) {
+
+                const subFields = computed.clone().and(field.$$mask);
+                if (!subFields.isEmpty()) {
+                  subFields.list.forEach(field => {
+
+                    result.error('dsc.computedFieldWithinComputedField', {doc: docDesc.name, field: field.fullname || field.name});
+                  });
+                  i += field.fields.length;
+                }
+              }
+            }
+            if (result.isError) return;
+          }
+
+          // 2. find computed code
+          const docCode = model.docs.code[docDesc.name];
+          if (docCode?.computed) {
+
+            const computedCode = require(docCode.computed).default?.({}); // services === {}
+            const docFields = docDesc.fields;
+            Object.entries(computedCode).forEach(([fieldName, fieldCode]) => {
+
+              const fieldDesc = docFields.$$flat[fieldName];
+              if (!fieldDesc) {
+                result.error('dsc.unknownFieldInComputedCode', {doc: docDesc.name, field: fieldDesc.fullname || fieldDesc.name, file: docCode.computed});
+                return;
+              }
+
+              if (!computed?.get(fieldDesc.$$index)) {
+                result.error('dsc.fieldInComputedCodeIsNotTaggedAsComputed', {doc: docDesc.name, field: fieldDesc.fullname || fieldDesc.name, file: docCode.computed});
+                return;
+              }
+
+              fieldDesc.$$computed = fieldCode;
+            });
+
+            // 3. find computed fields without code
+            if (computed) {
+              computed.list.forEach(fieldDesc => {
+
+                if (!fieldDesc.$$computed) {
+
+                  result.error('dsc.missingCodeForComputeField', {doc: docDesc.name, field: fieldDesc.fullname || fieldDesc.name, file: docCode.computed});
+                  return;
+                }
+              });
+            }
+          }
+          if (result.isError) return;
+
+          // 4. fiх computed mask - all subfields of computed field are computed
+          if (computed) {
+
+            const newComputed = computed.clone();
+
+            for (let i = 0; i < computed.list.length; i++) {
+
+              const field = computed.list[i];
+              if (field.hasOwnProperty('$$mask')) {
+                newComputed.or(field.$$mask);
+                i += field.fields.length;
+              }
+            }
+
+            docDesc.fields.$$tags.computed = newComputed.lock();
+          }
+        });
+
         if (result.isError) throw new Error(`Compilation failed`);
 
         const unlinkedConfig = DSCConfig.unlink(config);
@@ -143,7 +223,13 @@ export default function ({fromDir = 'model', toDir = 'data'} = {}) {
       Object.entries(code.docs).forEach(([docName, docCode]) => {
 
         res.push(`${' '.repeat(tab)}'${docName.indexOf('.') !== -1 ? docName : `doc.${docName}`}': {`);
+        const resLen = res.length;
         tab += TAB;
+
+        if (server && docCode.computed) {
+
+          res.push(`${' '.repeat(tab)}computed: require('${path.relative(scriptPath, docCode.computed).replace(/\\/g, '/')}').default?.(services),`);
+        }
 
         if (server && docCode.actions) {
 
@@ -160,13 +246,17 @@ export default function ({fromDir = 'model', toDir = 'data'} = {}) {
 
         Object.entries(docCode).forEach(([methodName, methodPath]) => {
 
-          if (methodName === 'actions') return;
+          if (methodName === 'actions' || methodName === 'computed') return;
 
           res.push(`${' '.repeat(tab)}${methodName}: require('${path.relative(scriptPath, methodPath).replace(/\\/g, '/')}').default,`);
         });
 
         tab -= TAB;
-        res.push(`${' '.repeat(tab)}},`);
+        if (resLen === res.length) {
+          res.pop();
+        } else {
+          res.push(`${' '.repeat(tab)}},`);
+        }
       });
 
       tab -= TAB;
