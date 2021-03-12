@@ -223,7 +223,7 @@ export default oncePerServices(function (services) {
         if (http) {
           docs = r2.rows.reduce((acc, v) => {
             let doc = buildDoc(docDesc, v);
-            doc = this.httpFix({context, result, doc, docDesc, isOut: true});
+            doc = this.httpFix({context, result, fields: doc, docDesc, isOut: true});
             result.isError = false;
             docDesc.actions.retrieve.$$code?.({
               context,
