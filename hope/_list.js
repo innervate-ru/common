@@ -172,7 +172,7 @@ export default oncePerServices(function (services) {
             catchError,
           });
           count = r2.rows[0].count;
-          pageNo = Math.trunc(count / pageSize) + 1;
+          pageNo = Math.trunc((count - 1) / pageSize) + 1;
         }
 
         offset = (pageNo - 1) * pageSize;
