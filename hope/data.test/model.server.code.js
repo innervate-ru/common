@@ -15,8 +15,6 @@ export default oncePerServices(function (services) {
       },
       'doc.Doc2Computed': {
         computed: require('../model.test/docs/Doc2Computed/computed.js').default?.(services),
-        actions: {
-        },
       },
     },
     validators: require('../model.test/validators'),

@@ -218,12 +218,13 @@ export default function ({fromDir = 'model', toDir = 'data'} = {}) {
     if (code.docs) {
 
       res.push(`${' '.repeat(tab)}docs: {`);
+      const resLen = res.length;
       tab += TAB;
 
       Object.entries(code.docs).forEach(([docName, docCode]) => {
 
         res.push(`${' '.repeat(tab)}'${docName.indexOf('.') !== -1 ? docName : `doc.${docName}`}': {`);
-        const resLen = res.length;
+        const resLen2 = res.length;
         tab += TAB;
 
         if (server && docCode.computed) {
@@ -234,6 +235,7 @@ export default function ({fromDir = 'model', toDir = 'data'} = {}) {
         if (server && docCode.actions) {
 
           res.push(`${' '.repeat(tab)}actions: {`);
+          const resLen3 = res.length;
           tab += TAB;
 
           Object.entries(docCode.actions).forEach(([key, value]) => {
@@ -241,7 +243,11 @@ export default function ({fromDir = 'model', toDir = 'data'} = {}) {
           });
 
           tab -= TAB;
-          res.push(`${' '.repeat(tab)}},`);
+          if (resLen3 === res.length) {
+            res.pop();
+          } else {
+            res.push(`${' '.repeat(tab)}},`); // res.push(`${' '.repeat(tab)}actions: {`);
+          }
         }
 
         Object.entries(docCode).forEach(([methodName, methodPath]) => {
@@ -252,30 +258,37 @@ export default function ({fromDir = 'model', toDir = 'data'} = {}) {
         });
 
         tab -= TAB;
-        if (resLen === res.length) {
+        if (resLen2 === res.length) {
           res.pop();
         } else {
-          res.push(`${' '.repeat(tab)}},`);
+          res.push(`${' '.repeat(tab)}},`); // res.push(`${' '.repeat(tab)}'${docName.indexOf('.') !== -1 ? docName : `doc.${docName}`}': {`);
         }
       });
 
       tab -= TAB;
-      res.push(`${' '.repeat(tab)}},`);
+      if (resLen === res.length) {
+        res.pop();
+      } else {
+        res.push(`${' '.repeat(tab)}},`); // res.push(`${' '.repeat(tab)}docs: {`);
+      }
     }
 
     if (code.api) {
 
       res.push(`${' '.repeat(tab)}api: {`);
+      const resLen = res.length;
       tab += TAB;
 
       Object.entries(code.api).forEach(([apiName, apiCode]) => {
 
         res.push(`${' '.repeat(tab)}${apiName}: {`);
+        const resLen2 = res.length;
         tab += TAB;
 
         Object.entries(apiCode).forEach(([methodName, methodCode]) => {
 
           res.push(`${' '.repeat(tab)}${methodName}: {`);
+          const resLen3 = res.length;
           tab += TAB;
 
           Object.entries(methodCode).forEach(([methodName, methodPath]) => {
@@ -283,16 +296,27 @@ export default function ({fromDir = 'model', toDir = 'data'} = {}) {
           });
 
           tab -= TAB;
-          res.push(`${' '.repeat(tab)}},`);
+          if (resLen3 === res.length) {
+            res.pop();
+          } else {
+            res.push(`${' '.repeat(tab)}},`); // res.push(`${' '.repeat(tab)}${methodName}: {`);
+          }
         });
 
         tab -= TAB;
-        res.push(`${' '.repeat(tab)}},`);
-
+        if (resLen2 === res.length) {
+          res.pop();
+        } else {
+          res.push(`${' '.repeat(tab)}},`); // res.push(`${' '.repeat(tab)}${apiName}: {`);
+        }
       });
 
       tab -= TAB;
-      res.push(`${' '.repeat(tab)}},`);
+      if (resLen === res.length) {
+        res.pop();
+      } else {
+        res.push(`${' '.repeat(tab)}},`); // res.push(`${' '.repeat(tab)}api: {`);
+      }
     }
 
     if (code.validators) res.push(`${' '.repeat(tab)}validators: require('${path.relative(scriptPath, `${fromDir}/validators`).replace(/\\/g, '/')}'),`);
