@@ -11,7 +11,7 @@ export default oncePerServices(function (services) {
 
   const testMode = __testMode && __testMode.hope;
 
-  return async function update(result, context, connection, docDesc, doc) {
+  return async function update(context, result, connection, docDesc, doc, mask, refersMask) {
 
     const params = [doc.id];
     const fields = [];
@@ -51,6 +51,6 @@ export default oncePerServices(function (services) {
       return;
     }
 
-    return buildDoc(docDesc, r.rows[0]);
+    return buildDoc(context, result, docDesc, r.rows[0], mask, refersMask);
   };
 });

@@ -22,6 +22,8 @@ export const invoke_args = validate.method.this(undefined, {
   update: {type: VType.Object(), validate: v => !v.hasOwnProperty('id') || typeof(v.id) === 'string' || `invalid 'id'`},
   action: {type: VType.String().notEmpty()},
   actionArgs: {type: VType.Object()},
+  mask: {type: VType.String().notEmpty()},
+  refersMask: {type: VType.String().notEmpty()},
   _final: true,
 });
 
@@ -30,6 +32,8 @@ export const get_args = validate.method.this(undefined, {
   http: {type: VType.Boolean()},
   type: {type: VType.String().notEmpty()},
   docId: {type: VType.String().notEmpty(), required: true},
+  mask: {type: VType.String().notEmpty()},
+  refersMask: {type: VType.String().notEmpty()},
   _final: true,
 });
 
@@ -52,7 +56,8 @@ export const list_args = validate.method.this(undefined, {
   limit:  {type: VType.Int().positive()},
   filter: {type: VType.Object()},
   order: {type: VType.Object()},
-  // TODO:
+  mask: {type: VType.String().notEmpty()},
+  refersMask: {type: VType.String().notEmpty()},
   _final: true,
 });
 

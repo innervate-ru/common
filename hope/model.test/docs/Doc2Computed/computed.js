@@ -18,8 +18,16 @@ export default oncePerServices(function (services) {
       return 'some title';
     },
 
-    "struct"({context, result, doc, docLevel, env}) {
-      return 'some title';
-    }
+    "sum"({context, result, doc, docLevel, env}) {
+      return doc.f1 + doc.f2;
+    },
+
+    "struct.v"({context, result, doc, docLevel, env}) {
+      return docLevel.n;
+    },
+
+    "subtable.y"({context, result, doc, docLevel, env}) {
+      return docLevel.x;
+    },
   }
 });

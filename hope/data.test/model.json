@@ -286,34 +286,48 @@
             },
             {
               "name": "f1",
-              "type": "string",
-              "null": true,
-              "length": 20
+              "type": "integer",
+              "null": true
             },
             {
               "name": "f2",
               "type": "integer"
             },
             {
+              "name": "sum",
+              "type": "integer"
+            },
+            {
               "name": "struct",
               "fields": [
                 {
-                  "name": "a",
-                  "fullname": "struct.a",
+                  "name": "n",
+                  "fullname": "struct.n",
                   "type": "integer"
                 },
                 {
-                  "name": "b",
-                  "fullname": "struct.b",
-                  "type": "integer"
-                },
-                {
-                  "name": "c",
-                  "fullname": "struct.c",
+                  "name": "v",
+                  "fullname": "struct.v",
                   "type": "integer"
                 }
               ],
               "type": "structure"
+            },
+            {
+              "name": "subtable",
+              "fields": [
+                {
+                  "name": "x",
+                  "fullname": "subtable.x",
+                  "type": "integer"
+                },
+                {
+                  "name": "y",
+                  "fullname": "subtable.y",
+                  "type": "integer"
+                }
+              ],
+              "type": "subtable"
             },
             {
               "name": "options",
@@ -335,22 +349,22 @@
           ],
           "tags": {
             "field": [
-              7683
+              61443
             ],
             "system": [
-              7683
+              61443
             ],
             "index": [
-              3585
+              28673
             ],
             "unique": [
               1
             ],
             "hide": [
-              7683
+              61443
             ],
             "computed": [
-              484
+              2340
             ]
           }
         },

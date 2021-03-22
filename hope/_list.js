@@ -17,7 +17,7 @@ export default oncePerServices(function (services) {
 
   return async function list(args) {
     schema.list_args(args);
-    const {context, http, type, filter = {}, order = {}, pageSize = 25} = args;
+    const {context, http, type, filter = {}, order = {}, pageSize = 25, mask = '#all', refersMask = 'short'} = args;
     let {last = false, pageNo, pageExtra = 0, offset = 0, limit} = args;
 
     const user = requestByContext(context)?.user;
@@ -112,7 +112,7 @@ export default oncePerServices(function (services) {
 
       if (http) {
         docs = r.rows.reduce((acc, v) => {
-          let doc = buildDoc(docDesc, v);
+          let doc = buildDoc(context, result, docDesc, v, docDesc.fields.$$calc(mask), refersMask);
           doc = this.httpFix({context, result, fields: doc, fieldsDesc: docDesc.fields, isOut: true});
 
           result.isError = false;
@@ -143,7 +143,7 @@ export default oncePerServices(function (services) {
           if (newResult) result.throwIfError(); else return;
         }
       } else {
-        docs = r.rows.map(v => buildDoc(docDesc, v));
+        docs = r.rows.map(v => buildDoc(context, result, docDesc, v));
       }
 
       if (testMode) {
@@ -222,7 +222,7 @@ export default oncePerServices(function (services) {
 
         if (http) {
           docs = r2.rows.reduce((acc, v) => {
-            let doc = buildDoc(docDesc, v);
+            let doc = buildDoc(context, result, docDesc, v, docDesc.fields.$$calc(mask), refersMask);
             doc = this.httpFix({context, result, fields: doc, fieldsDesc: docDesc.fields, isOut: true});
             result.isError = false;
             docDesc.actions.retrieve.$$code?.({
@@ -254,7 +254,7 @@ export default oncePerServices(function (services) {
             if (newResult) result.throwIfError(); else return;
           }
         } else {
-          docs = r2.rows.map(v => buildDoc(docDesc, v));
+          docs = r2.rows.map(v => buildDoc(context, result, docDesc, v));
         }
 
         if (testMode) {

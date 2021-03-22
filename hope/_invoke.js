@@ -22,7 +22,7 @@ export default oncePerServices(function (services) {
 
     schema.invoke_args(args);
 
-    const {context, type, http, docId, action} = args;
+    const {context, type, http, docId, action, mask = '#all', refersMask = 'short'} = args;
     let {update, actionArgs} = args;
 
     const user = requestByContext(context)?.user;
@@ -127,7 +127,7 @@ export default oncePerServices(function (services) {
         result.error('doc.notFound', {docType: type, docId: testMode ? '' : update?.id});
         if (newResult) result.throwIfError(); else return;
       }
-      newDoc = existingDoc = docDesc.fields.$$fix(build(docDesc, r.rows[0]), {mask: docDesc.fields.$$calc('#all-options')});
+      newDoc = existingDoc = docDesc.fields.$$fix(await build('context', result, docDesc, r.rows[0]), {mask: docDesc.fields.$$calc('#all-options')});
 
       if (false === await runActionCode(docDesc.actions.retrieve)) return; // TODO: Think of
 
@@ -215,33 +215,31 @@ export default oncePerServices(function (services) {
           if (newResult) result.throwIfError(); else return;
         }
 
-        // TODO: Fix this code. Looks stupid )
         if (newDoc.deleted) {
-          if (!newDoc.deleted) {
+
             if (!access.actions.get(docDesc.actions.restore.$$index)) {
               result.error(`doc.cannotRestore`, {docType: type, docId: newDoc.id});
               if (newResult) result.throwIfError(); else return;
             }
 
             if (false === await runActionCode(docDesc.actions.restore)) return;
-          }
+
         } else {
 
-          if (newDoc.deleted) {
             if (!access.actions.get(docDesc.actions.delete.$$index)) {
               result.error(`doc.cannotDelete`, {docType: type, docId: newDoc.id});
               if (newResult) result.throwIfError(); else return;
             }
 
             if (false === await runActionCode(docDesc.actions.delete)) return;
-          }
+
         }
 
         // TODO: build difference. if none do not update
 
         // update document
         newDoc = docDesc.fields.$$get(newDoc, docDesc.fields.$$calc('id,rev,deleted').or(access.view).or(access.update));
-        newDoc = await updateRow(localResult, context, connection, docDesc, newDoc);
+        newDoc = await updateRow(context, localResult, connection, docDesc, newDoc, docDesc.fields.$$calc(mask), refersMask);
         if (localResult.isError) {
           result.error(`doc.updateFailedToWrite`, {docType: type, docId: testMode ? '' : newDoc?.id});
           result.add(localResult);
@@ -264,9 +262,14 @@ export default oncePerServices(function (services) {
         }
 
         // create document
-        newDoc = docDesc.fields.$$get(newDoc, access.view.or(access.update));
+        newDoc = docDesc.fields.$$get(newDoc, access.view.or(access.update).remove('#computed', {strict: false}));
 
-        newDoc = await insertRow(context, connection, docDesc, newDoc);
+        newDoc = await insertRow(context, localResult, connection, docDesc, newDoc, docDesc.fields.$$calc(mask), refersMask);
+        if (localResult.isError) {
+          result.error(`doc.createFailedToWrite`, {docType: type, docId: testMode ? '' : newDoc?.id});
+          result.add(localResult);
+          if (newResult) result.throwIfError(); else return;
+        }
       }
 
       // TODO: Log history

@@ -70,6 +70,24 @@ export default function ({fromDir = 'model', toDir = 'data'} = {}) {
         config.docs.$$list.forEach(docDesc => {
 
           const computed = docDesc.fields.$$tags.computed;
+          const docCode = model.docs.code[docDesc.name];
+
+          if (!computed) {
+            if (docCode?.computed) {
+              result.error('dsc.unexpectedComputedJS', {
+                doc: docDesc.name,
+                file: path.relative(process.cwd(), docCode.computed).replace(/\\/g, '/')
+              });
+            }
+            return;
+          }
+
+          if (!docCode?.computed) {
+            result.error('dsc.missingComputedJS', {
+              doc: docDesc.name,
+            });
+            return;
+          }
 
           // 1. check for inner computed
           if (computed) {
@@ -82,7 +100,10 @@ export default function ({fromDir = 'model', toDir = 'data'} = {}) {
                 if (!subFields.isEmpty()) {
                   subFields.list.forEach(field => {
 
-                    result.error('dsc.computedFieldWithinComputedField', {doc: docDesc.name, field: field.fullname || field.name});
+                    result.error('dsc.computedFieldWithinComputedField', {
+                      doc: docDesc.name,
+                      field: field.fullname || field.name,
+                    });
                   });
                   i += field.fields.length;
                 }
@@ -92,57 +113,62 @@ export default function ({fromDir = 'model', toDir = 'data'} = {}) {
           }
 
           // 2. find computed code
-          const docCode = model.docs.code[docDesc.name];
-          if (docCode?.computed) {
+          const computedCode = require(docCode.computed).default?.({}); // services === {}
+          const docFields = docDesc.fields;
+          Object.entries(computedCode).forEach(([fieldName, fieldCode]) => {
 
-            const computedCode = require(docCode.computed).default?.({}); // services === {}
-            const docFields = docDesc.fields;
-            Object.entries(computedCode).forEach(([fieldName, fieldCode]) => {
-
-              const fieldDesc = docFields.$$flat[fieldName];
-              if (!fieldDesc) {
-                result.error('dsc.unknownFieldInComputedCode', {doc: docDesc.name, field: fieldDesc.fullname || fieldDesc.name, file: docCode.computed});
-                return;
-              }
-
-              if (!computed?.get(fieldDesc.$$index)) {
-                result.error('dsc.fieldInComputedCodeIsNotTaggedAsComputed', {doc: docDesc.name, field: fieldDesc.fullname || fieldDesc.name, file: docCode.computed});
-                return;
-              }
-
-              fieldDesc.$$computed = fieldCode;
-            });
-
-            // 3. find computed fields without code
-            if (computed) {
-              computed.list.forEach(fieldDesc => {
-
-                if (!fieldDesc.$$computed) {
-
-                  result.error('dsc.missingCodeForComputeField', {doc: docDesc.name, field: fieldDesc.fullname || fieldDesc.name, file: docCode.computed});
-                  return;
-                }
+            const fieldDesc = docFields.$$flat[fieldName];
+            if (!fieldDesc) {
+              result.error('dsc.unknownFieldInComputedCode', {
+                doc: docDesc.name,
+                field: fieldDesc.fullname || fieldDesc.name,
+                file: path.relative(process.cwd(), docCode.computed).replace(/\\/g, '/')
               });
+              return;
             }
+
+            if (!computed?.get(fieldDesc.$$index)) {
+              result.error('dsc.fieldInComputedCodeIsNotTaggedAsComputed', {
+                doc: docDesc.name,
+                field: fieldDesc.fullname || fieldDesc.name,
+                file: path.relative(process.cwd(), docCode.computed).replace(/\\/g, '/')
+              });
+              return;
+            }
+
+            fieldDesc.$$computed = fieldCode;
+          });
+
+          // 3. find computed fields without code
+          if (computed) {
+            computed.list.forEach(fieldDesc => {
+
+              if (!fieldDesc.$$computed) {
+
+                result.error('dsc.missingCodeForComputeField', {
+                  doc: docDesc.name,
+                  field: fieldDesc.fullname || fieldDesc.name,
+                  file: path.relative(process.cwd(), docCode.computed).replace(/\\/g, '/')
+                });
+                return;
+              }
+            });
           }
           if (result.isError) return;
 
           // 4. fiх computed mask - all subfields of computed field are computed
-          if (computed) {
+          const newComputed = computed.clone();
 
-            const newComputed = computed.clone();
+          for (let i = 0; i < computed.list.length; i++) {
 
-            for (let i = 0; i < computed.list.length; i++) {
-
-              const field = computed.list[i];
-              if (field.hasOwnProperty('$$mask')) {
-                newComputed.or(field.$$mask);
-                i += field.fields.length;
-              }
+            const field = computed.list[i];
+            if (field.hasOwnProperty('$$mask')) {
+              newComputed.or(field.$$mask);
+              i += field.fields.length;
             }
-
-            docDesc.fields.$$tags.computed = newComputed.lock();
           }
+
+          docDesc.fields.$$tags.computed = newComputed.lock();
         });
 
         if (result.isError) throw new Error(`Compilation failed`);

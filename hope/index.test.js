@@ -37,6 +37,7 @@ require('./02_createUpdateDeleteRestoreDoc._test');
 require('./03_actionsOnDoc._test');
 require('./04_getDoc._test');
 require('./05_listDocs._test');
+require('./06_getDocWithComputed._test');
 require('./10_states._test');
 require('./20_userRights._test');
 

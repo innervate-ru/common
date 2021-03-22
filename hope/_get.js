@@ -17,7 +17,7 @@ export default oncePerServices(function (services) {
 
     schema.get_args(args);
 
-    const {context, docId, http} = args;
+    const {context, docId, http, mask = '#all', refersMask = 'short'} = args;
 
     const user = requestByContext(context)?.user;
     // TODO: Check can user retrieve this object
@@ -63,17 +63,18 @@ export default oncePerServices(function (services) {
       if (newResult) result.throwIfError(); else return;
     }
 
-    let doc = build(docDesc, r.rows[0]);
+    let doc = await build('context', result, docDesc, r.rows[0], docDesc.fields.$$calc(mask));
 
-    docDesc.actions.retrieve.$$code?.({
-      context,
-      result,
-      doc,
-      actionDesc: docDesc.actions.retrieve,
-      docDesc,
-      model: this._model(),
-    });
-    if (result.isError) if (newResult) result.throwIfError(); else return;
+    // TODO: сделать retrieve чтоб возвращал части sql запроса в зависимости от пользователя
+    // docDesc.actions.retrieve.$$code?.({
+    //   context,
+    //   result,
+    //   doc,
+    //   actionDesc: docDesc.actions.retrieve,
+    //   docDesc,
+    //   model: this._model(),
+    // });
+    // if (result.isError) if (newResult) result.throwIfError(); else return;
 
     // const access = docDesc.$$access(newDoc); // TODO: $$fix doc and $$get only fields viewable for given user
 

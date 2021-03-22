@@ -19,7 +19,7 @@ test.serial(`1.1 insertUpdateRead: insert`, async t => {
     f2: 12,
   });
 
-  let doc = build(docDesc, res);
+  let doc = await build('context', result, docDesc, res);
 
   docDesc.$$validate(result, doc, {strict: false});
 
@@ -33,7 +33,7 @@ test.serial(`1.1 insertUpdateRead: insert`, async t => {
 
   t.deepEqual(result.messages, []);
 
-  doc = build(docDesc, res);
+  doc = await build('context', result, docDesc, res);
 
   docDesc.$$validate(result, doc, {strict: false});
 
