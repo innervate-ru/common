@@ -1,4 +1,4 @@
-const compMap = new WeakMap()
+const cache = new WeakMap();
 
 function buildComputedLevel(processComputed, computedMask, fieldsLevel) {
 
@@ -14,7 +14,7 @@ function buildComputedLevel(processComputed, computedMask, fieldsLevel) {
 
         if (mask.get(index)) {
 
-          const val = computed(args);
+          const val = computed({...args, path: `${args.path ? `${args.path }.` : ''}${fieldName}`});
 
           if (val !== undefined) {
 
@@ -52,7 +52,7 @@ function buildComputedLevel(processComputed, computedMask, fieldsLevel) {
 
           if (!mask.and(fieldComputedMask).isEmpty()) {
 
-            res = processStruct(res, mask, {...args, docLevel: args.docLevel[fieldName]});
+            res = processStruct(res, mask, {...args, docLevel: args.docLevel[fieldName], path: `${args.path ? `${args.path}.` : ''}${fieldName}`});
           }
 
           return res;
@@ -66,7 +66,7 @@ function buildComputedLevel(processComputed, computedMask, fieldsLevel) {
             args.docLevel[fieldName].forEach((level, i) => {
 
               // TODO: Add row path
-              res = processStruct(res, mask, {...args, docLevel: level});
+              res = processStruct(res, mask, {...args, docLevel: level, path: `${args.path ? `${args.path}.` : ''}${fieldName}[${i}]`});
             });
           }
 
@@ -77,8 +77,7 @@ function buildComputedLevel(processComputed, computedMask, fieldsLevel) {
   });
 }
 
-// TODO: user, mask for rights related computed fields
-  export default async function build(context, result, docDesc, row, mask, refersMask) {
+export default async function build(context, result, docDesc, row, mask, refersMask) {
     const {options, ...rest} = row;
   const fullDoc = options ? docDesc.fields.$$set(options, rest) : rest;
 
@@ -86,10 +85,16 @@ function buildComputedLevel(processComputed, computedMask, fieldsLevel) {
 
   if (!computedMask.isEmpty()) {
 
-    // TODO: Cache builder
-    const processComputed = [];
+    let processComputed = cache.get(docDesc);
 
-    buildComputedLevel(processComputed, docDesc.fields.$$calc('#computed'), docDesc.fields);
+    if (!processComputed) {
+
+      processComputed = [];
+
+      buildComputedLevel(processComputed, docDesc.fields.$$calc('#computed'), docDesc.fields);
+
+      cache.set(docDesc, processComputed);
+    }
 
     let res = undefined;
 
@@ -104,7 +109,7 @@ function buildComputedLevel(processComputed, computedMask, fieldsLevel) {
       });
     });
 
-    await Promise.all(res);
+    if (res) await Promise.all(res);
   }
 
   const access = docDesc.$$access(fullDoc);

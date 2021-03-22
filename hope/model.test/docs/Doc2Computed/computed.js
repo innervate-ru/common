@@ -14,19 +14,23 @@ export default oncePerServices(function (services) {
      * @param env - общий объект между функциями считающими сomputed поля.  Позволяет использовать общий запрос для заполнения нескольких computed полей
      * @returns {any} Значение должно соответствовать типу поля
      */
-    title({context, result, doc, docLevel, env}) {
+    title({context, result, doc, docLevel, path, env}) {
+      // console.info(18, path)
       return 'some title';
     },
 
-    "sum"({context, result, doc, docLevel, env}) {
+    "sum"({context, result, doc, docLevel, path, env}) {
+      // console.info(19, path)
       return doc.f1 + doc.f2;
     },
 
-    "struct.v"({context, result, doc, docLevel, env}) {
+    "struct.v"({context, result, doc, docLevel, path, env}) {
+      // console.info(20, path)
       return docLevel.n;
     },
 
-    "subtable.y"({context, result, doc, docLevel, env}) {
+    "subtable.y"({context, result, doc, docLevel, path, env}) {
+      // console.info(21, path)
       return docLevel.x;
     },
   }
