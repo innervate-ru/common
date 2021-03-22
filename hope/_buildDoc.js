@@ -78,8 +78,8 @@ function buildComputedLevel(processComputed, computedMask, fieldsLevel) {
 }
 
 // TODO: user, mask for rights related computed fields
-export default async function build(context, result, docDesc, row, mask, refersMask) {
-  const {options, ...rest} = row;
+  export default async function build(context, result, docDesc, row, mask, refersMask) {
+    const {options, ...rest} = row;
   const fullDoc = options ? docDesc.fields.$$set(options, rest) : rest;
 
   const computedMask = mask.and('#computed', {strict: false}).lock();

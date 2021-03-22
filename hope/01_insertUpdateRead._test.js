@@ -14,46 +14,46 @@ test.serial(`1.1 insertUpdateRead: insert`, async t => {
 
   const docDesc = testDocsSvc._model().docs['doc.Doc1'];
 
-  let res = await insertRow('context', postgres, docDesc, {
+  let res = await insertRow('context', result, postgres, docDesc, {
     f1: '123',
     f2: 12,
-  });
+  }, docDesc.fields.$$calc('#all'), docDesc.fields.$$calc('#all'));
 
-  let doc = await build('context', result, docDesc, res);
+  let doc = await build('context', result, docDesc, res, docDesc.fields.$$calc('#all'), docDesc.fields.$$calc('#all'));
 
   docDesc.$$validate(result, doc, {strict: false});
 
   t.deepEqual(result.messages, []);
 
-  res = await updateRow(result, 'context', postgres, docDesc, {
+  res = await updateRow('context', result, postgres, docDesc, {
     id: doc.id,
     f2: 21,
     deleted: true
-  });
+  }, docDesc.fields.$$calc('#all'), docDesc.fields.$$calc('#all'));
 
   t.deepEqual(result.messages, []);
 
-  doc = await build('context', result, docDesc, res);
+  doc = await build('context', result, docDesc, res, docDesc.fields.$$calc('#all'), docDesc.fields.$$calc('#all'));
 
   docDesc.$$validate(result, doc, {strict: false});
 
   t.deepEqual(result.messages, []);
 
-  res = await updateRow(result, 'context', postgres, docDesc, {
+  res = await updateRow('context', result, postgres, docDesc, {
     id: doc.id,
     rev: 1,
     f2: 121,
     deleted: true
-  });
+  }, docDesc.fields.$$calc('#all'), docDesc.fields.$$calc('#all'));
 
   t.deepEqual(result.messages, []);
 
-  res = await updateRow(result, 'context', postgres, docDesc, {
+  res = await updateRow('context', result, postgres, docDesc, {
     id: doc.id,
     rev: 1,
     f2: 121,
     deleted: true
-  });
+  }, docDesc.fields.$$calc('#all'), docDesc.fields.$$calc('#all'));
 
   t.deepEqual(result.messages, [
     {type: 'error', docId: '', code: 'doc.oldRev', rev: 1},

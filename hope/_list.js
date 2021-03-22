@@ -110,25 +110,27 @@ export default oncePerServices(function (services) {
 
       let docs;
 
+      const calcMask =docDesc.fields.$$calc(mask).lock();
+
       if (http) {
-        docs = r.rows.reduce((acc, v) => {
-          let doc = buildDoc(context, result, docDesc, v, docDesc.fields.$$calc(mask), refersMask);
+        docs = r.rows.reduce(async (acc, v) => {
+          let doc = await buildDoc(context, result, docDesc, v, calcMask, refersMask);
           doc = this.httpFix({context, result, fields: doc, fieldsDesc: docDesc.fields, isOut: true});
 
-          result.isError = false;
-          docDesc.actions.retrieve.$$code?.({
-            context,
-            result,
-            doc,
-            docDesc,
-            model: this._model
-          });
-
-          if (result.isError) {
-            result.isError = false;
-          } else {
+          // result.isError = false;
+          // docDesc.actions.retrieve.$$code?.({
+          //   context,
+          //   result,
+          //   doc,
+          //   docDesc,
+          //   model: this._model
+          // });
+          //
+          // if (result.isError) {
+          //   result.isError = false;
+          // } else {
             acc.push(doc);
-          }
+          // }
 
           // const access = docDesc.$$access(newDoc); // TODO: $$fix doc and $$get only fields viewable for given user
           /*
@@ -143,7 +145,7 @@ export default oncePerServices(function (services) {
           if (newResult) result.throwIfError(); else return;
         }
       } else {
-        docs = r.rows.map(v => buildDoc(context, result, docDesc, v));
+        docs = await Promise.all(r.rows.map(v => buildDoc(context, result, docDesc, v, calcMask, refersMask)));
       }
 
       if (testMode) {
@@ -220,41 +222,21 @@ export default oncePerServices(function (services) {
           params: docIdList,
         });
 
+        const calcMask =docDesc.fields.$$calc(mask).lock();
+
         if (http) {
-          docs = r2.rows.reduce((acc, v) => {
-            let doc = buildDoc(context, result, docDesc, v, docDesc.fields.$$calc(mask), refersMask);
+          docs = await Promise.all(r2.rows.reduce(async (acc, v) => {
+            let doc = await buildDoc(context, result, docDesc, v, calcMask, refersMask);
             doc = this.httpFix({context, result, fields: doc, fieldsDesc: docDesc.fields, isOut: true});
-            result.isError = false;
-            docDesc.actions.retrieve.$$code?.({
-              context,
-              result,
-              doc,
-              docDesc,
-              model: this._model
-            });
-
-            if (result.isError) {
-              result.isError = false;
-            } else {
-              acc.push(doc);
-            }
-
-            // TODO: How to apply user rights ???
-
-            // const access = docDesc.$$access(newDoc); // TODO: $$fix doc and $$get only fields viewable for given user
-            /*
-                        if (this.applyUserRights({context, result, doc})) {
-                          acc.push(doc);
-                        }
-            */
+            acc.push(doc);
             return acc;
-          }, []);
+          }, []));
           docs = await Promise.all(docs);
           if (result.isError) {
             if (newResult) result.throwIfError(); else return;
           }
         } else {
-          docs = r2.rows.map(v => buildDoc(context, result, docDesc, v));
+          docs = await Promise.all(r2.rows.map(v => buildDoc(context, result, docDesc, v, calcMask, refersMask)));
         }
 
         if (testMode) {

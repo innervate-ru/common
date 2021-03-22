@@ -2,7 +2,7 @@ import test from 'ava'
 
 import Result from '../../../../lib/hope/lib/result/index'
 
-test.only(`6.1 getDocWithComputed`, async t => {
+test.serial(`6.1 getDocWithComputed`, async t => {
 
   const {testDocsSvc} = t.context.manager.services;
 

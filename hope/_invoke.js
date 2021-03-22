@@ -127,7 +127,8 @@ export default oncePerServices(function (services) {
         result.error('doc.notFound', {docType: type, docId: testMode ? '' : update?.id});
         if (newResult) result.throwIfError(); else return;
       }
-      newDoc = existingDoc = docDesc.fields.$$fix(await build('context', result, docDesc, r.rows[0]), {mask: docDesc.fields.$$calc('#all-options')});
+      const retrieveMask = docDesc.fields.$$calc('#all-options');
+      newDoc = existingDoc = docDesc.fields.$$fix(await build('context', result, docDesc, r.rows[0], retrieveMask, 'id'), {mask: retrieveMask});
 
       if (false === await runActionCode(docDesc.actions.retrieve)) return; // TODO: Think of
 
@@ -500,8 +501,8 @@ export default oncePerServices(function (services) {
           }
 
           // update document
-          newDoc = docDesc.fields.$$get(newDoc, access.view.add(access.update).add('id,rev,state,deleted'));
-          newDoc = await updateRow(localResult, context, connection, docDesc, newDoc);
+          newDoc = docDesc.fields.$$get(newDoc, access.view.add(access.update).add('id,rev,state,deleted').lock());
+          newDoc = await updateRow(context, localResult, connection, docDesc, newDoc, docDesc.fields.$$calc(mask).remove('options').lock(), refersMask);
           if (localResult.isError) {
             result.error(`doc.failedToWriteActionUpdate`, {
               docType: type,
