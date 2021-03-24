@@ -1,123 +1,161 @@
-const cache = new WeakMap();
+import oncePerServices from "../services/oncePerServices";
 
-function buildComputedLevel(processComputed, computedMask, fieldsLevel) {
+export default oncePerServices(function (services) {
 
-  fieldsLevel.$$list.forEach((fieldDesc) => {
+  const cache = new WeakMap();
 
-    const fieldName = fieldDesc.name;
-    const computed = fieldDesc.$$computed;
-    const index = fieldDesc.$$index;
+  function buildComputedLevel(processComputed, computedMask, fieldsLevel) {
 
-    if (computed) {
+    fieldsLevel.$$list.forEach((fieldDesc) => {
 
-      processComputed.push(function (res, mask, args) {
+      const fieldName = fieldDesc.name;
+      const computed = fieldDesc.$$computed;
+      const index = fieldDesc.$$index;
 
-        if (mask.get(index)) {
-
-          const val = computed({...args, path: `${args.path ? `${args.path }.` : ''}${fieldName}`});
-
-          if (val !== undefined) {
-
-            (res || (res = [])).push(Promise.resolve(val).then((val) => {
-              // TODO: Валидировать созсащаемое значение
-              args.docLevel[fieldName] = val;
-            }));
-
-            return res;
-          }
-        }
-      });
-    } else if (~['structure', 'subtable'].indexOf(fieldDesc.type)) {
-
-      const fieldComputedMask = computedMask.and(fieldDesc.$$mask).lock();
-      if (fieldComputedMask.isEmpty()) return;
-
-      const processSubfieldsComputed = [];
-
-      buildComputedLevel(processSubfieldsComputed, computedMask, fieldDesc.fields);
-
-      function processStruct(res, mask, args) {
-
-        processSubfieldsComputed.forEach((processSubfield) => {
-
-          res = processSubfield(res, mask, args);
-        });
-
-        return res;
-      }
-
-      if (fieldDesc.type === 'structure') {
+      if (computed) {
 
         processComputed.push(function (res, mask, args) {
 
-          if (!mask.and(fieldComputedMask).isEmpty()) {
+          if (mask.get(index)) {
 
-            res = processStruct(res, mask, {
-              ...args,
-              docLevel: args.docLevel[fieldName],
-              path: `${args.path ? `${args.path}.` : ''}${fieldName}`
-            });
+            const val = computed({...args, path: `${args.path ? `${args.path }.` : ''}${fieldName}`});
+
+            if (val !== undefined) {
+
+              (res || (res = [])).push(Promise.resolve(val).then((val) => {
+                // TODO: Валидировать созсащаемое значение
+                args.docLevel[fieldName] = val;
+              }));
+
+              return res;
+            }
           }
+        });
+      } else if (~['structure', 'subtable'].indexOf(fieldDesc.type)) {
+
+        const fieldComputedMask = computedMask.and(fieldDesc.$$mask).lock();
+        if (fieldComputedMask.isEmpty()) return;
+
+        const processSubfieldsComputed = [];
+
+        buildComputedLevel.call(this, processSubfieldsComputed, computedMask, fieldDesc.fields);
+
+        function processStruct(res, mask, args) {
+
+          processSubfieldsComputed.forEach((processSubfield) => {
+
+            res = processSubfield(res, mask, args);
+          });
 
           return res;
-        });
-      } else { // subtable
+        }
 
-        processComputed.push(function (res, mask, args) {
+        if (fieldDesc.type === 'structure') {
 
-          if (!mask.and(fieldComputedMask).isEmpty()) {
+          processComputed.push(function (res, mask, args) {
 
-            args.docLevel[fieldName].forEach((level, i) => {
+            if (!mask.and(fieldComputedMask).isEmpty()) {
 
-              // TODO: Add row path
               res = processStruct(res, mask, {
                 ...args,
-                docLevel: level,
-                path: `${args.path ? `${args.path}.` : ''}${fieldName}[${i}]`
+                docLevel: args.docLevel[fieldName],
+                path: `${args.path ? `${args.path}.` : ''}${fieldName}`
               });
-            });
+            }
+
+            return res;
+          });
+        } else { // subtable
+
+          processComputed.push(function (res, mask, args) {
+
+            if (!mask.and(fieldComputedMask).isEmpty()) {
+
+              args.docLevel[fieldName].forEach((level, i) => {
+
+                res = processStruct(res, mask, {
+                  ...args,
+                  docLevel: level,
+                  path: `${args.path ? `${args.path}.` : ''}${fieldName}[${i}]`
+                });
+              });
+            }
+
+            return res;
+          });
+        }
+      } else if (fieldDesc.type === 'refers') {
+
+        processComputed.push(function (res, mask, args) {
+
+          if (mask.get(index)) {
+
+            if (args.docLevel[fieldName]) {
+
+              (res || (res = [])).push(
+                (async () => {
+
+                  args.docLevel[fieldName] = await this.get({
+
+                    context: args.context,
+
+                    result: args.result,
+
+                    docId: args.docLevel[fieldName],
+
+                    mask: args.refersMask,
+                  });
+                })());
+            }
           }
 
           return res;
         });
       }
-    }
-  });
-}
-
-export default async function build(context, result, docDesc, row, mask, refersMask) {
-  const {options, ...rest} = row;
-  const fullDoc = options ? docDesc.fields.$$set(options, rest) : rest;
-
-  let processComputed = cache.get(docDesc);
-
-  if (!processComputed) {
-
-    processComputed = [];
-
-    buildComputedLevel(processComputed, docDesc.fields.$$calc('#computed', {strict: false}), docDesc.fields);
-
-    cache.set(docDesc, processComputed);
+    });
   }
 
-  let promises = undefined;
+  return async function build(context, result, docDesc, row, mask, refersMask) {
+    const {options, ...rest} = row;
+    const fullDoc = options ? docDesc.fields.$$set(options, rest) : rest;
 
-  processComputed.forEach((f) => {
+    mask = mask.add('id').remove('options', {strict: false}).lock();
 
-    promises = f(promises, mask, {
-      context,
-      result,
-      doc: fullDoc,
-      docLevel: fullDoc,
-      env: {},
+    console.info(124, refersMask, mask.list.map(v => v.name));
+
+    let processComputed = cache.get(docDesc);
+
+    if (!processComputed) {
+
+      processComputed = [];
+
+      buildComputedLevel.call(this, processComputed, docDesc.fields.$$calc('#computed', {strict: false}).lock(), docDesc.fields);
+
+      cache.set(docDesc, processComputed);
+    }
+
+    let promises = undefined;
+
+    processComputed.forEach((f) => {
+
+      promises = f.call(this, promises, mask, {
+        context,
+        result,
+        doc: fullDoc,
+        docLevel: fullDoc,
+        refersMask,
+        env: {},
+      });
     });
-  });
 
-  if (promises) await Promise.all(promises);
+    if (promises) await Promise.all(promises);
 
-  const access = docDesc.$$access(fullDoc);
-  const res = docDesc.fields.$$get(fullDoc, access.view.or(access.update));
+    const access = docDesc.$$access(fullDoc);
+    // const res = docDesc.fields.$$get(fullDoc, access.view.or(access.update), {mask: mask, /*keepRefers: true*/});
+    const res = docDesc.fields.$$get(fullDoc, mask);
 
-  res._type = docDesc.name;
-  return res;
-}
+    res._type = docDesc.name;
+    return res;
+  };
+
+})

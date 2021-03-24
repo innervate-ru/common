@@ -1,6 +1,5 @@
 import {nanoid} from 'nanoid'
 import md5 from 'md5'
-import buildDoc from './_buildDoc'
 
 import oncePerServices from '../services/oncePerServices'
 
@@ -11,6 +10,8 @@ export default oncePerServices(function (services) {
   } = services;
 
   const testMode = _testMode && _testMode.docs;
+
+  const buildDoc = require('./_buildDoc').default(services);
 
   return async function insert(context, result, connection, docDesc, doc, mask, refersMask) {
 
@@ -49,6 +50,6 @@ insert into ${docDesc.$$table} (${fields.join(',')}) values (${values.join(',')}
       params,
     });
 
-    return buildDoc(context, result, docDesc, r.rows[0], mask, refersMask);
+    return buildDoc.call(this, context, result, docDesc, r.rows[0], mask, refersMask);
   };
 });

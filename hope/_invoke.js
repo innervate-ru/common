@@ -1,7 +1,6 @@
 import md5 from 'md5'
 import oncePerServices from '../services/oncePerServices'
 import Result from '../../../../lib/hope/lib/result/index'
-import build from './_buildDoc'
 import requestByContext from '../context/requestByContext'
 
 const debug = require('debug')('hope.update');
@@ -17,12 +16,13 @@ export default oncePerServices(function (services) {
 
   const insertRow = require('./_insertRow').default(services);
   const updateRow = require('./_updateRow').default(services);
+  const build = require('./_buildDoc').default(services);
 
   return async function invoke(args) {
 
     schema.invoke_args(args);
 
-    const {context, type, http, docId, action, mask = '#all', refersMask = 'short'} = args;
+    const {context, type, http, docId, action, mask = '#all', refersMask = '#short'} = args;
     let {update, actionArgs} = args;
 
     const user = requestByContext(context)?.user;
@@ -240,7 +240,7 @@ export default oncePerServices(function (services) {
 
         // update document
         newDoc = docDesc.fields.$$get(newDoc, docDesc.fields.$$calc('id,rev,deleted').or(access.view).or(access.update));
-        newDoc = await updateRow(context, localResult, connection, docDesc, newDoc, docDesc.fields.$$calc(mask), refersMask);
+        newDoc = await updateRow.call(this, context, localResult, connection, docDesc, newDoc, docDesc.fields.$$calc(mask), refersMask);
         if (localResult.isError) {
           result.error(`doc.updateFailedToWrite`, {docType: type, docId: testMode ? '' : newDoc?.id});
           result.add(localResult);
@@ -265,7 +265,7 @@ export default oncePerServices(function (services) {
         // create document
         newDoc = docDesc.fields.$$get(newDoc, access.view.or(access.update).remove('#computed', {strict: false}));
 
-        newDoc = await insertRow(context, localResult, connection, docDesc, newDoc, docDesc.fields.$$calc(mask), refersMask);
+        newDoc = await insertRow.call(this, context, localResult, connection, docDesc, newDoc, docDesc.fields.$$calc(mask), refersMask);
         if (localResult.isError) {
           result.error(`doc.createFailedToWrite`, {docType: type, docId: testMode ? '' : newDoc?.id});
           result.add(localResult);

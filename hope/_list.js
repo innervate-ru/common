@@ -1,7 +1,6 @@
 import md5 from 'md5'
 import oncePerServices from '../services/oncePerServices'
 import Result from '../../../../lib/hope/lib/result/index'
-import buildDoc from './_buildDoc'
 import requestByContext from "../context/requestByContext";
 
 const debug = require('debug')('hope.list');
@@ -15,12 +14,14 @@ export default oncePerServices(function (services) {
   } = services;
   const testMode = __testMode && __testMode.hope;
 
+  const buildDoc = require('./_buildDoc').default(services);
+
   return async function list(args) {
     schema.list_args(args);
-    const {context, http, type, filter = {}, order = {}, pageSize = 25, mask = '#all', refersMask = 'short'} = args;
+    const {context, http, type, filter = {}, order = {}, pageSize = 25, mask = '#all', refersMask = '#short'} = args;
     let {last = false, pageNo, pageExtra = 0, offset = 0, limit} = args;
 
-    const user = requestByContext(context)?.user;
+    // const user = requestByContext(context)?.user;
 
     const newResult = !args.result;
     const result = args.result || new Result();
@@ -114,7 +115,7 @@ export default oncePerServices(function (services) {
 
       if (http) {
         docs = r.rows.reduce(async (acc, v) => {
-          let doc = await buildDoc(context, result, docDesc, v, calcMask, refersMask);
+          let doc = await buildDoc.call(this, context, result, docDesc, v, calcMask, refersMask);
           doc = this.httpFix({context, result, fields: doc, fieldsDesc: docDesc.fields, isOut: true});
 
           // result.isError = false;

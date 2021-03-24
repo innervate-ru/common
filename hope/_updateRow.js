@@ -1,5 +1,4 @@
 import md5 from 'md5'
-import buildDoc from "./_buildDoc";
 
 import oncePerServices from '../services/oncePerServices'
 
@@ -10,6 +9,8 @@ export default oncePerServices(function (services) {
   } = services;
 
   const testMode = __testMode && __testMode.hope;
+
+  const buildDoc = require('./_buildDoc').default(services);
 
   return async function update(context, result, connection, docDesc, doc, mask, refersMask) {
 
@@ -51,6 +52,6 @@ export default oncePerServices(function (services) {
       return;
     }
 
-    return buildDoc(context, result, docDesc, r.rows[0], mask, refersMask);
+    return buildDoc.call(this, context, result, docDesc, r.rows[0], mask, refersMask);
   };
 });

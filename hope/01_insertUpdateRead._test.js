@@ -2,13 +2,12 @@ import test from 'ava'
 
 import Result from '../../../../lib/hope/lib/result/index'
 
-import build from './_buildDoc'
-
-test.serial(`1.1 insertUpdateRead: insert`, async t => {
+test.skip(`1.1 insertUpdateRead: insert`, async t => {
 
   const {postgres, testDocsSvc} = t.context.manager.services;
   const insertRow = require('./_insertRow').default(t.context.manager.services);
   const updateRow = require('./_updateRow').default(t.context.manager.services);
+  const build = require('./_buildDoc').default(t.context.manager.services);
 
   const result = new Result();
 

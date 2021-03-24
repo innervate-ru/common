@@ -1,7 +1,6 @@
 import md5 from 'md5'
 import oncePerServices from "../services/oncePerServices";
 import Result from "../../../../lib/hope/lib/result/index";
-import build from "./_buildDoc";
 
 const schema = require('./index.schema');
 
@@ -11,6 +10,8 @@ export default oncePerServices(function (services) {
     testMode: __testMode,
   } = services;
   const testMode = __testMode && __testMode.hope;
+
+  // const build = require('./_buildDoc').default(services);
 
   return async function applyUserRights(args) {
 /*

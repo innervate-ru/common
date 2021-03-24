@@ -1,7 +1,6 @@
 import md5 from 'md5'
 import oncePerServices from "../services/oncePerServices";
 import Result from "../../../../lib/hope/lib/result/index";
-import build from "./_buildDoc";
 import requestByContext from "../context/requestByContext";
 
 const schema = require('./index.schema');
@@ -13,11 +12,13 @@ export default oncePerServices(function (services) {
   } = services;
   const testMode = __testMode && __testMode.hope;
 
+  const build = require('./_buildDoc').default(services);
+
   return async function get(args) {
 
     schema.get_args(args);
 
-    const {context, docId, http, mask = '#all', refersMask = 'short'} = args;
+    const {context, docId, http, mask = '#all', refersMask = '#short'} = args;
 
     const user = requestByContext(context)?.user;
     // TODO: Check can user retrieve this object
@@ -63,7 +64,7 @@ export default oncePerServices(function (services) {
       if (newResult) result.throwIfError(); else return;
     }
 
-    let doc = await build('context', result, docDesc, r.rows[0], docDesc.fields.$$calc(mask));
+    let doc = await build.call(this, 'context', result, docDesc, r.rows[0], docDesc.fields.$$calc(mask), refersMask);
 
     // TODO: сделать retrieve чтоб возвращал части sql запроса в зависимости от пользователя
     // docDesc.actions.retrieve.$$code?.({
