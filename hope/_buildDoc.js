@@ -52,7 +52,11 @@ function buildComputedLevel(processComputed, computedMask, fieldsLevel) {
 
           if (!mask.and(fieldComputedMask).isEmpty()) {
 
-            res = processStruct(res, mask, {...args, docLevel: args.docLevel[fieldName], path: `${args.path ? `${args.path}.` : ''}${fieldName}`});
+            res = processStruct(res, mask, {
+              ...args,
+              docLevel: args.docLevel[fieldName],
+              path: `${args.path ? `${args.path}.` : ''}${fieldName}`
+            });
           }
 
           return res;
@@ -66,7 +70,11 @@ function buildComputedLevel(processComputed, computedMask, fieldsLevel) {
             args.docLevel[fieldName].forEach((level, i) => {
 
               // TODO: Add row path
-              res = processStruct(res, mask, {...args, docLevel: level, path: `${args.path ? `${args.path}.` : ''}${fieldName}[${i}]`});
+              res = processStruct(res, mask, {
+                ...args,
+                docLevel: level,
+                path: `${args.path ? `${args.path}.` : ''}${fieldName}[${i}]`
+              });
             });
           }
 
@@ -78,39 +86,34 @@ function buildComputedLevel(processComputed, computedMask, fieldsLevel) {
 }
 
 export default async function build(context, result, docDesc, row, mask, refersMask) {
-    const {options, ...rest} = row;
+  const {options, ...rest} = row;
   const fullDoc = options ? docDesc.fields.$$set(options, rest) : rest;
 
-  const computedMask = mask.and('#computed', {strict: false}).lock();
+  let processComputed = cache.get(docDesc);
 
-  if (!computedMask.isEmpty()) {
+  if (!processComputed) {
 
-    let processComputed = cache.get(docDesc);
+    processComputed = [];
 
-    if (!processComputed) {
+    buildComputedLevel(processComputed, docDesc.fields.$$calc('#computed', {strict: false}), docDesc.fields);
 
-      processComputed = [];
-
-      buildComputedLevel(processComputed, docDesc.fields.$$calc('#computed'), docDesc.fields);
-
-      cache.set(docDesc, processComputed);
-    }
-
-    let res = undefined;
-
-    processComputed.forEach((f) => {
-
-      res = f(res, computedMask, {
-        context,
-        result,
-        doc: fullDoc,
-        docLevel: fullDoc,
-        env: {},
-      });
-    });
-
-    if (res) await Promise.all(res);
+    cache.set(docDesc, processComputed);
   }
+
+  let promises = undefined;
+
+  processComputed.forEach((f) => {
+
+    promises = f(promises, mask, {
+      context,
+      result,
+      doc: fullDoc,
+      docLevel: fullDoc,
+      env: {},
+    });
+  });
+
+  if (promises) await Promise.all(promises);
 
   const access = docDesc.$$access(fullDoc);
   const res = docDesc.fields.$$get(fullDoc, access.view.or(access.update));
