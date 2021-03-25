@@ -4,13 +4,13 @@ import Result from '../../../../lib/hope/lib/result/index'
 
 // TODO: Сделать проверку при обновлении что тип документа, на который ссылка, соотвествует схеме.  Только когда значение поля меняется
 // TODO: +Сделать загрузку документов по ссылке
-// TODO: В $$fix поля реферс заменять на их id
+// TODO: +В $$fix поля реферс заменять на их id
 // TODO: +Проверить что id всегда возвращается в документе
-// TODO: Сделать специальный режим $$fix чтоб refers не заменялись на id.  Использовать его в get, list, invoke
+// TODO: +Сделать специальный режим $$fix чтоб refers не заменялись на id.  Использовать его в get, list, invoke
 // TODO: Сделать что когда маска none - invoke не возвращает doc
 // TODO: Сделать валидацию документа перед отдачей
 
-test.only(`7.1 getDocWithRefers`, async t => {
+test.serial(`7.1 getDocWithRefers`, async t => {
 
   const {testDocsSvc} = t.context.manager.services;
 
@@ -237,14 +237,74 @@ test.only(`7.1 getDocWithRefers`, async t => {
     deleted: false,
     _type: 'doc.Doc3Refers',
   });
+});
 
-  // let resList = await testDocsSvc.get({
-  //   context: `context`, result,
-  //   type: 'doc.Doc3Refers',
-  //   docId: res.doc.id,
-  // });
+test.serial(`7.2 fixRefers`, async t => {
 
+  const {testDocsSvc} = t.context.manager.services;
 
-  // TODO: Check list
+  const docDesc = testDocsSvc._model().docs['doc.Doc3Refers'];
 
+  t.deepEqual(
+    docDesc.fields.$$fix({
+      doc: '123'
+    }), {
+      created: null,
+      deleted: false,
+      doc: '123',
+      id: null,
+      modified: null,
+      options: null,
+      rev: 0,
+      struct: {
+        n: 0,
+        v: null,
+      },
+      subtable: [],
+      title: '',
+    });
+
+  t.deepEqual(
+    docDesc.fields.$$fix({
+      doc: {
+        id: '123',
+      }
+    }), {
+      created: null,
+      deleted: false,
+      doc: '123',
+      id: null,
+      modified: null,
+      options: null,
+      rev: 0,
+      struct: {
+        n: 0,
+        v: null,
+      },
+      subtable: [],
+      title: '',
+    });
+
+  t.deepEqual(
+    docDesc.fields.$$fix({
+      doc: {
+        id: '123',
+      },
+    }, {keepRefers: true}), {
+      created: null,
+      deleted: false,
+      doc: {
+        id: '123',
+      },
+      id: null,
+      modified: null,
+      options: null,
+      rev: 0,
+      struct: {
+        n: 0,
+        v: null,
+      },
+      subtable: [],
+      title: '',
+    });
 });

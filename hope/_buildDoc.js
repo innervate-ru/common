@@ -172,7 +172,7 @@ export default oncePerServices(function (services) {
 
     // TODO: add user rights
 
-    const res = docDesc.fields.$$get(fullDoc, mask);
+    const res = docDesc.fields.$$get(fullDoc, mask, {keepRefers: true});
 
     res._type = docDesc.name;
     return res;
