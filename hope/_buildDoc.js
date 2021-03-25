@@ -119,7 +119,7 @@ export default oncePerServices(function (services) {
     const {options, ...rest} = row;
     const fullDoc = options ? docDesc.fields.$$set(options, rest) : rest;
 
-    mask = mask.add('id').remove('options').lock(); // always must be 'id'
+    mask = mask.add('id').lock(); // always must be 'id'
 
     const access = docDesc.$$access(fullDoc); // ! $$access must NOT rely on any computed field
 
@@ -130,8 +130,6 @@ export default oncePerServices(function (services) {
       processComputed = [];
 
       const computedMask = docDesc.fields.$$calc('#computed', {strict: false}).clone();
-
-      // console.info(134, docDesc.fields.$$flat.$$list)
 
       docDesc.fields.$$flat.$$list.forEach((fieldDesc) => {
 
@@ -146,11 +144,11 @@ export default oncePerServices(function (services) {
       cache.set(docDesc, processComputed);
     }
 
+    const returnMask = access.update.or(access.view).and(mask).lock();
+
     let promises = undefined;
 
     if (processComputed.length) {
-
-      const returnMask = access.update.or(access.view).and(mask).lock();
 
       processComputed.forEach((f) => {
 
@@ -167,12 +165,12 @@ export default oncePerServices(function (services) {
       if (promises) await Promise.all(promises);
     }
 
-    // const access = docDesc.$$access(fullDoc);
-    // const res = docDesc.fields.$$get(fullDoc, access.view.or(access.update), {mask: mask, /*keepRefers: true*/});
+    // console.info(168, fullDoc)
+    // docDesc.fields.$$validate(result, fullDoc, {mask: docDesc.fields.$$tags.all});
 
     // TODO: add user rights
 
-    const res = docDesc.fields.$$get(fullDoc, mask, {keepRefers: true});
+    const res = docDesc.fields.$$get(fullDoc, returnMask, {keepRefers: true});
 
     res._type = docDesc.name;
     return res;

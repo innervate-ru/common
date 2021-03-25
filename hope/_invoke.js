@@ -240,7 +240,7 @@ export default oncePerServices(function (services) {
 
         // update document
         newDoc = docDesc.fields.$$get(newDoc, docDesc.fields.$$calc('id,rev,deleted').or(access.view).or(access.update));
-        newDoc = await updateRow.call(this, context, localResult, connection, docDesc, newDoc, docDesc.fields.$$calc(mask), refersMask);
+        newDoc = await updateRow.call(this, context, localResult, connection, docDesc, newDoc, docDesc.fields.$$calc(mask, {strict: false}), refersMask);
         if (localResult.isError) {
           result.error(`doc.updateFailedToWrite`, {docType: type, docId: testMode ? '' : newDoc?.id});
           result.add(localResult);
@@ -265,7 +265,7 @@ export default oncePerServices(function (services) {
         // create document
         newDoc = docDesc.fields.$$get(newDoc, access.view.or(access.update).remove('#computed', {strict: false}));
 
-        newDoc = await insertRow.call(this, context, localResult, connection, docDesc, newDoc, docDesc.fields.$$calc(mask), refersMask);
+        newDoc = await insertRow.call(this, context, localResult, connection, docDesc, newDoc, docDesc.fields.$$calc(mask, {strict: false}), refersMask);
         if (localResult.isError) {
           result.error(`doc.createFailedToWrite`, {docType: type, docId: testMode ? '' : newDoc?.id});
           result.add(localResult);
@@ -502,7 +502,7 @@ export default oncePerServices(function (services) {
 
           // update document
           newDoc = docDesc.fields.$$get(newDoc, access.view.add(access.update).add('id,rev,state,deleted').lock());
-          newDoc = await updateRow(context, localResult, connection, docDesc, newDoc, docDesc.fields.$$calc(mask).remove('options').lock(), refersMask);
+          newDoc = await updateRow(context, localResult, connection, docDesc, newDoc, docDesc.fields.$$calc(mask, {strict: false}).remove('options').lock(), refersMask);
           if (localResult.isError) {
             result.error(`doc.failedToWriteActionUpdate`, {
               docType: type,

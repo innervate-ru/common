@@ -64,7 +64,7 @@ export default oncePerServices(function (services) {
       if (newResult) result.throwIfError(); else return;
     }
 
-    let doc = await build.call(this, 'context', result, docDesc, r.rows[0], docDesc.fields.$$calc(mask), refersMask);
+    let doc = await build.call(this, 'context', result, docDesc, r.rows[0], docDesc.fields.$$calc(mask, {strict: false}), refersMask);
 
     // TODO: сделать retrieve чтоб возвращал части sql запроса в зависимости от пользователя
     // docDesc.actions.retrieve.$$code?.({

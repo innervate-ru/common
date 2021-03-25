@@ -111,7 +111,7 @@ export default oncePerServices(function (services) {
 
       let docs;
 
-      const calcMask = docDesc.fields.$$calc(mask).lock();
+      const calcMask = docDesc.fields.$$calc(mask, {strict: false}).lock();
 
       if (http) {
         docs = r.rows.reduce(async (acc, v) => {
@@ -151,9 +151,9 @@ export default oncePerServices(function (services) {
 
       if (testMode) {
         docs.forEach(d => {
-          d.id = '';
-          d.created = '';
-          d.modified = '';
+          if (d.id) d.id = '';
+          if (d.created) d.created = '';
+          if (d.modified) d.modified = '';
         });
       }
 
@@ -223,7 +223,7 @@ export default oncePerServices(function (services) {
           params: docIdList,
         });
 
-        const calcMask =docDesc.fields.$$calc(mask).lock();
+        const calcMask = docDesc.fields.$$calc(mask, {strict: false}).lock();
 
         if (http) {
           docs = await Promise.all(r2.rows.reduce(async (acc, v) => {
@@ -242,9 +242,9 @@ export default oncePerServices(function (services) {
 
         if (testMode) {
           docs.forEach(d => {
-            d.id = '';
-            d.created = '';
-            d.modified = '';
+            if (d.id) d.id = '';
+            if (d.created) d.created = '';
+            if (d.modified) d.modified = '';
           });
         }
 
