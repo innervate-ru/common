@@ -520,8 +520,8 @@ export default oncePerServices(function (services) {
     }
 
     if (testMode) {
-      newDoc.created = '';
-      newDoc.modified = '';
+      if (newDoc.created) newDoc.created = '';
+      if (newDoc.modified) newDoc.modified = '';
     }
 
     if (http) {

@@ -95,8 +95,8 @@ export default oncePerServices(function (services) {
     }
 
     if (testMode) {
-      doc.created = '';
-      doc.modified = '';
+      if (doc.created) doc.created = '';
+      if (doc.modified) doc.modified = '';
     }
 
     return doc;

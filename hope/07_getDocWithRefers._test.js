@@ -37,21 +37,20 @@ test.only(`7.1 getDocWithRefers`, async t => {
 
   t.deepEqual(result.messages, []);
 
-  console.info(40)
-
   let res = await testDocsSvc.invoke({
     context: `context`, result,
     type: 'doc.Doc3Refers',
     update: {
+      title: 'test title',
       doc: resA.doc.id,
-      // struct: {
-      //   n: 123,
-      //   v: resA.doc.id
-      // },
-      // subtable: [
-      //   {x: 9, y: resB.doc.id},
-      //   {x: 8, y: resB.doc.id},
-      // ],
+      struct: {
+        n: 123,
+        v: resA.doc.id
+      },
+      subtable: [
+        {x: 9, y: resB.doc.id},
+        {x: 8, y: resB.doc.id},
+      ],
     }
   });
 
@@ -63,33 +62,42 @@ test.only(`7.1 getDocWithRefers`, async t => {
 
   let {id, rev, created, modified, deleted, ...doc} = res;
 
-  t.deepEqual(doc, {
+  t.deepEqual(res.doc, {
     id: res.doc.id,
+    rev: 0,
+    title: 'test title',
     doc: {
       id: resA.doc.id,
       label: 'test label A',
+      _type: 'doc.DictA',
     },
-    // struct: {
-    //   n: 123,
-    //   v: {
-    //     id: resA.doc.id,
-    //     label: 'test label A',
-    //   },
-    // },
-    // subtable: [
-    //   {
-    //     x: 9, y: {
-    //       id: resB.doc.id,
-    //       label: 'test label B',
-    //     }
-    //   },
-    //   {
-    //     x: 8, y: {
-    //       id: resB.doc.id,
-    //       label: 'test label B',
-    //     }
-    //   },
-    // ],
+    struct: {
+      n: 123,
+      v: {
+        id: resA.doc.id,
+        label: 'test label A',
+        _type: 'doc.DictA',
+      },
+    },
+    subtable: [
+      {
+        x: 9, y: {
+          id: resB.doc.id,
+          label: 'test label B',
+          _type: 'doc.DictB',
+        }
+      },
+      {
+        x: 8, y: {
+          id: resB.doc.id,
+          label: 'test label B',
+          _type: 'doc.DictB',
+        }
+      },
+    ],
+    created: '',
+    modified: '',
+    deleted: false,
     _type: 'doc.Doc3Refers',
   });
 

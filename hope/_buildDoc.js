@@ -44,7 +44,7 @@ export default oncePerServices(function (services) {
 
           processSubfieldsComputed.forEach((processSubfield) => {
 
-            res = processSubfield(res, mask, args);
+            res = processSubfield.call(this, res, mask, args);
           });
 
           return res;
@@ -56,7 +56,7 @@ export default oncePerServices(function (services) {
 
             if (!mask.and(fieldComputedMask).isEmpty()) {
 
-              res = processStruct(res, mask, {
+              res = processStruct.call(this, res, mask, {
                 ...args,
                 docLevel: args.docLevel[fieldName],
                 path: `${args.path ? `${args.path}.` : ''}${fieldName}`
@@ -73,7 +73,7 @@ export default oncePerServices(function (services) {
 
               args.docLevel[fieldName].forEach((level, i) => {
 
-                res = processStruct(res, mask, {
+                res = processStruct.call(this, res, mask, {
                   ...args,
                   docLevel: level,
                   path: `${args.path ? `${args.path}.` : ''}${fieldName}[${i}]`
@@ -119,9 +119,9 @@ export default oncePerServices(function (services) {
     const {options, ...rest} = row;
     const fullDoc = options ? docDesc.fields.$$set(options, rest) : rest;
 
-    mask = mask.add('id').remove('options', {strict: false}).lock();
+    mask = mask.add('id').remove('options').lock(); // always must be 'id'
 
-    console.info(124, refersMask, mask.list.map(v => v.name));
+    const access = docDesc.$$access(fullDoc); // ! $$access must NOT rely on any computed field
 
     let processComputed = cache.get(docDesc);
 
@@ -129,29 +129,51 @@ export default oncePerServices(function (services) {
 
       processComputed = [];
 
-      buildComputedLevel.call(this, processComputed, docDesc.fields.$$calc('#computed', {strict: false}).lock(), docDesc.fields);
+      const computedMask = docDesc.fields.$$calc('#computed', {strict: false}).clone();
+
+      // console.info(134, docDesc.fields.$$flat.$$list)
+
+      docDesc.fields.$$flat.$$list.forEach((fieldDesc) => {
+
+        if (fieldDesc.type === 'refers') {
+
+          computedMask.set(fieldDesc.$$index);
+        }
+      });
+
+      console.info(142, computedMask.list.map(v => v.fullname || v.name))
+
+      buildComputedLevel.call(this, processComputed, computedMask.lock(), docDesc.fields);
 
       cache.set(docDesc, processComputed);
     }
 
     let promises = undefined;
 
-    processComputed.forEach((f) => {
+    if (processComputed.length) {
 
-      promises = f.call(this, promises, mask, {
-        context,
-        result,
-        doc: fullDoc,
-        docLevel: fullDoc,
-        refersMask,
-        env: {},
+      const returnMask = access.update.or(access.view).and(mask).lock();
+
+      processComputed.forEach((f) => {
+
+        promises = f.call(this, promises, returnMask, {
+          context,
+          result,
+          doc: fullDoc,
+          docLevel: fullDoc,
+          refersMask,
+          env: {},
+        });
       });
-    });
 
-    if (promises) await Promise.all(promises);
+      if (promises) await Promise.all(promises);
+    }
 
-    const access = docDesc.$$access(fullDoc);
+    // const access = docDesc.$$access(fullDoc);
     // const res = docDesc.fields.$$get(fullDoc, access.view.or(access.update), {mask: mask, /*keepRefers: true*/});
+
+    // TODO: add user rights
+
     const res = docDesc.fields.$$get(fullDoc, mask);
 
     res._type = docDesc.name;

@@ -737,6 +737,44 @@
               "refers": []
             },
             {
+              "name": "struct",
+              "fields": [
+                {
+                  "name": "n",
+                  "fullname": "struct.n",
+                  "type": "integer"
+                },
+                {
+                  "name": "v",
+                  "fullname": "struct.v",
+                  "type": "refers",
+                  "refers": [
+                    "doc.DictA"
+                  ]
+                }
+              ],
+              "type": "structure"
+            },
+            {
+              "name": "subtable",
+              "fields": [
+                {
+                  "name": "x",
+                  "fullname": "subtable.x",
+                  "type": "integer"
+                },
+                {
+                  "name": "y",
+                  "fullname": "subtable.y",
+                  "type": "refers",
+                  "refers": [
+                    "doc.DictB"
+                  ]
+                }
+              ],
+              "type": "subtable"
+            },
+            {
               "name": "options",
               "type": "json"
             },
@@ -756,19 +794,19 @@
           ],
           "tags": {
             "field": [
-              243
+              15363
             ],
             "system": [
-              243
+              15363
             ],
             "index": [
-              113
+              7169
             ],
             "unique": [
               1
             ],
             "hide": [
-              243
+              15363
             ]
           }
         },
