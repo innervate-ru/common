@@ -111,7 +111,7 @@ export default oncePerServices(function (services) {
 
       let docs;
 
-      const calcMask =docDesc.fields.$$calc(mask).lock();
+      const calcMask = docDesc.fields.$$calc(mask).lock();
 
       if (http) {
         docs = r.rows.reduce(async (acc, v) => {
@@ -146,7 +146,7 @@ export default oncePerServices(function (services) {
           if (newResult) result.throwIfError(); else return;
         }
       } else {
-        docs = await Promise.all(r.rows.map(v => buildDoc(context, result, docDesc, v, calcMask, refersMask)));
+        docs = await Promise.all(r.rows.map(v => buildDoc.call(this, context, result, docDesc, v, calcMask, refersMask)));
       }
 
       if (testMode) {
@@ -227,7 +227,7 @@ export default oncePerServices(function (services) {
 
         if (http) {
           docs = await Promise.all(r2.rows.reduce(async (acc, v) => {
-            let doc = await buildDoc(context, result, docDesc, v, calcMask, refersMask);
+            let doc = await buildDoc.call(this, context, result, docDesc, v, calcMask, refersMask);
             doc = this.httpFix({context, result, fields: doc, fieldsDesc: docDesc.fields, isOut: true});
             acc.push(doc);
             return acc;
@@ -237,7 +237,7 @@ export default oncePerServices(function (services) {
             if (newResult) result.throwIfError(); else return;
           }
         } else {
-          docs = await Promise.all(r2.rows.map(v => buildDoc(context, result, docDesc, v, calcMask, refersMask)));
+          docs = await Promise.all(r2.rows.map(v => buildDoc.call(this, context, result, docDesc, v, calcMask, refersMask)));
         }
 
         if (testMode) {
