@@ -9,7 +9,7 @@ import Result from '../../../../lib/hope/lib/result/index'
 // TODO: Сделать специальный режим $$fix чтоб refers не заменялись на id.  Использовать его в get, list, invoke
 // TODO: Сделать что когда маска none - invoke не возвращает doc
 
-test.only(`7.1 getDocWithRefers`, async t => {
+test.serial(`7.1 getDocWithRefers`, async t => {
 
   const {testDocsSvc} = t.context.manager.services;
 
@@ -28,7 +28,7 @@ test.only(`7.1 getDocWithRefers`, async t => {
 
   let resB = await testDocsSvc.invoke({
     context: `context`, result,
-    type: 'doc.DictA',
+    type: 'doc.DictB',
     update: {
       label: 'test label B',
       other: 999,

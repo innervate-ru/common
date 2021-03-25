@@ -141,8 +141,6 @@ export default oncePerServices(function (services) {
         }
       });
 
-      console.info(142, computedMask.list.map(v => v.fullname || v.name))
-
       buildComputedLevel.call(this, processComputed, computedMask.lock(), docDesc.fields);
 
       cache.set(docDesc, processComputed);
