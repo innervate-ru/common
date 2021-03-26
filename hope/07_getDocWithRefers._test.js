@@ -2,14 +2,6 @@ import test from 'ava'
 
 import Result from '../../../../lib/hope/lib/result/index'
 
-// TODO: Сделать проверку при обновлении что тип документа, на который ссылка, соотвествует схеме.  Только когда значение поля меняется
-// TODO: +Сделать загрузку документов по ссылке
-// TODO: +В $$fix поля реферс заменять на их id
-// TODO: +Проверить что id всегда возвращается в документе
-// TODO: +Сделать специальный режим $$fix чтоб refers не заменялись на id.  Использовать его в get, list, invoke
-// TODO: +Сделать что когда маска none - invoke не возвращает doc
-// TODO: +Сделать валидацию документа перед отдачей
-
 test.serial(`7.1 getDocWithRefers`, async t => {
 
   const {testDocsSvc} = t.context.manager.services;
@@ -199,6 +191,9 @@ test.serial(`7.1 getDocWithRefers`, async t => {
     context: `context`, result,
     type: 'doc.Doc3Refers',
     pageNo: 1,
+    filter: {
+      id: res.doc.id,
+    },
   });
 
   t.deepEqual(result.messages, []);
