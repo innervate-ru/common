@@ -146,97 +146,101 @@ test.serial(`7.1 getDocWithRefers`, async t => {
   });
 
   let resList = await testDocsSvc.list({
-    context: `context`, result,
+    context: `context`,
+    result,
     type: 'doc.Doc3Refers',
+    filter: {
+      id: res.doc.id,
+    },
   });
 
   t.deepEqual(result.messages, []);
 
-  // t.deepEqual(resList[0], {
-  //   id: '',
-  //   rev: 0,
-  //   title: 'test title',
-  //   doc: {
-  //     id: resA.doc.id,
-  //     label: 'test label A',
-  //     _type: 'doc.DictA',
-  //   },
-  //   struct: {
-  //     n: 123,
-  //     v: {
-  //       id: resA.doc.id,
-  //       label: 'test label A',
-  //       _type: 'doc.DictA',
-  //     },
-  //   },
-  //   subtable: [
-  //     {
-  //       x: 9, y: {
-  //         id: resB.doc.id,
-  //         label: 'test label B',
-  //         _type: 'doc.DictB',
-  //       }
-  //     },
-  //     {
-  //       x: 8, y: {
-  //         id: resB.doc.id,
-  //         label: 'test label B',
-  //         _type: 'doc.DictB',
-  //       }
-  //     },
-  //   ],
-  //   created: '',
-  //   modified: '',
-  //   deleted: false,
-  //   _type: 'doc.Doc3Refers',
-  // });
-  //
-  // let resListPaging = await testDocsSvc.list({
-  //   context: `context`, result,
-  //   type: 'doc.Doc3Refers',
-  //   pageNo: 1,
-  // });
-  //
-  // t.deepEqual(result.messages, []);
-  //
-  // t.deepEqual(resListPaging.docs[0], {
-  //   id: '',
-  //   rev: 0,
-  //   title: 'test title',
-  //   doc: {
-  //     id: resA.doc.id,
-  //     label: 'test label A',
-  //     _type: 'doc.DictA',
-  //   },
-  //   struct: {
-  //     n: 123,
-  //     v: {
-  //       id: resA.doc.id,
-  //       label: 'test label A',
-  //       _type: 'doc.DictA',
-  //     },
-  //   },
-  //   subtable: [
-  //     {
-  //       x: 9, y: {
-  //         id: resB.doc.id,
-  //         label: 'test label B',
-  //         _type: 'doc.DictB',
-  //       }
-  //     },
-  //     {
-  //       x: 8, y: {
-  //         id: resB.doc.id,
-  //         label: 'test label B',
-  //         _type: 'doc.DictB',
-  //       }
-  //     },
-  //   ],
-  //   created: '',
-  //   modified: '',
-  //   deleted: false,
-  //   _type: 'doc.Doc3Refers',
-  // });
+  t.deepEqual(resList[0], {
+    id: '',
+    rev: 0,
+    title: 'test title',
+    doc: {
+      id: resA.doc.id,
+      label: 'test label A',
+      _type: 'doc.DictA',
+    },
+    struct: {
+      n: 123,
+      v: {
+        id: resA.doc.id,
+        label: 'test label A',
+        _type: 'doc.DictA',
+      },
+    },
+    subtable: [
+      {
+        x: 9, y: {
+          id: resB.doc.id,
+          label: 'test label B',
+          _type: 'doc.DictB',
+        }
+      },
+      {
+        x: 8, y: {
+          id: resB.doc.id,
+          label: 'test label B',
+          _type: 'doc.DictB',
+        }
+      },
+    ],
+    created: '',
+    modified: '',
+    deleted: false,
+    _type: 'doc.Doc3Refers',
+  });
+
+  let resListPaging = await testDocsSvc.list({
+    context: `context`, result,
+    type: 'doc.Doc3Refers',
+    pageNo: 1,
+  });
+
+  t.deepEqual(result.messages, []);
+
+  t.deepEqual(resListPaging.docs[0], {
+    id: '',
+    rev: 0,
+    title: 'test title',
+    doc: {
+      id: resA.doc.id,
+      label: 'test label A',
+      _type: 'doc.DictA',
+    },
+    struct: {
+      n: 123,
+      v: {
+        id: resA.doc.id,
+        label: 'test label A',
+        _type: 'doc.DictA',
+      },
+    },
+    subtable: [
+      {
+        x: 9, y: {
+          id: resB.doc.id,
+          label: 'test label B',
+          _type: 'doc.DictB',
+        }
+      },
+      {
+        x: 8, y: {
+          id: resB.doc.id,
+          label: 'test label B',
+          _type: 'doc.DictB',
+        }
+      },
+    ],
+    created: '',
+    modified: '',
+    deleted: false,
+    _type: 'doc.Doc3Refers',
+  });
 });
 
 test.serial(`7.2 fixRefers`, async t => {

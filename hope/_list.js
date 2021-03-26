@@ -87,7 +87,7 @@ export default oncePerServices(function (services) {
     // select
     //
 
-    if (pageNo === undefined) {
+    if (pageNo === undefined && !last) {
 
       const offsetLimit = [];
       if (typeof offset === 'number' && offset !== 0) {

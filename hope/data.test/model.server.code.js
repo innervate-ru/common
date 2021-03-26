@@ -19,6 +19,11 @@ export default oncePerServices(function (services) {
       'doc.Doc2ComputedWrong': {
         computed: require('../model.test/docs/Doc2ComputedWrong/computed.js').default?.(services),
       },
+      'doc.Doc3Refers': {
+        actions: {
+            default: require('../model.test/docs/Doc3Refers/systemActions.js').default?.(services),
+        },
+      },
     },
     validators: require('../model.test/validators'),
   };

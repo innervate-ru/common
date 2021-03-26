@@ -165,8 +165,7 @@ export default oncePerServices(function (services) {
       if (promises) await Promise.all(promises);
     }
 
-    // console.info(168, fullDoc)
-    // docDesc.fields.$$validate(result, fullDoc, {mask: docDesc.fields.$$tags.all});
+    docDesc.fields.$$validate(result, fullDoc, {mask: docDesc.fields.$$tags.all});
 
     // TODO: add user rights
 
