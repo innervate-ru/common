@@ -1,3 +1,7 @@
+// для запуска надо добавить в package.json в scripts:
+//
+// "docs:test": "nodemon scripts/babel.js src/common/hope/scripts/docsTest.js --delay 250ms --ignore src/common/hope/data.test/ --ignore src/common/hope/dbEvolutionsSchema.test/schema/"
+
 import path from 'path'
 import test from 'ava'
 import {testResetCounters} from '../monitoring/index'
@@ -37,6 +41,7 @@ require('./02_createUpdateDeleteRestoreDoc._test');
 require('./03_actionsOnDoc._test');
 require('./04_getDoc._test');
 require('./05_listDocs._test');
+require('./06_scopes._test');
 require('./10_states._test');
 require('./20_userRights._test');
 

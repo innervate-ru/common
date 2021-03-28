@@ -1,50 +1,114 @@
-export default async function scopeByContext(context, connection) {
+import {invalidArgument, isResult} from '../validation/arguments'
+import Result from "../../../../lib/hope/lib/result";
 
-  let scope = this._scopes[context];
+export default async function scopeByContext({context, result, connection, handler} = {}) {
+
+  if (!(typeof context === 'string' && context.length > 0)) invalidArgument('context', context);
+  if (!(result === undefined || isResult(result))) invalidArgument('result', result);
+  if (!(connection === undefined || (typeof connection === 'object' && 'exec' in connection))) invalidArgument('connection', connection);
+  if (!(typeof handler === 'function')) invalidArgument('handler', handler);
+
+  let scope = (this._scopes || (this._scopes = Object.create(null)))[context];
+  const newConnection = !connection;
 
   if (scope) {
+
     scope._ref++;
+  } else {
+
+    scope = this._scopes[context] = {
+
+      _ref: 0,
+
+      // TODO: update docs map/queue
+
+      // TODO: actions stack
+
+      connection: connection || await (async () => {
+
+        const connection = await this._postgres.connection({context});
+
+        // await connection.exec({
+        //   context,
+        //   statement: ``,
+        // });
+
+        return connection;
+      })(),
+
+      _close: async function (isSuccess) {
+
+        if (--this._ref === 0) {
+
+          delete this._scopes[context];
+
+          if (!connection) {
+
+            // await connection.exec({
+            //   context,
+            //   statement:
+            //     isSuccess ?
+            //       `` :
+            //       ``,
+            // });
+          }
+        }
+      }
+    };
   }
 
-  scope = this._scopes[context] = {
+  const newResult = !result;
+  if (newResult) result = new Result();
 
-    _ref: 0,
+  const localResult = new Result();
 
-    // TODO: update docs map/queue
+  try {
 
-    // TODO: actions stack
-
-    connection: connection || await (async () => {
-
-      const connection = await this._postgres.connection();
+    if (newConnection) {
 
       await connection.exec({
         context,
-        statement: ``,
+        statement: `start transaction;`,
       });
+    }
 
-      return connection;
-    })(),
+    handler({scope, result});
 
-    close: async function (isSuccess) {
+  } catch (err) {
 
-      if (--this._ref === 0) {
+    // TODO: add system error
+    // TODO: report to graylog
 
-        delete this._scopes[context];
+  } finally {
 
-        if (!connection) {
+    if (localResult.messages.length > 0) {
 
-          await connection.exec({
-            context,
-            statement:
-              isSuccess ?
-                `` :
-                ``,
-          });
+      result.info('doc.scope', ); // TODO: add scope info
+
+      result.add(localResult);
+    }
+
+    if (newConnection) {
+      if (result.isError) {
+
+        await connection.exec({
+          context,
+          statement: `rollback`,
+        });
+
+        if (newResult) {
+
+          result.throwIfError();
         }
+      } else {
+
+        await connection.exec({
+          context,
+          statement: `commit`,
+        });
       }
     }
-  };
 
-  return scope;
+    await connection.end();
+  }
 };
