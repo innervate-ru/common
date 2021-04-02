@@ -128,7 +128,7 @@ export default oncePerServices(function (services) {
         if (newResult) result.throwIfError(); else return;
       }
       const retrieveMask = docDesc.fields.$$calc('#all-options');
-      newDoc = existingDoc = docDesc.fields.$$fix(await build('context', result, docDesc, r.rows[0], retrieveMask, 'id'), {mask: retrieveMask});
+      newDoc = existingDoc = docDesc.fields.$$fix(await build.call(this, 'context', result, docDesc, r.rows[0], retrieveMask, 'id'), {mask: retrieveMask});
 
       if (false === await runActionCode(docDesc.actions.retrieve)) return; // TODO: Think of
 
