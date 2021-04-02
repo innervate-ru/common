@@ -24,7 +24,14 @@ export default oncePerServices(function (services) {
             default: require('../model.test/docs/Doc3Refers/systemActions.js').default?.(services),
         },
       },
+      'doc.Doc4Rights': {
+        rights: require('../model.test/docs/Doc4Rights/rights.js'),
+        actions: {
+            default: require('../model.test/docs/Doc4Rights/systemActions.js').default?.(services),
+        },
+      },
     },
+    rights: require('../model.test/rights'),
     validators: require('../model.test/validators'),
   };
 });

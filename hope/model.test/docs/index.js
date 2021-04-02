@@ -5,7 +5,7 @@ const hasOwnProperty = Object.prototype.hasOwnProperty;
 
 /**
  * Загружает все исполняемые файлы из этой папки и вложенных папок на один уровень.  При этом имя документа (ключ) формируется путем объединения
- * имен вложенных папок и имени файла через точку.  Заргужаются только исполнимые файлы (то есть .md файлы будут проигнорированы).
+ * имен вложенных папок и имени файла через точку.  Заргужаются только исполняемые файлы (то есть .md файлы будут проигнорированы).
  * Файлы и папки начинаюшиеся с точки или подчерка игнорируются.  При загрузке файла если есть свойство default, то проверяется если
  * default функция - он вызывается с параметром result
  */
@@ -53,7 +53,7 @@ export default function (result) {
   function loadLevel(items, code, dirname, level = 0, prefix = 'doc.') {
 
     fs.readdirSync(dirname)
-      .filter(filename => !filename.startsWith('.') && !filename.startsWith('_') && (level > 0 || filename !== 'index.js'))
+      .filter(filename => !filename.startsWith('.') && !filename.startsWith('_') && (level > 0 || (filename !== 'index.js' && filename !== 'rights.js')))
       .forEach(filename => {
         const fullpath = path.join(dirname, filename);
         let docName;
@@ -106,12 +106,12 @@ export default function (result) {
               (code[fullDocName] || (code[fullDocName] = {})).access = dirLevel.filename;
             }
 
-            if (dirLevel.fileExists('validate')) {
-              (code[fullDocName] || (code[fullDocName] = {})).validate = dirLevel.filename;
-            }
-
             if (dirLevel.fileExists('rights')) {
               (code[fullDocName] || (code[fullDocName] = {})).rights = dirLevel.filename;
+            }
+
+            if (dirLevel.fileExists('validate')) {
+              (code[fullDocName] || (code[fullDocName] = {})).validate = dirLevel.filename;
             }
 
             const actions = (code[fullDocName] || (code[fullDocName] = {})).actions = {};
@@ -169,6 +169,11 @@ export default function (result) {
   const items = {};
   const code = {};
   loadLevel(items, code, __dirname);
+
+  const docsRoot = new Level(__dirname);
+  if (docsRoot.fileExists('rights')) {
+    code.rights = docsRoot.filename;
+  }
 
   return {items, code};
 }

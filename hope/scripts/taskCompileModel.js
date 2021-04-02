@@ -57,6 +57,8 @@ export default function ({fromDir = 'model', toDir = 'data'} = {}) {
 
         const model = await DSCLoader(result, path.join(process.cwd(), fromDir));
 
+        const hasRights = model.hasOwnProperty('rights');
+
         const hasValidators = model.hasOwnProperty('validators');
 
         const config = result.isError || DSCConfig.compile(result, {
@@ -180,7 +182,8 @@ export default function ({fromDir = 'model', toDir = 'data'} = {}) {
         const code = {
           docs: model.docs.code,
           api: model.api && model.api.code,
-          validators: hasValidators
+          rights: hasRights,
+          validators: hasValidators,
         };
 
         fs.writeFileSync(path.join(process.cwd(), `${toDir}/model.code.js`), loadScript(code, path.join(process.cwd(), toDir)));
@@ -249,9 +252,16 @@ export default function ({fromDir = 'model', toDir = 'data'} = {}) {
 
       Object.entries(code.docs).forEach(([docName, docCode]) => {
 
+        if (docName === 'rights') return;
+
         res.push(`${' '.repeat(tab)}'${docName.indexOf('.') !== -1 ? docName : `doc.${docName}`}': {`);
         const resLen2 = res.length;
         tab += TAB;
+
+        if (docCode.rights) {
+
+          res.push(`${' '.repeat(tab)}rights: require('${path.relative(scriptPath, docCode.rights).replace(/\\/g, '/')}'),`);
+        }
 
         if (server && docCode.computed) {
 
@@ -278,7 +288,7 @@ export default function ({fromDir = 'model', toDir = 'data'} = {}) {
 
         Object.entries(docCode).forEach(([methodName, methodPath]) => {
 
-          if (methodName === 'actions' || methodName === 'computed') return;
+          if (methodName === 'actions' || methodName === 'computed' || methodName === 'rights') return;
 
           res.push(`${' '.repeat(tab)}${methodName}: require('${path.relative(scriptPath, methodPath).replace(/\\/g, '/')}').default,`);
         });
@@ -344,6 +354,8 @@ export default function ({fromDir = 'model', toDir = 'data'} = {}) {
         res.push(`${' '.repeat(tab)}},`); // res.push(`${' '.repeat(tab)}api: {`);
       }
     }
+
+    if (code.rights) res.push(`${' '.repeat(tab)}rights: require('${path.relative(scriptPath, `${fromDir}/rights`).replace(/\\/g, '/')}'),`);
 
     if (code.validators) res.push(`${' '.repeat(tab)}validators: require('${path.relative(scriptPath, `${fromDir}/validators`).replace(/\\/g, '/')}'),`);
 

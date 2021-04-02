@@ -840,6 +840,134 @@
         "states": {
           "list": []
         }
+      },
+      {
+        "name": "doc.Doc4Rights",
+        "fields": {
+          "list": [
+            {
+              "name": "id",
+              "type": "nanoid"
+            },
+            {
+              "name": "rev",
+              "type": "integer",
+              "init": 0
+            },
+            {
+              "name": "title",
+              "type": "string",
+              "length": 20
+            },
+            {
+              "name": "doc",
+              "type": "refers",
+              "refers": []
+            },
+            {
+              "name": "struct",
+              "fields": [
+                {
+                  "name": "n",
+                  "fullname": "struct.n",
+                  "type": "integer"
+                },
+                {
+                  "name": "v",
+                  "fullname": "struct.v",
+                  "type": "refers",
+                  "refers": [
+                    "doc.DictA"
+                  ]
+                }
+              ],
+              "type": "structure"
+            },
+            {
+              "name": "subtable",
+              "fields": [
+                {
+                  "name": "x",
+                  "fullname": "subtable.x",
+                  "type": "integer"
+                },
+                {
+                  "name": "y",
+                  "fullname": "subtable.y",
+                  "type": "refers",
+                  "refers": [
+                    "doc.DictB"
+                  ]
+                }
+              ],
+              "type": "subtable"
+            },
+            {
+              "name": "options",
+              "type": "json"
+            },
+            {
+              "name": "created",
+              "type": "timestamp"
+            },
+            {
+              "name": "modified",
+              "type": "timestamp"
+            },
+            {
+              "name": "deleted",
+              "type": "boolean",
+              "init": false
+            }
+          ],
+          "tags": {
+            "field": [
+              15363
+            ],
+            "system": [
+              15363
+            ],
+            "index": [
+              7169
+            ],
+            "unique": [
+              1
+            ],
+            "hide": [
+              15363
+            ]
+          }
+        },
+        "actions": {
+          "list": [
+            {
+              "name": "create"
+            },
+            {
+              "name": "retrieve"
+            },
+            {
+              "name": "update"
+            },
+            {
+              "name": "delete"
+            },
+            {
+              "name": "restore"
+            },
+            {
+              "name": "list"
+            }
+          ],
+          "tags": {
+            "system": [
+              63
+            ]
+          }
+        },
+        "states": {
+          "list": []
+        }
       }
     ]
   }
