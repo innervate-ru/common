@@ -61,7 +61,7 @@ export default function (result) {
 
           const dirLevel = new Level(fullpath);
 
-          if (dirLevel.fileExists('index')) { // версия 2: все поля, states и actions decl в одном index.js
+/*          if (dirLevel.fileExists('index')) { // версия 2: все поля, states и actions decl в одном index.js
 
             const fullDocName = `${prefix}${filename}`  // prefix.substr(0, prefix.length - 1); // убираем точку в конце
             if (items.hasOwnProperty(fullDocName)) {
@@ -82,7 +82,7 @@ export default function (result) {
               ((code[fullDocName] || (code[fullDocName] = {})).actions = {}).default = dirLevel.filename;
             }
 
-          } else if (dirLevel.fileExists('fields')) { // версия 3: поля, actions, states в отдельных фпйлах. не system actions отдельной папке вместе с declaration + rights + computed
+          } else if (dirLevel.fileExists('fields')) {*/ // версия 3: поля, actions, states в отдельных фпйлах. не system actions отдельной папке вместе с declaration + rights + computed
 
             const fullDocName = `${prefix}${filename}`  // prefix.substr(0, prefix.length - 1); // убираем точку в конце
             if (items.hasOwnProperty(fullDocName)) {
@@ -92,7 +92,9 @@ export default function (result) {
 
             const doc = items[fullDocName] = {};
 
-            doc.fields = dirLevel.loadFile();
+            if (dirLevel.fileExists('fields')) {
+              doc.fields = dirLevel.loadFile();
+            }
 
             if (dirLevel.fileExists('states')) {
               doc.states = dirLevel.loadFile();
@@ -131,7 +133,7 @@ export default function (result) {
                   if (actionDesc.hasOwnProperty('model')) { // есть описание action
                     (doc.actions || (doc.actions = {}))[actionName] = actionDesc.model;
                   }
-                  if (actionDesc.hasOwnProperty('default')) { // есть реализпция action
+                  if (actionDesc.hasOwnProperty('default')) { // есть реализация action
                     if (!doc.actions[actionName]) {
                       result.error(() => filename, `dsc.missingActionModel`, {value: actionName});
                       return;
@@ -147,7 +149,7 @@ export default function (result) {
               loadLevel(items, code, fullpath, level + 1, `${filename}.`);
             }
           }
-        } else if (docName = canBeRequire(filename)) { // версия 1: описание документа просто в <тип документа>.js
+        /*} else if (docName = canBeRequire(filename)) { // версия 1: описание документа просто в <тип документа>.js
 
           const fullDocName = `${prefix}${docName}`;
           if (items.hasOwnProperty(fullDocName)) {
@@ -162,7 +164,7 @@ export default function (result) {
               console.error(err);
             }
           }
-        }
+        }*/
       });
   }
 
