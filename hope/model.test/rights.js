@@ -2,7 +2,7 @@
  * All rights that user in its roles may ever get by rights(...).  If result of rights(...) will exceed result of
  * fullRights(...) for any given user, an error will be raised.
  */
-export function fullRights({user, view, update, actions, docDesc}) {
+export function fullRights({user, fullFields, fullActions, docDesc}) {
 
 }
 
@@ -11,7 +11,7 @@ export function fullRights({user, view, update, actions, docDesc}) {
  */
 // Note: Adding relations fields, make sure those fields are available in result of $$access(...) for given state
 // of the doc.  Otherwise an error will be raised.
-export function relations({doc, user, fieldsMask, docDesc}) {
+export function relations({doc, user, relations, docDesc}) {
 
 }
 
