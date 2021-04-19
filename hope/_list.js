@@ -114,38 +114,20 @@ export default oncePerServices(function (services) {
       const calcMask = docDesc.fields.$$calc(mask, {strict: false}).lock();
 
       if (http) {
-        docs = r.rows.reduce(async (acc, v) => {
-          let doc = await buildDoc.call(this, context, result, docDesc, v, calcMask, refersMask);
-          doc = this.httpFix({context, result, fields: doc, fieldsDesc: docDesc.fields, isOut: true});
 
-          // result.isError = false;
-          // docDesc.actions.retrieve.$$code?.({
-          //   context,
-          //   result,
-          //   doc,
-          //   docDesc,
-          //   model: this._model
-          // });
-          //
-          // if (result.isError) {
-          //   result.isError = false;
-          // } else {
-            acc.push(doc);
-          // }
-
-          // const access = docDesc.$$access(newDoc); // TODO: $$fix doc and $$get only fields viewable for given user
-          /*
-                    if (this.applyUserRights({context, result, doc})) {
-                      acc.push(doc);
-                    }
-          */
+        docs = await Promise.all(r.rows.reduce((acc, v) => {
+          acc.push((async () => {
+            let doc = await buildDoc.call(this, context, result, docDesc, v, calcMask, refersMask);
+            return this.httpFix({context, result, fields: doc, fieldsDesc: docDesc.fields, isOut: true});
+          })());
           return acc;
-        }, []);
-        docs = await Promise.all(docs);
+        }, []));
         if (result.isError) {
           if (newResult) result.throwIfError(); else return;
         }
+
       } else {
+
         docs = await Promise.all(r.rows.map(v => buildDoc.call(this, context, result, docDesc, v, calcMask, refersMask)));
       }
 
@@ -226,13 +208,14 @@ export default oncePerServices(function (services) {
         const calcMask = docDesc.fields.$$calc(mask, {strict: false}).lock();
 
         if (http) {
-          docs = await Promise.all(r2.rows.reduce(async (acc, v) => {
-            let doc = await buildDoc.call(this, context, result, docDesc, v, calcMask, refersMask);
-            doc = this.httpFix({context, result, fields: doc, fieldsDesc: docDesc.fields, isOut: true});
-            acc.push(doc);
+
+          docs = await Promise.all(r2.rows.reduce((acc, v) => {
+            acc.push((async () => {
+              let doc = await buildDoc.call(this, context, result, docDesc, v, calcMask, refersMask);
+              return this.httpFix({context, result, fields: doc, fieldsDesc: docDesc.fields, isOut: true});
+            })());
             return acc;
           }, []));
-          docs = await Promise.all(docs);
           if (result.isError) {
             if (newResult) result.throwIfError(); else return;
           }
