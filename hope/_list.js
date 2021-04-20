@@ -62,7 +62,9 @@ export default oncePerServices(function (services) {
           order,
           docDesc,
           model: this._model(),
-          setCatchError: (v) => { catchError = v; },
+          setCatchError: (v) => {
+            catchError = v;
+          },
         });
         if (typeof r === 'object' && r !== null && !Array.isArray(r) && typeof r.then === 'function') await r;
       } catch (err) {
@@ -115,13 +117,12 @@ export default oncePerServices(function (services) {
 
       if (http) {
 
-        docs = await Promise.all(r.rows.reduce((acc, v) => {
-          acc.push((async () => {
+        docs = await Promise.all(r.rows.map((v) =>
+          (async () => {
             let doc = await buildDoc.call(this, context, result, docDesc, v, calcMask, refersMask);
             return this.httpFix({context, result, fields: doc, fieldsDesc: docDesc.fields, isOut: true});
-          })());
-          return acc;
-        }, []));
+          })()
+        ));
         if (result.isError) {
           if (newResult) result.throwIfError(); else return;
         }
@@ -209,13 +210,12 @@ export default oncePerServices(function (services) {
 
         if (http) {
 
-          docs = await Promise.all(r2.rows.reduce((acc, v) => {
-            acc.push((async () => {
+          docs = await Promise.all(r.rows.map((v) =>
+            (async () => {
               let doc = await buildDoc.call(this, context, result, docDesc, v, calcMask, refersMask);
               return this.httpFix({context, result, fields: doc, fieldsDesc: docDesc.fields, isOut: true});
-            })());
-            return acc;
-          }, []));
+            })()
+          ));
           if (result.isError) {
             if (newResult) result.throwIfError(); else return;
           }
