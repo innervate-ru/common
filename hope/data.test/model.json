@@ -211,15 +211,15 @@
               "fields": [
                 {
                   "name": "a",
-                  "fullname": "st.a",
-                  "type": "integer"
+                  "type": "integer",
+                  "fullname": "st.a"
                 },
                 {
                   "name": "b",
-                  "fullname": "st.b",
                   "type": "string",
                   "required": true,
-                  "length": 20
+                  "length": 20,
+                  "fullname": "st.b"
                 }
               ],
               "type": "subtable"
@@ -229,15 +229,15 @@
               "fields": [
                 {
                   "name": "c",
-                  "fullname": "str.c",
-                  "type": "integer"
+                  "type": "integer",
+                  "fullname": "str.c"
                 },
                 {
                   "name": "d",
-                  "fullname": "str.d",
                   "type": "string",
                   "required": true,
-                  "length": 20
+                  "length": 20,
+                  "fullname": "str.d"
                 }
               ],
               "type": "structure"
@@ -371,15 +371,15 @@
                     "fields": [
                       {
                         "name": "a",
-                        "fullname": "z.a",
-                        "type": "integer"
+                        "type": "integer",
+                        "fullname": "z.a"
                       },
                       {
                         "name": "b",
-                        "fullname": "z.b",
                         "type": "string",
                         "required": true,
-                        "length": 20
+                        "length": 20,
+                        "fullname": "z.b"
                       }
                     ],
                     "type": "subtable"
@@ -484,13 +484,13 @@
               "fields": [
                 {
                   "name": "n",
-                  "fullname": "struct.n",
-                  "type": "integer"
+                  "type": "integer",
+                  "fullname": "struct.n"
                 },
                 {
                   "name": "v",
-                  "fullname": "struct.v",
-                  "type": "integer"
+                  "type": "integer",
+                  "fullname": "struct.v"
                 }
               ],
               "type": "structure"
@@ -500,13 +500,13 @@
               "fields": [
                 {
                   "name": "x",
-                  "fullname": "subtable.x",
-                  "type": "integer"
+                  "type": "integer",
+                  "fullname": "subtable.x"
                 },
                 {
                   "name": "y",
-                  "fullname": "subtable.y",
-                  "type": "integer"
+                  "type": "integer",
+                  "fullname": "subtable.y"
                 }
               ],
               "type": "subtable"
@@ -616,13 +616,13 @@
               "fields": [
                 {
                   "name": "n",
-                  "fullname": "struct.n",
-                  "type": "integer"
+                  "type": "integer",
+                  "fullname": "struct.n"
                 },
                 {
                   "name": "v",
-                  "fullname": "struct.v",
-                  "type": "integer"
+                  "type": "integer",
+                  "fullname": "struct.v"
                 }
               ],
               "type": "structure"
@@ -632,13 +632,13 @@
               "fields": [
                 {
                   "name": "x",
-                  "fullname": "subtable.x",
-                  "type": "integer"
+                  "type": "integer",
+                  "fullname": "subtable.x"
                 },
                 {
                   "name": "y",
-                  "fullname": "subtable.y",
-                  "type": "integer"
+                  "type": "integer",
+                  "fullname": "subtable.y"
                 }
               ],
               "type": "subtable"
@@ -741,16 +741,16 @@
               "fields": [
                 {
                   "name": "n",
-                  "fullname": "struct.n",
-                  "type": "integer"
+                  "type": "integer",
+                  "fullname": "struct.n"
                 },
                 {
                   "name": "v",
-                  "fullname": "struct.v",
                   "type": "refers",
                   "refers": [
                     "doc.DictA"
-                  ]
+                  ],
+                  "fullname": "struct.v"
                 }
               ],
               "type": "structure"
@@ -760,16 +760,16 @@
               "fields": [
                 {
                   "name": "x",
-                  "fullname": "subtable.x",
-                  "type": "integer"
+                  "type": "integer",
+                  "fullname": "subtable.x"
                 },
                 {
                   "name": "y",
-                  "fullname": "subtable.y",
                   "type": "refers",
                   "refers": [
                     "doc.DictB"
-                  ]
+                  ],
+                  "fullname": "subtable.y"
                 }
               ],
               "type": "subtable"
@@ -869,16 +869,16 @@
               "fields": [
                 {
                   "name": "n",
-                  "fullname": "struct.n",
-                  "type": "integer"
+                  "type": "integer",
+                  "fullname": "struct.n"
                 },
                 {
                   "name": "v",
-                  "fullname": "struct.v",
                   "type": "refers",
                   "refers": [
                     "doc.DictA"
-                  ]
+                  ],
+                  "fullname": "struct.v"
                 }
               ],
               "type": "structure"
@@ -888,16 +888,16 @@
               "fields": [
                 {
                   "name": "x",
-                  "fullname": "subtable.x",
-                  "type": "integer"
+                  "type": "integer",
+                  "fullname": "subtable.x"
                 },
                 {
                   "name": "y",
-                  "fullname": "subtable.y",
                   "type": "refers",
                   "refers": [
                     "doc.DictB"
-                  ]
+                  ],
+                  "fullname": "subtable.y"
                 }
               ],
               "type": "subtable"
@@ -969,6 +969,7 @@
           "list": []
         }
       }
-    ]
+    ],
+    "tags": {}
   }
 }
