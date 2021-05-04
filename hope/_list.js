@@ -1,7 +1,6 @@
 import md5 from 'md5'
 import oncePerServices from '../services/oncePerServices'
 import Result from '../../../../lib/hope/lib/result/index'
-import buildDoc from './_buildDoc'
 import requestByContext from "../context/requestByContext";
 
 const debug = require('debug')('hope.list');
@@ -15,12 +14,14 @@ export default oncePerServices(function (services) {
   } = services;
   const testMode = __testMode && __testMode.hope;
 
+  const buildDoc = require('./_buildDoc').default(services);
+
   return async function list(args) {
     schema.list_args(args);
-    const {context, http, type, filter = {}, order = {}, pageSize = 25} = args;
+    const {context, http, type, filter = {}, order = {}, pageSize = 25, mask = '#all', refersMask = '#short'} = args;
     let {last = false, pageNo, pageExtra = 0, offset = 0, limit} = args;
 
-    const user = requestByContext(context)?.user;
+    // const user = requestByContext(context)?.user;
 
     const newResult = !args.result;
     const result = args.result || new Result();
@@ -61,7 +62,9 @@ export default oncePerServices(function (services) {
           order,
           docDesc,
           model: this._model(),
-          setCatchError: (v) => { catchError = v; },
+          setCatchError: (v) => {
+            catchError = v;
+          },
         });
         if (typeof r === 'object' && r !== null && !Array.isArray(r) && typeof r.then === 'function') await r;
       } catch (err) {
@@ -86,7 +89,7 @@ export default oncePerServices(function (services) {
     // select
     //
 
-    if (pageNo === undefined) {
+    if (pageNo === undefined && !last) {
 
       const offsetLimit = [];
       if (typeof offset === 'number' && offset !== 0) {
@@ -110,47 +113,30 @@ export default oncePerServices(function (services) {
 
       let docs;
 
+      const calcMask = docDesc.fields.$$calc(mask, {strict: false}).lock();
+
       if (http) {
-        docs = r.rows.reduce((acc, v) => {
-          let doc = buildDoc(docDesc, v);
-          doc = this.httpFix({context, result, fields: doc, fieldsDesc: docDesc.fields, isOut: true});
 
-          result.isError = false;
-          docDesc.actions.retrieve.$$code?.({
-            context,
-            result,
-            doc,
-            docDesc,
-            model: this._model
-          });
-
-          if (result.isError) {
-            result.isError = false;
-          } else {
-            acc.push(doc);
-          }
-
-          // const access = docDesc.$$access(newDoc); // TODO: $$fix doc and $$get only fields viewable for given user
-          /*
-                    if (this.applyUserRights({context, result, doc})) {
-                      acc.push(doc);
-                    }
-          */
-          return acc;
-        }, []);
-        docs = await Promise.all(docs);
+        docs = await Promise.all(r.rows.map((v) =>
+          (async () => {
+            let doc = await buildDoc.call(this, context, result, docDesc, v, calcMask, refersMask);
+            return this.httpFix({context, result, fields: doc, fieldsDesc: docDesc.fields, isOut: true});
+          })()
+        ));
         if (result.isError) {
           if (newResult) result.throwIfError(); else return;
         }
+
       } else {
-        docs = r.rows.map(v => buildDoc(docDesc, v));
+
+        docs = await Promise.all(r.rows.map(v => buildDoc.call(this, context, result, docDesc, v, calcMask, refersMask)));
       }
 
       if (testMode) {
         docs.forEach(d => {
-          d.id = '';
-          d.created = '';
-          d.modified = '';
+          if (d.id) d.id = '';
+          if (d.created) d.created = '';
+          if (d.modified) d.modified = '';
         });
       }
 
@@ -220,48 +206,28 @@ export default oncePerServices(function (services) {
           params: docIdList,
         });
 
+        const calcMask = docDesc.fields.$$calc(mask, {strict: false}).lock();
+
         if (http) {
-          docs = r2.rows.reduce((acc, v) => {
-            let doc = buildDoc(docDesc, v);
-            doc = this.httpFix({context, result, fields: doc, fieldsDesc: docDesc.fields, isOut: true});
-            result.isError = false;
-            docDesc.actions.retrieve.$$code?.({
-              context,
-              result,
-              doc,
-              docDesc,
-              model: this._model
-            });
 
-            if (result.isError) {
-              result.isError = false;
-            } else {
-              acc.push(doc);
-            }
-
-            // TODO: How to apply user rights ???
-
-            // const access = docDesc.$$access(newDoc); // TODO: $$fix doc and $$get only fields viewable for given user
-            /*
-                        if (this.applyUserRights({context, result, doc})) {
-                          acc.push(doc);
-                        }
-            */
-            return acc;
-          }, []);
-          docs = await Promise.all(docs);
+          docs = await Promise.all(r.rows.map((v) =>
+            (async () => {
+              let doc = await buildDoc.call(this, context, result, docDesc, v, calcMask, refersMask);
+              return this.httpFix({context, result, fields: doc, fieldsDesc: docDesc.fields, isOut: true});
+            })()
+          ));
           if (result.isError) {
             if (newResult) result.throwIfError(); else return;
           }
         } else {
-          docs = r2.rows.map(v => buildDoc(docDesc, v));
+          docs = await Promise.all(r2.rows.map(v => buildDoc.call(this, context, result, docDesc, v, calcMask, refersMask)));
         }
 
         if (testMode) {
           docs.forEach(d => {
-            d.id = '';
-            d.created = '';
-            d.modified = '';
+            if (d.id) d.id = '';
+            if (d.created) d.created = '';
+            if (d.modified) d.modified = '';
           });
         }
 

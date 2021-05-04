@@ -8,7 +8,10 @@ test.serial(`3.1 actionsOnDoc`, async t => {
 
   const result = new Result();
 
-  let {doc} = await hope.invoke({context: `context`, result, type: 'doc.Doc1', update: {
+  let {doc} = await hope.invoke({context: `context`, result,
+    type: 'doc.Doc1',
+    mask: 'none',
+    update: {
       f1: 'test',
       str: {
         d: '4567'
@@ -17,6 +20,14 @@ test.serial(`3.1 actionsOnDoc`, async t => {
     }});
 
   t.deepEqual(result.messages, []);
+
+  t.deepEqual(
+    doc,
+    { // mask is 'none'
+      id: doc.id,
+      _type: 'doc.Doc1',
+    }
+  );
 
   let res = await hope.invoke({context: `context`, result, type: 'doc.Doc1', docId: doc.id, action: 'submit', actionArgs: {
       x: 12,

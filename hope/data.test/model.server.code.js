@@ -15,10 +15,23 @@ export default oncePerServices(function (services) {
       },
       'doc.Doc2Computed': {
         computed: require('../model.test/docs/Doc2Computed/computed.js').default?.(services),
+      },
+      'doc.Doc2ComputedWrong': {
+        computed: require('../model.test/docs/Doc2ComputedWrong/computed.js').default?.(services),
+      },
+      'doc.Doc3Refers': {
         actions: {
+            default: require('../model.test/docs/Doc3Refers/systemActions.js').default?.(services),
+        },
+      },
+      'doc.Doc4Rights': {
+        rights: require('../model.test/docs/Doc4Rights/rights.js'),
+        actions: {
+            default: require('../model.test/docs/Doc4Rights/systemActions.js').default?.(services),
         },
       },
     },
+    rights: require('../model.test/rights'),
     validators: require('../model.test/validators'),
   };
 });

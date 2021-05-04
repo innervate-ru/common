@@ -57,6 +57,8 @@ export default function ({fromDir = 'model', toDir = 'data'} = {}) {
 
         const model = await DSCLoader(result, path.join(process.cwd(), fromDir));
 
+        const hasRights = model.hasOwnProperty('rights');
+
         const hasValidators = model.hasOwnProperty('validators');
 
         const config = result.isError || DSCConfig.compile(result, {
@@ -70,6 +72,24 @@ export default function ({fromDir = 'model', toDir = 'data'} = {}) {
         config.docs.$$list.forEach(docDesc => {
 
           const computed = docDesc.fields.$$tags.computed;
+          const docCode = model.docs.code[docDesc.name];
+
+          if (!computed) {
+            if (docCode?.computed) {
+              result.error('dsc.unexpectedComputedJS', {
+                doc: docDesc.name,
+                file: path.relative(process.cwd(), docCode.computed).replace(/\\/g, '/')
+              });
+            }
+            return;
+          }
+
+          if (!docCode?.computed) {
+            result.error('dsc.missingComputedJS', {
+              doc: docDesc.name,
+            });
+            return;
+          }
 
           // 1. check for inner computed
           if (computed) {
@@ -82,7 +102,10 @@ export default function ({fromDir = 'model', toDir = 'data'} = {}) {
                 if (!subFields.isEmpty()) {
                   subFields.list.forEach(field => {
 
-                    result.error('dsc.computedFieldWithinComputedField', {doc: docDesc.name, field: field.fullname || field.name});
+                    result.error('dsc.computedFieldWithinComputedField', {
+                      doc: docDesc.name,
+                      field: field.fullname || field.name,
+                    });
                   });
                   i += field.fields.length;
                 }
@@ -92,57 +115,62 @@ export default function ({fromDir = 'model', toDir = 'data'} = {}) {
           }
 
           // 2. find computed code
-          const docCode = model.docs.code[docDesc.name];
-          if (docCode?.computed) {
+          const computedCode = require(docCode.computed).default?.({}); // services === {}
+          const docFields = docDesc.fields;
+          Object.entries(computedCode).forEach(([fieldName, fieldCode]) => {
 
-            const computedCode = require(docCode.computed).default?.({}); // services === {}
-            const docFields = docDesc.fields;
-            Object.entries(computedCode).forEach(([fieldName, fieldCode]) => {
-
-              const fieldDesc = docFields.$$flat[fieldName];
-              if (!fieldDesc) {
-                result.error('dsc.unknownFieldInComputedCode', {doc: docDesc.name, field: fieldDesc.fullname || fieldDesc.name, file: docCode.computed});
-                return;
-              }
-
-              if (!computed?.get(fieldDesc.$$index)) {
-                result.error('dsc.fieldInComputedCodeIsNotTaggedAsComputed', {doc: docDesc.name, field: fieldDesc.fullname || fieldDesc.name, file: docCode.computed});
-                return;
-              }
-
-              fieldDesc.$$computed = fieldCode;
-            });
-
-            // 3. find computed fields without code
-            if (computed) {
-              computed.list.forEach(fieldDesc => {
-
-                if (!fieldDesc.$$computed) {
-
-                  result.error('dsc.missingCodeForComputeField', {doc: docDesc.name, field: fieldDesc.fullname || fieldDesc.name, file: docCode.computed});
-                  return;
-                }
+            const fieldDesc = docFields.$$flat[fieldName];
+            if (!fieldDesc) {
+              result.error('dsc.unknownFieldInComputedCode', {
+                doc: docDesc.name,
+                field: fieldDesc.fullname || fieldDesc.name,
+                file: path.relative(process.cwd(), docCode.computed).replace(/\\/g, '/')
               });
+              return;
             }
+
+            if (!computed?.get(fieldDesc.$$index)) {
+              result.error('dsc.fieldInComputedCodeIsNotTaggedAsComputed', {
+                doc: docDesc.name,
+                field: fieldDesc.fullname || fieldDesc.name,
+                file: path.relative(process.cwd(), docCode.computed).replace(/\\/g, '/')
+              });
+              return;
+            }
+
+            fieldDesc.$$computed = fieldCode;
+          });
+
+          // 3. find computed fields without code
+          if (computed) {
+            computed.list.forEach(fieldDesc => {
+
+              if (!fieldDesc.$$computed) {
+
+                result.error('dsc.missingCodeForComputeField', {
+                  doc: docDesc.name,
+                  field: fieldDesc.fullname || fieldDesc.name,
+                  file: path.relative(process.cwd(), docCode.computed).replace(/\\/g, '/')
+                });
+                return;
+              }
+            });
           }
           if (result.isError) return;
 
           // 4. fiх computed mask - all subfields of computed field are computed
-          if (computed) {
+          const newComputed = computed.clone();
 
-            const newComputed = computed.clone();
+          for (let i = 0; i < computed.list.length; i++) {
 
-            for (let i = 0; i < computed.list.length; i++) {
-
-              const field = computed.list[i];
-              if (field.hasOwnProperty('$$mask')) {
-                newComputed.or(field.$$mask);
-                i += field.fields.length;
-              }
+            const field = computed.list[i];
+            if (field.hasOwnProperty('$$mask')) {
+              newComputed.or(field.$$mask);
+              i += field.fields.length;
             }
-
-            docDesc.fields.$$tags.computed = newComputed.lock();
           }
+
+          docDesc.fields.$$tags.computed = newComputed.lock();
         });
 
         if (result.isError) throw new Error(`Compilation failed`);
@@ -154,7 +182,8 @@ export default function ({fromDir = 'model', toDir = 'data'} = {}) {
         const code = {
           docs: model.docs.code,
           api: model.api && model.api.code,
-          validators: hasValidators
+          rights: hasRights,
+          validators: hasValidators,
         };
 
         fs.writeFileSync(path.join(process.cwd(), `${toDir}/model.code.js`), loadScript(code, path.join(process.cwd(), toDir)));
@@ -218,13 +247,21 @@ export default function ({fromDir = 'model', toDir = 'data'} = {}) {
     if (code.docs) {
 
       res.push(`${' '.repeat(tab)}docs: {`);
+      const resLen = res.length;
       tab += TAB;
 
       Object.entries(code.docs).forEach(([docName, docCode]) => {
 
+        if (docName === 'rights') return;
+
         res.push(`${' '.repeat(tab)}'${docName.indexOf('.') !== -1 ? docName : `doc.${docName}`}': {`);
-        const resLen = res.length;
+        const resLen2 = res.length;
         tab += TAB;
+
+        if (docCode.rights) {
+
+          res.push(`${' '.repeat(tab)}rights: require('${path.relative(scriptPath, docCode.rights).replace(/\\/g, '/')}'),`);
+        }
 
         if (server && docCode.computed) {
 
@@ -234,6 +271,7 @@ export default function ({fromDir = 'model', toDir = 'data'} = {}) {
         if (server && docCode.actions) {
 
           res.push(`${' '.repeat(tab)}actions: {`);
+          const resLen3 = res.length;
           tab += TAB;
 
           Object.entries(docCode.actions).forEach(([key, value]) => {
@@ -241,41 +279,52 @@ export default function ({fromDir = 'model', toDir = 'data'} = {}) {
           });
 
           tab -= TAB;
-          res.push(`${' '.repeat(tab)}},`);
+          if (resLen3 === res.length) {
+            res.pop();
+          } else {
+            res.push(`${' '.repeat(tab)}},`); // res.push(`${' '.repeat(tab)}actions: {`);
+          }
         }
 
         Object.entries(docCode).forEach(([methodName, methodPath]) => {
 
-          if (methodName === 'actions' || methodName === 'computed') return;
+          if (methodName === 'actions' || methodName === 'computed' || methodName === 'rights') return;
 
           res.push(`${' '.repeat(tab)}${methodName}: require('${path.relative(scriptPath, methodPath).replace(/\\/g, '/')}').default,`);
         });
 
         tab -= TAB;
-        if (resLen === res.length) {
+        if (resLen2 === res.length) {
           res.pop();
         } else {
-          res.push(`${' '.repeat(tab)}},`);
+          res.push(`${' '.repeat(tab)}},`); // res.push(`${' '.repeat(tab)}'${docName.indexOf('.') !== -1 ? docName : `doc.${docName}`}': {`);
         }
       });
 
       tab -= TAB;
-      res.push(`${' '.repeat(tab)}},`);
+      if (resLen === res.length) {
+        res.pop();
+      } else {
+        res.push(`${' '.repeat(tab)}},`); // res.push(`${' '.repeat(tab)}docs: {`);
+      }
     }
 
     if (code.api) {
 
       res.push(`${' '.repeat(tab)}api: {`);
+      const resLen = res.length;
       tab += TAB;
 
       Object.entries(code.api).forEach(([apiName, apiCode]) => {
 
         res.push(`${' '.repeat(tab)}${apiName}: {`);
+        const resLen2 = res.length;
         tab += TAB;
 
         Object.entries(apiCode).forEach(([methodName, methodCode]) => {
 
           res.push(`${' '.repeat(tab)}${methodName}: {`);
+          const resLen3 = res.length;
           tab += TAB;
 
           Object.entries(methodCode).forEach(([methodName, methodPath]) => {
@@ -283,17 +332,30 @@ export default function ({fromDir = 'model', toDir = 'data'} = {}) {
           });
 
           tab -= TAB;
-          res.push(`${' '.repeat(tab)}},`);
+          if (resLen3 === res.length) {
+            res.pop();
+          } else {
+            res.push(`${' '.repeat(tab)}},`); // res.push(`${' '.repeat(tab)}${methodName}: {`);
+          }
         });
 
         tab -= TAB;
-        res.push(`${' '.repeat(tab)}},`);
-
+        if (resLen2 === res.length) {
+          res.pop();
+        } else {
+          res.push(`${' '.repeat(tab)}},`); // res.push(`${' '.repeat(tab)}${apiName}: {`);
+        }
       });
 
       tab -= TAB;
-      res.push(`${' '.repeat(tab)}},`);
+      if (resLen === res.length) {
+        res.pop();
+      } else {
+        res.push(`${' '.repeat(tab)}},`); // res.push(`${' '.repeat(tab)}api: {`);
+      }
     }
+
+    if (code.rights) res.push(`${' '.repeat(tab)}rights: require('${path.relative(scriptPath, `${fromDir}/rights`).replace(/\\/g, '/')}'),`);
 
     if (code.validators) res.push(`${' '.repeat(tab)}validators: require('${path.relative(scriptPath, `${fromDir}/validators`).replace(/\\/g, '/')}'),`);
 

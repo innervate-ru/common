@@ -2,6 +2,188 @@
   "docs": {
     "list": [
       {
+        "name": "doc.DictA",
+        "fields": {
+          "list": [
+            {
+              "name": "id",
+              "type": "nanoid"
+            },
+            {
+              "name": "rev",
+              "type": "integer",
+              "init": 0
+            },
+            {
+              "name": "label",
+              "type": "text"
+            },
+            {
+              "name": "other",
+              "type": "integer"
+            },
+            {
+              "name": "options",
+              "type": "json"
+            },
+            {
+              "name": "created",
+              "type": "timestamp"
+            },
+            {
+              "name": "modified",
+              "type": "timestamp"
+            },
+            {
+              "name": "deleted",
+              "type": "boolean",
+              "init": false
+            }
+          ],
+          "tags": {
+            "field": [
+              243
+            ],
+            "system": [
+              243
+            ],
+            "index": [
+              113
+            ],
+            "unique": [
+              1
+            ],
+            "hide": [
+              243
+            ],
+            "short": [
+              4
+            ]
+          }
+        },
+        "actions": {
+          "list": [
+            {
+              "name": "create"
+            },
+            {
+              "name": "retrieve"
+            },
+            {
+              "name": "update"
+            },
+            {
+              "name": "delete"
+            },
+            {
+              "name": "restore"
+            },
+            {
+              "name": "list"
+            }
+          ],
+          "tags": {
+            "system": [
+              63
+            ]
+          }
+        },
+        "states": {
+          "list": []
+        }
+      },
+      {
+        "name": "doc.DictB",
+        "fields": {
+          "list": [
+            {
+              "name": "id",
+              "type": "nanoid"
+            },
+            {
+              "name": "rev",
+              "type": "integer",
+              "init": 0
+            },
+            {
+              "name": "label",
+              "type": "text"
+            },
+            {
+              "name": "other",
+              "type": "integer"
+            },
+            {
+              "name": "options",
+              "type": "json"
+            },
+            {
+              "name": "created",
+              "type": "timestamp"
+            },
+            {
+              "name": "modified",
+              "type": "timestamp"
+            },
+            {
+              "name": "deleted",
+              "type": "boolean",
+              "init": false
+            }
+          ],
+          "tags": {
+            "field": [
+              243
+            ],
+            "system": [
+              243
+            ],
+            "index": [
+              113
+            ],
+            "unique": [
+              1
+            ],
+            "hide": [
+              243
+            ],
+            "short": [
+              4
+            ]
+          }
+        },
+        "actions": {
+          "list": [
+            {
+              "name": "create"
+            },
+            {
+              "name": "retrieve"
+            },
+            {
+              "name": "update"
+            },
+            {
+              "name": "delete"
+            },
+            {
+              "name": "restore"
+            },
+            {
+              "name": "list"
+            }
+          ],
+          "tags": {
+            "system": [
+              63
+            ]
+          }
+        },
+        "states": {
+          "list": []
+        }
+      },
+      {
         "name": "doc.Doc1",
         "fields": {
           "list": [
@@ -29,15 +211,15 @@
               "fields": [
                 {
                   "name": "a",
-                  "fullname": "st.a",
-                  "type": "integer"
+                  "type": "integer",
+                  "fullname": "st.a"
                 },
                 {
                   "name": "b",
-                  "fullname": "st.b",
                   "type": "string",
                   "required": true,
-                  "length": 20
+                  "length": 20,
+                  "fullname": "st.b"
                 }
               ],
               "type": "subtable"
@@ -47,15 +229,15 @@
               "fields": [
                 {
                   "name": "c",
-                  "fullname": "str.c",
-                  "type": "integer"
+                  "type": "integer",
+                  "fullname": "str.c"
                 },
                 {
                   "name": "d",
-                  "fullname": "str.d",
                   "type": "string",
                   "required": true,
-                  "length": 20
+                  "length": 20,
+                  "fullname": "str.d"
                 }
               ],
               "type": "structure"
@@ -189,15 +371,15 @@
                     "fields": [
                       {
                         "name": "a",
-                        "fullname": "z.a",
-                        "type": "integer"
+                        "type": "integer",
+                        "fullname": "z.a"
                       },
                       {
                         "name": "b",
-                        "fullname": "z.b",
                         "type": "string",
                         "required": true,
-                        "length": 20
+                        "length": 20,
+                        "fullname": "z.b"
                       }
                     ],
                     "type": "subtable"
@@ -286,34 +468,48 @@
             },
             {
               "name": "f1",
-              "type": "string",
-              "null": true,
-              "length": 20
+              "type": "integer",
+              "null": true
             },
             {
               "name": "f2",
               "type": "integer"
             },
             {
+              "name": "sum",
+              "type": "integer"
+            },
+            {
               "name": "struct",
               "fields": [
                 {
-                  "name": "a",
-                  "fullname": "struct.a",
-                  "type": "integer"
+                  "name": "n",
+                  "type": "integer",
+                  "fullname": "struct.n"
                 },
                 {
-                  "name": "b",
-                  "fullname": "struct.b",
-                  "type": "integer"
-                },
-                {
-                  "name": "c",
-                  "fullname": "struct.c",
-                  "type": "integer"
+                  "name": "v",
+                  "type": "integer",
+                  "fullname": "struct.v"
                 }
               ],
               "type": "structure"
+            },
+            {
+              "name": "subtable",
+              "fields": [
+                {
+                  "name": "x",
+                  "type": "integer",
+                  "fullname": "subtable.x"
+                },
+                {
+                  "name": "y",
+                  "type": "integer",
+                  "fullname": "subtable.y"
+                }
+              ],
+              "type": "subtable"
             },
             {
               "name": "options",
@@ -335,22 +531,410 @@
           ],
           "tags": {
             "field": [
-              7683
+              61443
             ],
             "system": [
-              7683
+              61443
             ],
             "index": [
-              3585
+              28673
             ],
             "unique": [
               1
             ],
             "hide": [
-              7683
+              61443
             ],
             "computed": [
-              484
+              2340
+            ]
+          }
+        },
+        "actions": {
+          "list": [
+            {
+              "name": "create"
+            },
+            {
+              "name": "retrieve"
+            },
+            {
+              "name": "update"
+            },
+            {
+              "name": "delete"
+            },
+            {
+              "name": "restore"
+            },
+            {
+              "name": "list"
+            }
+          ],
+          "tags": {
+            "system": [
+              63
+            ]
+          }
+        },
+        "states": {
+          "list": []
+        }
+      },
+      {
+        "name": "doc.Doc2ComputedWrong",
+        "fields": {
+          "list": [
+            {
+              "name": "id",
+              "type": "nanoid"
+            },
+            {
+              "name": "rev",
+              "type": "integer",
+              "init": 0
+            },
+            {
+              "name": "title",
+              "type": "text"
+            },
+            {
+              "name": "f1",
+              "type": "integer",
+              "null": true
+            },
+            {
+              "name": "f2",
+              "type": "integer"
+            },
+            {
+              "name": "sum",
+              "type": "integer"
+            },
+            {
+              "name": "struct",
+              "fields": [
+                {
+                  "name": "n",
+                  "type": "integer",
+                  "fullname": "struct.n"
+                },
+                {
+                  "name": "v",
+                  "type": "integer",
+                  "fullname": "struct.v"
+                }
+              ],
+              "type": "structure"
+            },
+            {
+              "name": "subtable",
+              "fields": [
+                {
+                  "name": "x",
+                  "type": "integer",
+                  "fullname": "subtable.x"
+                },
+                {
+                  "name": "y",
+                  "type": "integer",
+                  "fullname": "subtable.y"
+                }
+              ],
+              "type": "subtable"
+            },
+            {
+              "name": "options",
+              "type": "json"
+            },
+            {
+              "name": "created",
+              "type": "timestamp"
+            },
+            {
+              "name": "modified",
+              "type": "timestamp"
+            },
+            {
+              "name": "deleted",
+              "type": "boolean",
+              "init": false
+            }
+          ],
+          "tags": {
+            "field": [
+              61443
+            ],
+            "system": [
+              61443
+            ],
+            "index": [
+              28673
+            ],
+            "unique": [
+              1
+            ],
+            "hide": [
+              61443
+            ],
+            "computed": [
+              2340
+            ]
+          }
+        },
+        "actions": {
+          "list": [
+            {
+              "name": "create"
+            },
+            {
+              "name": "retrieve"
+            },
+            {
+              "name": "update"
+            },
+            {
+              "name": "delete"
+            },
+            {
+              "name": "restore"
+            },
+            {
+              "name": "list"
+            }
+          ],
+          "tags": {
+            "system": [
+              63
+            ]
+          }
+        },
+        "states": {
+          "list": []
+        }
+      },
+      {
+        "name": "doc.Doc3Refers",
+        "fields": {
+          "list": [
+            {
+              "name": "id",
+              "type": "nanoid"
+            },
+            {
+              "name": "rev",
+              "type": "integer",
+              "init": 0
+            },
+            {
+              "name": "title",
+              "type": "string",
+              "length": 20
+            },
+            {
+              "name": "doc",
+              "type": "refers",
+              "refers": []
+            },
+            {
+              "name": "struct",
+              "fields": [
+                {
+                  "name": "n",
+                  "type": "integer",
+                  "fullname": "struct.n"
+                },
+                {
+                  "name": "v",
+                  "type": "refers",
+                  "refers": [
+                    "doc.DictA"
+                  ],
+                  "fullname": "struct.v"
+                }
+              ],
+              "type": "structure"
+            },
+            {
+              "name": "subtable",
+              "fields": [
+                {
+                  "name": "x",
+                  "type": "integer",
+                  "fullname": "subtable.x"
+                },
+                {
+                  "name": "y",
+                  "type": "refers",
+                  "refers": [
+                    "doc.DictB"
+                  ],
+                  "fullname": "subtable.y"
+                }
+              ],
+              "type": "subtable"
+            },
+            {
+              "name": "options",
+              "type": "json"
+            },
+            {
+              "name": "created",
+              "type": "timestamp"
+            },
+            {
+              "name": "modified",
+              "type": "timestamp"
+            },
+            {
+              "name": "deleted",
+              "type": "boolean",
+              "init": false
+            }
+          ],
+          "tags": {
+            "field": [
+              15363
+            ],
+            "system": [
+              15363
+            ],
+            "index": [
+              7169
+            ],
+            "unique": [
+              1
+            ],
+            "hide": [
+              15363
+            ]
+          }
+        },
+        "actions": {
+          "list": [
+            {
+              "name": "create"
+            },
+            {
+              "name": "retrieve"
+            },
+            {
+              "name": "update"
+            },
+            {
+              "name": "delete"
+            },
+            {
+              "name": "restore"
+            },
+            {
+              "name": "list"
+            }
+          ],
+          "tags": {
+            "system": [
+              63
+            ]
+          }
+        },
+        "states": {
+          "list": []
+        }
+      },
+      {
+        "name": "doc.Doc4Rights",
+        "fields": {
+          "list": [
+            {
+              "name": "id",
+              "type": "nanoid"
+            },
+            {
+              "name": "rev",
+              "type": "integer",
+              "init": 0
+            },
+            {
+              "name": "title",
+              "type": "string",
+              "length": 20
+            },
+            {
+              "name": "doc",
+              "type": "refers",
+              "refers": []
+            },
+            {
+              "name": "struct",
+              "fields": [
+                {
+                  "name": "n",
+                  "type": "integer",
+                  "fullname": "struct.n"
+                },
+                {
+                  "name": "v",
+                  "type": "refers",
+                  "refers": [
+                    "doc.DictA"
+                  ],
+                  "fullname": "struct.v"
+                }
+              ],
+              "type": "structure"
+            },
+            {
+              "name": "subtable",
+              "fields": [
+                {
+                  "name": "x",
+                  "type": "integer",
+                  "fullname": "subtable.x"
+                },
+                {
+                  "name": "y",
+                  "type": "refers",
+                  "refers": [
+                    "doc.DictB"
+                  ],
+                  "fullname": "subtable.y"
+                }
+              ],
+              "type": "subtable"
+            },
+            {
+              "name": "options",
+              "type": "json"
+            },
+            {
+              "name": "created",
+              "type": "timestamp"
+            },
+            {
+              "name": "modified",
+              "type": "timestamp"
+            },
+            {
+              "name": "deleted",
+              "type": "boolean",
+              "init": false
+            }
+          ],
+          "tags": {
+            "field": [
+              15363
+            ],
+            "system": [
+              15363
+            ],
+            "index": [
+              7169
+            ],
+            "unique": [
+              1
+            ],
+            "hide": [
+              15363
             ]
           }
         },
@@ -385,6 +969,7 @@
           "list": []
         }
       }
-    ]
+    ],
+    "tags": {}
   }
 }

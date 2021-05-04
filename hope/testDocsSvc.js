@@ -11,8 +11,16 @@ export default oncePerServices(function (services) {
     postgres = missingService('postgres'),
   } = services;
 
+  let model;
+
   return new (require('../services/index').Service(services)(require('./index').default(services), {contextRequired: true}))(name, {
-    model: () => link(cloneDeep(require('./data.test/model')), require('./data.test/model.server.code').default(services), {server: true}),
+    model: () => {
+      if (!model)
+        model = link(cloneDeep(require('./data.test/model')),
+          require('./data.test/model.server.code').default(services),
+          {server: true});
+      return model
+    },
     postgres,
     dependsOn: [postgres]
   });
