@@ -28,7 +28,10 @@ export default oncePerServices(function (services) {
         rights: require('../model.test/docs/Doc4Rights/rights.js'),
         actions: {
             default: require('../model.test/docs/Doc4Rights/systemActions.js').default?.(services),
+            do1: require('../model.test/docs/Doc4Rights/actions/do1.js').default?.(services),
+            do2: require('../model.test/docs/Doc4Rights/actions/do2.js').default?.(services),
         },
+        access: require('../model.test/docs/Doc4Rights/access.js').default,
       },
     },
     rights: require('../model.test/rights'),

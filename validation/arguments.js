@@ -44,8 +44,16 @@ export function reservedPropName(name, value) {
   throw _argError(`Reserved prop is used`, {name, value});
 }
 
+export function isObject(obj) {
+  return typeof obj === 'object' && obj !== null && !Array.isArray(obj);
+}
+
 export function isResult(result) {
-  return typeof result === 'object' && result != null && result.hasOwnProperty('isError');
+  return isObject(result) && result.hasOwnProperty('isError');
+}
+
+export function isBitArray(mask) {
+  return isObject(mask) && mask.hasOwnProperty('_list') && mask.hasOwnProperty('_collection');
 }
 
 export function checkResult(result) {
