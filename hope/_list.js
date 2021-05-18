@@ -210,7 +210,7 @@ export default oncePerServices(function (services) {
 
         if (http) {
 
-          docs = await Promise.all(r.rows.map((v) =>
+          docs = await Promise.all(r2.rows.map((v) =>
             (async () => {
               let doc = await buildDoc.call(this, context, result, docDesc, v, calcMask, refersMask);
               return this.httpFix({context, result, fields: doc, fieldsDesc: docDesc.fields, isOut: true});
