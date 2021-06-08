@@ -6,7 +6,7 @@ import {Client as PGClient} from 'pg'
 import oncePerServices from '../../services/oncePerServices'
 import listFiles from '../../utils/listFiles'
 import {fixDependsOn} from "../../services/index"
-
+import errorDataToEvent from '../../errors/errorDataToEvent'
 const readFile = promisify(fs.readFile);
 
 const SERVICE_TYPE = require('../../connectors/PGConnector.serviceType').SERVICE_TYPE;
@@ -148,11 +148,11 @@ export default oncePerServices(function (services) {
         Promise.all((await listFiles(this._schemaDir)).map(async (v) => ({
           schema: true,
           filename: path.relative(process.cwd(), v).replace(/\\/g, '/'),
-          filebody: (await readFile(v)).toString(),
+          filebody: (await readFile(v)).toString().replace(/\r\n/g, '\n'),
         }))),
         Promise.all((await listFiles(this._codeDir)).map(async (v) => ({
           filename: path.relative(process.cwd(), v).replace(/\\/g, '/'),
-          filebody: (await readFile(v)).toString(),
+          filebody: (await readFile(v)).toString().replace(/\r\n/g, '\n'),
         }))),
       ])).flatMap(v => v);
     }
@@ -162,8 +162,8 @@ export default oncePerServices(function (services) {
         ...this._settings,
         database: 'postgres',
       });
-      await client.connect();
       try {
+        await client.connect();
         const res = await client.query(`SELECT datname FROM pg_catalog.pg_database WHERE datname = $1`, [this._settings.database]);
         if (res.rowCount === 0) {
           if (!(await this._ask(`Do you want to create a new database '${this._settings.database}'?`))) {
@@ -232,7 +232,7 @@ CREATE UNIQUE INDEX ON __scripts (index);`);
                   await this._client.query(updown.downs);
                 } catch (err) {
                   if (err.hasOwnProperty('position')) {
-                    const lines = updown.ups.substr(0, err.position).match(/\r?\n/g);
+                    const lines = updown.ups.substr(0, err.position).match(/\n/g);
                     err.line = updown.downsLine + 1 + (lines ? lines.length : 0);
                   }
                   throw err;
@@ -270,7 +270,7 @@ CREATE UNIQUE INDEX ON __scripts (index);`);
                 await this._client.query(updown.ups);
               } catch (err) {
                 if (err.hasOwnProperty('position')) {
-                  const lines = updown.ups.substr(0, err.position).match(/\r?\n/g);
+                  const lines = updown.ups.substr(0, err.position).match(/\n/g);
                   err.line = updown.upsLine + 1 + (lines ? lines.length : 0);
                   err.message = `before '!Downs': ${err.message}`;
                 }
@@ -280,7 +280,7 @@ CREATE UNIQUE INDEX ON __scripts (index);`);
                 await this._client.query(updown.downs);
               } catch (err) {
                 if (err.hasOwnProperty('position')) {
-                  const lines = updown.downs.substr(0, err.position).match(/\r?\n/g);
+                  const lines = updown.downs.substr(0, err.position).match(/\n/g);
                   err.line = updown.downsLine + 1 + (lines ? lines.length : 0);
                 }
                 throw err;
@@ -289,7 +289,7 @@ CREATE UNIQUE INDEX ON __scripts (index);`);
                 await this._client.query(updown.ups);
               } catch (err) {
                 if (err.hasOwnProperty('position')) {
-                  const lines = updown.ups.substr(0, err.position).match(/\r?\n/g);
+                  const lines = updown.ups.substr(0, err.position).match(/\n/g);
                   err.line = updown.upsLine + 1 + (lines ? lines.length : 0);
                   err.message = `after '!Downs': ${err.message}`;
                 }
@@ -300,7 +300,7 @@ CREATE UNIQUE INDEX ON __scripts (index);`);
                   await this._client.query(updown.dev);
                 } catch (err) {
                   if (err.hasOwnProperty('position')) {
-                    const lines = updown.dev.substr(0, err.position).match(/\r?\n/g);
+                    const lines = updown.dev.substr(0, err.position).match(/\n/g);
                     err.line = updown.devLine + 1 + (lines ? lines.length : 0);
                   }
                   throw err;
@@ -345,7 +345,7 @@ CREATE UNIQUE INDEX ON __scripts (index);`);
       files.forEach(file => {
         const script = scripts.find(v => v.filename === file.filename);
         if (script) {
-          if (script.sql !== file.filebody) {
+          if (script.sql.replace(/\r\n/g, '\n') !== file.filebody) {
             changed = true;
             bus.info({
               context,

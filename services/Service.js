@@ -196,7 +196,8 @@ export default oncePerServices(function (services) {
                         this._quickRestartCreate();
                       }
                       service._quickRestart // ловим только, когда quickRestart у базового сервиса не прошёл.  Если он пройдет успешно, то это мы узнаем когда сервис перейдет в READY
-                        .catch(() => {
+                        .catch((err) => {
+                          console.info(200, err)
                           this._quickRestartReject();
                         });
                     }
@@ -341,6 +342,7 @@ export default oncePerServices(function (services) {
                     this._checkTimer = setTimeout(callCheck, this._checkInterval);
                   } catch (error) {
                     delete this._checkTimer;
+                    // console.info(344, error)
                     this.criticalFailure(error);
                   }
                 };
@@ -409,6 +411,7 @@ export default oncePerServices(function (services) {
 
         const promise = this._currentOpPromise = makeLikeBluebirdPromise(methodImpl.call(this._serviceImpl, args).catch(async (error) => {
           addContextToError(args, args, error, {service: this._name, method});
+          // console.info(413, error)
           this._reportError(error);
           throw error;
         }));
@@ -579,6 +582,7 @@ export default oncePerServices(function (services) {
      * @param error Объект типа Error
      */
     _reportError(error) {
+      // console.info(584, error)
       if (!(error instanceof Error)) error = new Error(`Invalid argument 'error': ${prettyPrint(error)}`);
       const errEvent = {
         type: 'service.error',
@@ -589,6 +593,7 @@ export default oncePerServices(function (services) {
         delete error.context;
       }
       errorDataToEvent(error, errEvent);
+      console.info(594, errEvent)
       bus.error(errEvent);
     }
 
