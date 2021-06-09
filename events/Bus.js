@@ -64,18 +64,18 @@ function graylogSend(ev, self) {
     } catch (err) {
       // we cannot log an event with circular info in it.  And this most likely is a problem in the logic - so we return
       // this error, but make anther record to graylog with json saved in a cicular-safe way.
-      const {host, timestamp, service, node, ...rest} = ev;
-      const errEv = {
-        level: 1,
-        host,
-        timestamp,
-        node,
-        service,
-        type: 'bus.error',
-        circularJSON: CircularJSON.stringify(rest),
-      };
-      errorDataToEvent(err, errEv);
-      graylogSend(errEv, self);
+      // const {host, timestamp, service, node, ...rest} = ev;
+      // const errEv = {
+      //   level: 1,
+      //   host,
+      //   timestamp,
+      //   node,
+      //   service,
+      //   type: 'bus.error',
+      //   circularJSON: CircularJSON.stringify(rest),
+      // };
+      // errorDataToEvent(err, errEv);
+      // graylogSend(errEv, self);
       evStr = CircularJSON.stringify(ev);
     }
 
