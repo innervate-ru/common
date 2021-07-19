@@ -855,49 +855,45 @@
               "init": 0
             },
             {
-              "name": "title",
+              "name": "a",
               "type": "string",
               "length": 20
             },
             {
-              "name": "doc",
-              "type": "refers",
-              "refers": []
+              "name": "b",
+              "type": "integer"
             },
             {
-              "name": "struct",
+              "name": "c",
               "fields": [
                 {
-                  "name": "n",
+                  "name": "d",
                   "type": "integer",
-                  "fullname": "struct.n"
+                  "fullname": "c.d"
                 },
                 {
-                  "name": "v",
+                  "name": "e",
                   "type": "refers",
                   "refers": [
                     "doc.DictA"
                   ],
-                  "fullname": "struct.v"
+                  "fullname": "c.e"
                 }
               ],
               "type": "structure"
             },
             {
-              "name": "subtable",
+              "name": "f",
               "fields": [
                 {
-                  "name": "x",
+                  "name": "g",
                   "type": "integer",
-                  "fullname": "subtable.x"
+                  "fullname": "f.g"
                 },
                 {
-                  "name": "y",
-                  "type": "refers",
-                  "refers": [
-                    "doc.DictB"
-                  ],
-                  "fullname": "subtable.y"
+                  "name": "h",
+                  "type": "double",
+                  "fullname": "f.h"
                 }
               ],
               "type": "subtable"
@@ -957,6 +953,12 @@
             },
             {
               "name": "list"
+            },
+            {
+              "name": "do1"
+            },
+            {
+              "name": "do2"
             }
           ],
           "tags": {

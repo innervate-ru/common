@@ -4,6 +4,7 @@ export default {
   docs: {
     'doc.Doc4Rights': {
       rights: require('../model.test/docs/Doc4Rights/rights.js'),
+      access: require('../model.test/docs/Doc4Rights/access.js').default,
     },
   },
   rights: require('../model.test/rights'),

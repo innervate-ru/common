@@ -1,17 +1,18 @@
 export default {
-  title: {type: 'string(20)'},
-  doc: {refers: '#all'},
-  struct: {
+  a: {type: 'string(20)'},
+  b: {type: 'int'},
+  c: {
+    type: 'struct',
     fields: {
-      n: {type: 'int'},
-      v: {refers: 'doc.DictA'},
+      d: {type: 'int'},
+      e: {refers: 'doc.DictA'},
     },
   },
-  subtable: {
+  f: {
     type: 'subtable',
     fields: {
-      x: {type: 'int'},
-      y: {refers: 'doc.DictB'},
+      g: {type: 'int'},
+      h: {type: 'double'},
     },
   },
 }
