@@ -121,7 +121,7 @@ export default oncePerServices(function (services) {
 
     mask = mask.add('id').lock(); // always must be 'id'
 
-    const access = docDesc.$$access(fullDoc); // ! $$access must NOT rely on any computed field
+    const access = docDesc.$$access(fullDoc, null); // ! $$access must NOT rely on any computed field
 
     let processComputed = cache.get(docDesc);
 
@@ -152,13 +152,15 @@ export default oncePerServices(function (services) {
 
       processComputed.forEach((f) => {
 
+        const env = {};
+
         promises = f.call(this, promises, returnMask, {
           context,
           result,
           doc: fullDoc,
           docLevel: fullDoc,
           refersMask,
-          env: {},
+          env,
         });
       });
 

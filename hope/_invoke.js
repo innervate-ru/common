@@ -16,7 +16,7 @@ export default oncePerServices(function (services) {
 
   const insertRow = require('./_insertRow').default(services);
   const updateRow = require('./_updateRow').default(services);
-  const build = require('./_buildDoc').default(services);
+  const buildDoc = require('./_buildDoc').default(services);
 
   return async function invoke(args) {
 
@@ -25,7 +25,7 @@ export default oncePerServices(function (services) {
     const {context, type, http, docId, action, mask = '#all', refersMask = '#short'} = args;
     let {update, actionArgs} = args;
 
-    const user = requestByContext(context)?.user;
+    const user = requestByContext(context)?.user || null;
 
     const newResult = !args.result;
     const result = args.result || new Result();
@@ -128,7 +128,7 @@ export default oncePerServices(function (services) {
         if (newResult) result.throwIfError(); else return;
       }
       const retrieveMask = docDesc.fields.$$calc('#all-options');
-      newDoc = existingDoc = docDesc.fields.$$fix(await build.call(this, 'context', result, docDesc, r.rows[0], retrieveMask, 'id'), {mask: retrieveMask});
+      newDoc = existingDoc = docDesc.fields.$$fix(await buildDoc.call(this, context, result, docDesc, r.rows[0], retrieveMask, 'id'), {mask: retrieveMask});
 
       if (false === await runActionCode(docDesc.actions.retrieve)) return; // TODO: Think of
 
@@ -370,7 +370,7 @@ export default oncePerServices(function (services) {
       } else {
 
         if (!access) {
-          access = docDesc.$$access(newDoc)
+          access = docDesc.$$access(newDoc, user)
         }
 
         if (!access.actions.get(actionDesc.$$index)) {
@@ -486,7 +486,7 @@ export default oncePerServices(function (services) {
           // apply update
           newDoc = docDesc.fields.$$set(newDoc, actionUpdate);
 
-          access = docDesc.$$access(newDoc);
+          access = docDesc.$$access(newDoc, user);
 
           docDesc.$$validate(localResult, actionUpdate, {mask: access.view.or(access.update)});
           if (localResult.isError) {
