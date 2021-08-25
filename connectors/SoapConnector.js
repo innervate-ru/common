@@ -146,7 +146,7 @@ export default oncePerServices(function (services) {
                   }
                   evMethod.userIp = request.userIp;
                 }
-                bus.action(evMethod);
+                bus.event(evMethod);
               }
 
               return r;
@@ -199,7 +199,7 @@ export default oncePerServices(function (services) {
                   this._requestToEvent?.(evMethod, request);
                   evMethod.userIp = request.userIp;
                 }
-                bus.action(evMethod);
+                bus.event(evMethod);
               }
 
               throw error;

@@ -77,7 +77,7 @@ export default oncePerServices(function defineEvents({bus = missingService('bus'
       },
       {
         ...serviceMethod,
-        kind: 'action',
+        kind: 'event',
         type: 'service.method.result',
         result: {type: VType.Any()},
       },
