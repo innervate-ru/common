@@ -1,6 +1,6 @@
 import test from 'ava'
 
-test.only(`20.1 userRights`, async t => {
+test(`20.1 userRights`, async t => {
 
   const {testDocsSvc} = t.context.manager.services;
 
