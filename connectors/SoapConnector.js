@@ -134,7 +134,7 @@ export default oncePerServices(function (services) {
                 bus.method(evMethod);
               } else {
                 evMethod.type = 'service.method.result';
-                evMethod.result = r;
+                // evMethod.result = r;
                 evMethod.action = methodName;
                 evMethod.context = newArgs.context;
                 const request = requestByContext(newArgs.context);
